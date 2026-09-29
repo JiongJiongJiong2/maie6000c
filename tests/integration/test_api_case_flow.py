@@ -37,3 +37,28 @@ def test_create_and_read_case_and_job(client):
     job_response = client.get(f"/jobs/{job_id}")
     assert job_response.status_code == 200
     assert job_response.json()["case_id"] == case_id
+
+
+def test_read_jobs_for_case(client):
+    create_response = client.post(
+        "/cases",
+        json={
+            "title": "Billing charge question",
+            "description": "User asks about an unexpected invoice charge.",
+        },
+    )
+    assert create_response.status_code == 201
+
+    payload = create_response.json()
+    case_id = payload["case"]["id"]
+    job_id = payload["job"]["id"]
+
+    jobs_response = client.get(f"/cases/{case_id}/jobs")
+    assert jobs_response.status_code == 200
+    jobs = jobs_response.json()
+    assert len(jobs) == 1
+    assert jobs[0]["id"] == job_id
+    assert jobs[0]["case_id"] == case_id
+
+    missing_response = client.get("/cases/does-not-exist/jobs")
+    assert missing_response.status_code == 404
