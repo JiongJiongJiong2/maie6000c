@@ -1,0 +1,48 @@
+erDiagram
+    REFERENCE_ASSETS o|--o{ CANDIDATES : references
+    SEARCH_REQUESTS ||--o{ SEARCH_JOBS : has_attempts
+    SEARCH_JOBS ||--o{ CANDIDATES : produces
+    SEARCH_JOBS ||--o{ REVIEW_DECISIONS : receives
+    CANDIDATES o|--o{ REVIEW_DECISIONS : selected_by
+    REFERENCE_ASSETS {
+        uuid id PK
+        string sha256 UK
+        string source_reference
+        string permission_note
+        string gif_path
+        string feature_path
+        string corpus_version
+    }
+    SEARCH_REQUESTS {
+        uuid id PK
+        string client_submission_key UK
+        string input_sha256
+        string input_path
+        datetime created_at
+    }
+    SEARCH_JOBS {
+        uuid id PK
+        uuid request_id FK
+        int attempt_no
+        string client_retry_key UK "nullable for first attempt"
+        string status
+        string result_kind "nullable before completion"
+        string model_version
+        string corpus_version
+    }
+    CANDIDATES {
+        uuid id PK
+        uuid job_id FK
+        uuid reference_asset_id FK "required for corpus results"
+        int rank
+        float similarity_score
+        datetime cache_expires_at
+    }
+    REVIEW_DECISIONS {
+        uuid id PK
+        uuid job_id FK
+        uuid candidate_id FK "null for reject-all"
+        string client_review_key UK
+        string decision
+        datetime created_at
+    }

@@ -1,0 +1,26 @@
+flowchart TB
+    subgraph PHONE["iPhone - Local Storage"]
+        C["Client: collect, crop, review, save"]
+        L["SQLite metadata and personal files"]
+        C <-->|"Local read and write"| L
+    end
+    subgraph PC["Personal Computer - Proposed Backend"]
+        A["FastAPI process"]
+        D[("PostgreSQL")]
+        T["Temporary inputs and candidate cache"]
+        R["Persistent reference GIFs, frames, features"]
+        subgraph WP["Worker Process"]
+            W["Claim jobs and finalize outcomes"]
+            I["Pretrained image inference"]
+            S["Corpus ranking and GIF validation"]
+            W --> I --> S --> W
+        end
+        A <-->|"Requests, jobs, reviews"| D
+        A <-->|"Upload and media delivery"| T
+        W <-->|"Claims and stored results"| D
+        W <-->|"Input and candidate files"| T
+        S -->|"Read reference data"| R
+    end
+    E["External source - conditional extension"]
+    C <-->|"Submit, poll, review, download"| A
+    S -.->|"Only after access validation"| E

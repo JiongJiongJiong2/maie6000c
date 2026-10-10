@@ -1,0 +1,16 @@
+stateDiagram-v2
+    [*] --> Pending: API commits a new job
+    Pending --> Running: Worker atomically claims job
+    Running --> Completed: Candidates or no-match committed
+    Running --> Failed: Error, timeout, or interrupted worker
+    Completed --> [*]
+    Failed --> [*]
+    note right of Completed
+        result_kind = candidates or no_candidates
+        Review and phone saving are separate
+        Expired media requires a new request key
+    end note
+    note right of Failed
+        Explicit retry creates a NEW pending job
+        The failed attempt remains immutable
+    end note

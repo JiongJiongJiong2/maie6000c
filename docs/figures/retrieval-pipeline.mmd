@@ -1,0 +1,24 @@
+flowchart TB
+    subgraph PREP["Offline Corpus Preparation"]
+        G["Permitted GIFs and provenance records"]
+        V["Validate animations and deduplicate"]
+        F["Sample frames and record sampling version"]
+        B["Precompute normalized visual features"]
+        X["Freeze corpus manifest and feature arrays"]
+        G --> V --> F --> B --> X
+    end
+    subgraph QUERY["Live Worker Execution"]
+        Q["User-selected screenshot crop"]
+        I["Same pretrained image encoder"]
+        M["Frame similarity and GIF-level ranking"]
+        T{"Pass frozen development-set threshold?"}
+        O["Validate and store up to three GIF candidates"]
+        N["Complete with no candidates"]
+        H["Human preview and acceptance or rejection"]
+        Q --> I --> M --> T
+        X --> M
+        T -->|"Yes"| O --> H
+        T -->|"No"| N
+    end
+    P["Optional OCR and caption cues"]
+    P -.->|"Evaluate after visual baseline"| M

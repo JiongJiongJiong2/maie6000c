@@ -1,0 +1,45 @@
+sequenceDiagram
+    autonumber
+    participant C as iPhone Client
+    participant A as FastAPI
+    participant D as PostgreSQL
+    participant W as Background Worker
+    participant R as Reference Corpus
+    C->>A: Submit crop and submission key
+    A->>A: Validate and store temporary input
+    A->>D: Create request and pending job
+    D-->>A: Transaction committed
+    A-->>C: 202 Accepted with identifiers
+    Note over C,W: Background work continues independently of the client
+    W->>D: Atomically claim pending job
+    D-->>W: Job and input reference
+    W->>W: Run pretrained feature extraction
+    W->>R: Read frame features and GIF references
+    R-->>W: Stored features and asset references
+    W->>W: Compare features and rank GIF candidates
+    W->>W: Validate GIFs and prepare temporary media
+    alt Retrieval succeeds
+        W->>D: Commit candidates or no-match and completed state
+    else Processing fails
+        W->>D: Record typed error and failed state
+    end
+    loop While result screen is open
+        C->>A: Query request status
+        A->>D: Read job state and candidates
+        D-->>A: Current state and availability
+        A-->>C: Status and results
+    end
+    alt User accepts a candidate
+        C->>A: Submit acceptance and review key
+        A->>D: Persist review decision
+        A-->>C: Review recorded
+        C->>A: Download selected animation
+        A-->>C: Validated GIF from task cache
+        C->>C: Save locally and verify playback
+    else User rejects all candidates
+        C->>A: Submit reject-all decision
+        A->>D: Persist rejection
+        A-->>C: Review recorded
+    else No match or execution failure
+        C->>C: Show outcome and explicit next action
+    end
