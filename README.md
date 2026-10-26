@@ -23,6 +23,8 @@ This checkpoint is an architecture proposal. Application behavior, model/resourc
 | Current milestone | W04 Team Architecture Proposal and Project Plan |
 | Required tag | `w04-proposal` |
 
+For the Week 7 implementation scope, task owners, API conventions, and integration schedule, see the [Week 7 team plan](docs/week07-plan.md).
+
 ## Team and responsibilities
 
 **Team name: Memeory** - a blend of *meme* and *memory*, reflecting the goal of finding and remembering animated memes.
