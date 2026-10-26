@@ -51,11 +51,26 @@ JSON 使用 snake_case，ID 统一为 UUID 字符串。候选字段固定为 `ca
 
 **开发中只保留几条协作规则。**
 
-统一使用 [团队仓库](https://github.com/JiongJiongJiong2/maie6000c)。从最新 main 建短分支，建议分别使用 `feature/w07-backend`、`feature/w07-retrieval`、`feature/w07-web` 和 `docs/w07-submission`。通过 PR 合并；PR 写清改了什么、怎么运行、如何验证，请另一位组员看过后合并。分小块尽早合并，main 保持可启动。
+统一使用 [团队仓库](https://github.com/JiongJiongJiong2/maie6000c)。开发流程统一为 **功能/修复/文档分支 → dev → main**。所有工作分支从最新 dev 创建，PR 的 base 选择 dev；main 只接收 dev 中已经验收的内容。dev 用于日常集成并保持可启动，main 保留稳定、可演示的版本。
+
+建议分别使用 `feature/w07-backend`、`feature/w07-retrieval`、`feature/w07-web` 和 `docs/w07-submission`。PR 写清改了什么、怎么运行、如何验证，请另一位组员看过后合并。分小块尽早合并到 dev，避免直接向 dev 或 main 推送日常开发提交。
+
+首次获取仓库并开始自己的任务：
+
+```bash
+git clone https://github.com/JiongJiongJiong2/maie6000c.git
+cd maie6000c
+git switch dev
+git pull --ff-only origin dev
+git switch -c feature/w07-backend  # 换成自己负责的分支名
+git push -u origin feature/w07-backend
+```
+
+已有本地仓库时先保存自己的工作，再切换并更新 dev、创建工作分支。提交 PR 前合并最新的 origin/dev 并解决冲突，再运行相关验证；PR 的目标分支仍选择 dev。CI 对 dev/main 的推送以及目标为 dev/main 的 PR 触发检查。
 
 Haoxuan 统筹 `services/common/`、数据库迁移、`compose.yaml`、`.env.example` 和公共依赖变更；其他成员需要改这些位置时先同步。Zirui 负责 `web/`，网页由同一个 API 地址提供并使用相对路径调用接口；YuanJian 负责 `services/retrieval/` 及素材准备说明。个人环境文件、模型权重、批量 GIF 和缓存不提交 Git，提交素材清单、必要版本信息和准备方法。
 
-每天至少做一次最新代码的联调，说明当天完成、还缺什么、需要谁配合。临时示例数据可以辅助页面开发，最终验收必须接真实 API、真实模型和真实 GIF。遇到接口或依赖阻塞当天说明，由相关两人直接对齐。
+每天至少做一次最新 dev 代码的联调，说明当天完成、还缺什么、需要谁配合。临时示例数据可以辅助页面开发，最终验收必须接真实 API、真实模型和真实 GIF。遇到接口或依赖阻塞当天说明，由相关两人直接对齐。
 
 **本周按下面的节点推进。**
 
@@ -65,6 +80,6 @@ Haoxuan 统筹 `services/common/`、数据库迁移、`compose.yaml`、`.env.exa
 | 周三 | 上传 → 数据库 → worker → 真实检索 → 结果 → 网页，第一次完整接通 |
 | 周四 | 补确认、下载及失败展示；验证重复提交、坏图片、模型不可用、重启后结果保留和 GIF 多帧播放 |
 | 周五 | 停止加功能；按运行说明在干净环境复现；演练并更新真实文档、范围和后半学期计划 |
-| 周六 | 提前验收并预留至少两小时缓冲；推齐代码和文档，再推 `w07-midterm`，核对其 commit SHA，最后提交 Canvas |
+| 周六 | 提前在 dev 验收并预留至少两小时缓冲；通过 dev → main 的 PR 合入稳定版本，从 main 推 `w07-midterm`，核对其 commit SHA，最后提交 Canvas |
 
 演示必须现场展示输入、持久化状态、异步处理、持久化结果和至少一种运行信号。仓库维护 `README.md`、`docs/architecture.md`、`docs/operations.md` 和 `submissions/week07/README.md`；W07 文档写明实际 AI 工具用途及团队验证、修改或拒绝的内容。网页下载不代表已完成 iPhone 本地收藏；截图和录屏可作辅助，现场运行以真实链路为准。截止时间按 Canvas 显示的时区核对。
