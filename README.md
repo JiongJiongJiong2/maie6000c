@@ -25,6 +25,8 @@ This checkpoint is an architecture proposal. Application behavior, model/resourc
 
 For the Week 7 implementation scope, task owners, API conventions, and integration schedule, see the [Week 7 team plan](docs/week07-plan.md).
 
+Development follows `feature/fix/docs branch → dev → main`. Create work branches from the latest `dev` and target pull requests to `dev`. After integration and acceptance, merge `dev` into `main`; create milestone tags from the accepted `main` commit.
+
 ## Team and responsibilities
 
 **Team name: Memeory** - a blend of *meme* and *memory*, reflecting the goal of finding and remembering animated memes.

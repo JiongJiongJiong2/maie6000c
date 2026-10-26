@@ -1,3 +1,5 @@
+> 合并流程：功能、修复和文档分支先合并到 `dev`；验收后通过 `dev → main` 发布稳定版本。请核对本 PR 的 base 分支。
+
 ## Summary
 
 Describe the change in 2 to 5 concise bullet points.
