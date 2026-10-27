@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+from importlib import import_module
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from services.common import models  # noqa: F401
 from services.common.config import get_settings
 from services.common.db import Base
+
+# Register all ORM tables before Alembic reads the metadata.
+import_module("services.common.models")
+import_module("services.common.search_models")
 
 config = context.config
 

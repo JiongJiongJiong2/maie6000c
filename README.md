@@ -6,7 +6,7 @@ MemeRetrieve is a proposed MAIE 6000C semester project motivated by an iPhone us
 
 ## Project status
 
-This checkpoint is an architecture proposal. Application behavior, model/resource feasibility, corpus assets, device integration, and retrieval performance have not been verified through implementation tests.
+The W04 proposal is preserved below. The W07 backend now implements screenshot submission, persistent search jobs, candidates/reviews/retries, corpus import, shared storage, and Docker deployment. See the [backend guide](docs/backend-guide.md) for running instructions, API contracts, and verification. The web client, permitted corpus, and real pretrained retrieval still require the other owners' integration; no retrieval quality or device integration is claimed.
 
 | Item | Proposal |
 |---|---|
@@ -62,7 +62,7 @@ OCR-assisted ranking, shortcut/share collection, automatic crop suggestions, bat
 
 The backend has separate API and worker processes. Pretrained inference/ranking are initially worker modules behind a bounded interface; starter adaptation and any course requirement for a separate AI service must be checked before implementation. SQLAlchemy/Alembic define the relational model and migrations.
 
-This package supplies no application startup commands because MemeRetrieve is not implemented. When merged into the actual course repository, preserve its existing starter startup/test instructions and distinguish them from proposed product behavior.
+The W07 backend startup and tests are documented in the [backend guide](docs/backend-guide.md). The starter remains available using its Compose profile; neither backend scaffolding nor test fixtures establish a working pretrained retrieval product.
 
 ## Evidence and submission
 
@@ -72,7 +72,7 @@ The team lead has authorized this proposal checkpoint for repository publication
 
 ## Course starter and development
 
-The repository still contains the course's case/job/triage starter implementation, including its separate internal AI service. The proposed MemeRetrieve schema, routes, client, and local pretrained retrieval have not been implemented at this checkpoint. Existing application code, migrations, and verification remain the starter baseline.
+The repository retains the course's case/job/triage starter implementation, including its separate internal AI service. The MemeRetrieve backend schema and routes are now implemented alongside that baseline; the web client and local pretrained retrieval are not yet integrated.
 
 The original [starter guide](docs/starter-guide.md) and [starter architecture](docs/starter-architecture.md) preserve the existing operating instructions and baseline flow. They describe the current code; [the project architecture](docs/architecture.md) describes the proposed semester change.
 
@@ -80,7 +80,8 @@ The original [starter guide](docs/starter-guide.md) and [starter architecture](d
 
 ```bash
 cp .env.example .env
-docker compose up --build
+# Set POSTGRES_PASSWORD in .env to a private hexadecimal value before starting.
+docker compose --profile starter up --build
 ```
 
 API documentation: `http://localhost:8000/docs`. Internal AI service documentation: `http://localhost:8100/docs`.
@@ -93,4 +94,4 @@ SMOKE_BASE_URL=http://localhost:8000 pytest tests/smoke -q
 docker compose run --rm api alembic upgrade head
 ```
 
-These commands refer to the existing starter, not an implemented MemeRetrieve application. See the starter guide for observability, seed data, and other development commands.
+The case-flow smoke test requires the `starter` profile. See the [backend guide](docs/backend-guide.md) for search-specific smoke tests and PostgreSQL concurrency/migration verification, and the starter guide for seed data and other baseline commands.

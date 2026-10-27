@@ -3,10 +3,15 @@
 ## Local startup
 
 1. copy `.env.example` to `.env`
-2. run `docker compose up --build`
-3. open the API docs if desired
-4. submit a case through the API
-5. confirm the worker processes the job
+2. set `POSTGRES_PASSWORD` in `.env` to a private hexadecimal value
+3. run `docker compose --profile starter up --build` for the starter flow
+4. open the API docs if desired
+5. submit a case through the API
+6. confirm the worker processes the job
+
+For MemeRetrieve, the default `docker compose up --build` instead starts the
+search worker. Follow the [backend guide](backend-guide.md) for corpus import,
+search contracts, shared-file retention, and backend verification.
 
 ## Health endpoints
 

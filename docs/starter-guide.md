@@ -108,16 +108,22 @@ PostgreSQL is used as the relational persistence layer.
 cp .env.example .env
 ```
 
+Before starting, set `POSTGRES_PASSWORD` in `.env` to a private hexadecimal
+value. Compose intentionally refuses an empty password.
+
 ### 2. Start the stack
 
 ```bash
-docker compose up --build
+docker compose --profile starter up --build
 ```
 
 ### 3. Optional observability profile
 
+The observability profile also starts the AI service so Prometheus can scrape
+both configured targets.
+
 ```bash
-docker compose --profile observability up --build
+docker compose --profile starter --profile observability up --build
 ```
 
 ### 4. Open the relevant endpoints
@@ -131,7 +137,7 @@ docker compose --profile observability up --build
 ### Start the stack
 
 ```bash
-docker compose up --build
+docker compose --profile starter up --build
 ```
 
 ### Stop the stack
