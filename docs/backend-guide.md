@@ -51,8 +51,10 @@ service remains stopped, while a container process failure is restarted.
 Docker `json-file` logs rotate at 10 MiB per file and retain at most three
 files per service container.
 The API, workers, AI service, and Prometheus drop all Linux capabilities and
-disallow privilege escalation; PostgreSQL retains the capabilities needed by
-its official entrypoint to initialize and manage the data directory.
+disallow privilege escalation. The API, AI, and worker image processes use
+unprivileged UID 10001, with writable media and model-cache volume directories
+prepared at build time; PostgreSQL retains the capabilities needed by its
+official entrypoint to initialize and manage the data directory.
 Set a private `POSTGRES_PASSWORD` containing only URI-unreserved characters
 (letters, digits, `-`, `.`, `_`, or `~`) in `.env`; API and both workers use
 that value to build their internal PostgreSQL connection URL. Changing this

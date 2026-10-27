@@ -62,7 +62,13 @@ OCR-assisted ranking, shortcut/share collection, automatic crop suggestions, bat
 
 The backend has separate API and worker processes. Pretrained inference/ranking are initially worker modules behind a bounded interface; starter adaptation and any course requirement for a separate AI service must be checked before implementation. SQLAlchemy/Alembic define the relational model and migrations.
 
-The W07 backend startup and tests are documented in the [backend guide](docs/backend-guide.md). The starter remains available using its Compose profile; neither backend scaffolding nor test fixtures establish a working pretrained retrieval product.
+The W07 backend startup and tests are documented in the
+[backend guide](docs/backend-guide.md). For an implementation-oriented
+architecture walkthrough and development log of Haoxuan's backend, data, and
+deployment work, see the
+[backend development log](docs/backend-development-log.md). The starter remains
+available using its Compose profile; neither backend scaffolding nor test
+fixtures establish a working pretrained retrieval product.
 
 ## Evidence and submission
 
