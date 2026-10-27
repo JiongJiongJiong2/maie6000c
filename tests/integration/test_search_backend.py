@@ -301,6 +301,25 @@ def test_restart_recovery_and_retry_preserve_history(client, db_session, worker_
     )
 
 
+def test_shutdown_releases_claimed_but_unstarted_job(client, worker_factory):
+    accepted = submit(client).json()
+    with worker_factory() as db:
+        claimed = search_worker.claim_next_search_job(db)
+        assert claimed is not None
+        assert claimed.id == accepted["job_id"]
+
+        search_worker.release_claimed_search_job(db, claimed.id)
+
+        released = db.get(SearchJob, claimed.id)
+        assert released is not None
+        assert released.status == "pending"
+        assert released.started_at is None
+
+        claimed_again = search_worker.claim_next_search_job(db)
+        assert claimed_again is not None
+        assert claimed_again.id == accepted["job_id"]
+
+
 def test_expiry_keeps_metadata_and_active_files(client, db_session, worker_factory):
     state = complete(client, db_session, worker_factory)
     candidate = db_session.get(Candidate, state["candidates"][0]["candidate_id"])
@@ -361,8 +380,7 @@ def test_cleanup_continues_after_one_file_cannot_be_removed(
     assert candidate_path.exists()
     assert not input_path.exists()
     assert any(
-        record.getMessage() == "stored_file_cleanup_failed"
-        and record.storage_class == "candidate"
+        record.getMessage() == "stored_file_cleanup_failed" and record.storage_class == "candidate"
         for record in caplog.records
     )
 

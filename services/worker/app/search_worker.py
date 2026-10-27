@@ -114,6 +114,16 @@ def claim_next_search_job(db: Session) -> SearchJob | None:
     return job
 
 
+def release_claimed_search_job(db: Session, job_id: str) -> None:
+    job = db.get(SearchJob, job_id)
+    if job is None or job.status != "running":
+        raise RuntimeError("Only a claimed search job can be released")
+    job.status = "pending"
+    job.started_at = None
+    db.commit()
+    logger.info("search_claim_released", extra={"request_id": job.request_id, "job_id": job.id})
+
+
 def fail_job(db: Session, job_id: str, code: str, message: str) -> bool:
     job = db.get(SearchJob, job_id)
     if job is None:
@@ -308,6 +318,10 @@ def run_worker(stop_event: threading.Event | None = None) -> None:
                 ownership.commit()
                 with factory() as db:
                     job = claim_next_search_job(db)
+                    if job is not None and stop_event.is_set():
+                        release_claimed_search_job(db, job.id)
+                        job = None
+                        break
                 if job is not None:
                     try:
                         process_search_job(job.id)
