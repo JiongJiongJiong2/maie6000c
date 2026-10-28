@@ -1,0 +1,115 @@
+{
+  "request_id": "7e36864d-a1e3-4f89-92ee-efc245734976",
+  "job_id": "450a1ab6-366a-44bd-a9f0-25bca29b77e2",
+  "observed_states": [
+    "pending",
+    "running",
+    "completed"
+  ],
+  "elapsed_seconds": 2.21,
+  "query": "Mind blown",
+  "candidate_count": 3,
+  "top_score": 0.9579272560666929,
+  "download_sha256": "021a790d5e4f989cbf59cdf83180de6cd80de4dc3cca7666a3bb33a81da97342",
+  "download_frames": 83,
+  "review_id": "42d46027-3040-43ff-9ab1-c11a26af0a56",
+  "upload_and_review_replay": "passed",
+  "retrieval": "real local CLIP",
+  "database": "PostgreSQL 16",
+  "worker": "independent process",
+  "model_version": "clip-vit-base-patch32@37000f5cdccec47a3f6f83142bff131370757470",
+  "corpus_version": "noto-reactions-v1",
+  "api_and_worker_restart_persistence": "passed: request, candidates, review and GIF retained",
+  "blank_image_no_match": {
+    "request_id": "70d32d7b-ea50-4f88-8195-143e6d2f45a8",
+    "status": "completed",
+    "result_kind": "no_candidates"
+  },
+  "verified_date": "2026-10-28",
+  "backend_baseline": "501969f4ee11fb2d03c09c96c8744d3118824a67",
+  "retrieval_encoder_baseline": "37ba4d2",
+  "corpus_assets": 12,
+  "indexed_frames": 96,
+  "python_tests": {
+    "passed": 58,
+    "skipped": 6
+  },
+  "separate_postgresql_tests": {
+    "passed": 4,
+    "uses_disposable_databases": true
+  },
+  "browser_tests": {
+    "passed": 18,
+    "live_model_workflows": 2,
+    "fixture_based_regressions": 16
+  },
+  "in_corpus_checks": [
+    {
+      "query": "Laughing tears",
+      "top1_correct": true,
+      "top_score": 0.9942108392715454
+    },
+    {
+      "query": "Ugly crying",
+      "top1_correct": true,
+      "top_score": 0.9945587515830994
+    },
+    {
+      "query": "Too cool",
+      "top1_correct": true,
+      "top_score": 0.9979875087738037
+    },
+    {
+      "query": "Big mad",
+      "top1_correct": true,
+      "top_score": 0.9966264367103577
+    },
+    {
+      "query": "Starstruck",
+      "top1_correct": true,
+      "top_score": 0.9935806393623352
+    },
+    {
+      "query": "Mind blown",
+      "top1_correct": true,
+      "top_score": 0.9579272270202637
+    },
+    {
+      "query": "Nap mode",
+      "top1_correct": true,
+      "top_score": 0.9973676204681396
+    },
+    {
+      "query": "Deep thoughts",
+      "top1_correct": true,
+      "top_score": 0.9999397993087769
+    },
+    {
+      "query": "Boo crew",
+      "top1_correct": true,
+      "top_score": 0.9062416553497314
+    },
+    {
+      "query": "Robot friend",
+      "top1_correct": true,
+      "top_score": 0.9988808631896973
+    },
+    {
+      "query": "This is fire",
+      "top1_correct": true,
+      "top_score": 0.9933740496635437
+    },
+    {
+      "query": "Party time",
+      "top1_correct": true,
+      "top_score": 0.9645418524742126
+    }
+  ],
+  "limitations": [
+    "The 12 queries are frames from the indexed GIFs, not an independent accuracy benchmark.",
+    "The similarity threshold is experimental and not calibrated.",
+    "The verified deployment uses host Python API/worker processes and containerized PostgreSQL.",
+    "Physical iPhone saving and final team acceptance are unverified."
+  ],
+  "manual_walkthrough": "Zirui reported completing a local browser walkthrough before requesting publication."
+}

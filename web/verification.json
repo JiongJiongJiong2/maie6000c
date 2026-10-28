@@ -1,0 +1,106 @@
+{
+  "checked_at": "2026-10-28T14:21:07.537603+08:00",
+  "backend_commit": "501969f4ee11fb2d03c09c96c8744d3118824a67",
+  "web_base_commit": "bbd6902",
+  "environment": {
+    "python": "3.11.9",
+    "fastapi": "0.162.0",
+    "database": "isolated temporary SQLite",
+    "retrieval": "injected deterministic result; generated two-frame GIF; no pretrained inference",
+    "browser": "local Google Chrome via Playwright 1.56.1"
+  },
+  "verification": {
+    "python": {
+      "passed": 9,
+      "skipped": 1
+    },
+    "client_browser_tests": 11,
+    "real_backend_browser_tests": 3,
+    "docker_postgres_stack": "not run; Docker daemon unavailable",
+    "real_model_retrieval": "blocked by incomplete retrieval module and missing corpus",
+    "design_browser_tests": 5
+  },
+  "examples": [
+    {
+      "method": "POST",
+      "path": "/search-requests",
+      "multipart": {
+        "image": "fixture.png (generated test image)",
+        "client_submission_key": "799b286d-cf2f-4d5e-a2b5-2747887892db"
+      },
+      "status_code": 202,
+      "response": {
+        "request_id": "2a927202-4096-47bf-9568-c32beac74abb",
+        "job_id": "fb81e79c-e503-43d6-85fa-01fbb0be8be3",
+        "status": "pending"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/search-requests/2a927202-4096-47bf-9568-c32beac74abb",
+      "response_before_worker": {
+        "request_id": "2a927202-4096-47bf-9568-c32beac74abb",
+        "job_id": "fb81e79c-e503-43d6-85fa-01fbb0be8be3",
+        "status": "pending",
+        "result_kind": null,
+        "candidates": [],
+        "error": null
+      },
+      "response_after_worker": {
+        "request_id": "2a927202-4096-47bf-9568-c32beac74abb",
+        "job_id": "fb81e79c-e503-43d6-85fa-01fbb0be8be3",
+        "status": "completed",
+        "result_kind": "candidates",
+        "candidates": [
+          {
+            "candidate_id": "3f7b7441-ea95-4fea-a4d1-df4ba205657c",
+            "rank": 1,
+            "score": 0.87,
+            "media_url": "/candidates/3f7b7441-ea95-4fea-a4d1-df4ba205657c/media"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/search-jobs/fb81e79c-e503-43d6-85fa-01fbb0be8be3/reviews",
+      "json": {
+        "decision": "accept",
+        "candidate_id": "3f7b7441-ea95-4fea-a4d1-df4ba205657c",
+        "client_review_key": "e53267eb-babb-48cd-a171-d5a0384e9680"
+      },
+      "status_code": 201,
+      "response": {
+        "review_id": "4ea44c7c-3c33-4453-b66b-cb31455d403d"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/candidates/3f7b7441-ea95-4fea-a4d1-df4ba205657c/media",
+      "status_code": 200,
+      "content_type": "image/gif",
+      "bytes": 2284,
+      "sha256": "4f53c90b294a515730647f04735369d987bba42cb351b31b3e29f9bd6bb53897",
+      "decoded_frames": 2
+    }
+  ],
+  "redesign": {
+    "date": "2026-10-28",
+    "theme": "Internet Lost & Found",
+    "language": "English",
+    "viewports": [
+      1440,
+      768,
+      390,
+      320
+    ],
+    "assets": "original inline SVG and CSS; no third-party decorative downloads",
+    "references": [
+      "https://gumroad.com/",
+      "https://poolsuite.net/",
+      "https://gifcities.org/",
+      "https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@media/prefers-reduced-motion"
+    ]
+  }
+}

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import logging
+import os
+import tempfile
 from time import perf_counter
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from services.api.app.web import router as web_router
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
     Counter,
@@ -11,9 +14,12 @@ from prometheus_client import (
     generate_latest,
 )
 from sqlalchemy import select, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from services.common.config import configure_logging
+from services.api.app.demo import router as demo_router
+from services.api.app.search import router as search_router
+from services.common.config import configure_logging, get_settings
 from services.common.db import get_db
 from services.common.models import Case, CaseStatus, Job, JobStatus, JobType
 from services.common.schemas import (
@@ -23,11 +29,13 @@ from services.common.schemas import (
     HealthResponse,
     JobRead,
 )
+from services.common.storage import prepare_storage
 
 configure_logging()
 logger = logging.getLogger("services.api.main")
 
 app = FastAPI(title="MAIE 6000C Starter API", version="0.1.0")
+app.include_router(search_router)
 
 HTTP_REQUESTS = Counter(
     "api_http_requests_total",
@@ -65,7 +73,7 @@ def create_case_with_job(db: Session, payload: CaseCreate) -> tuple[Case, Job]:
 
 def list_cases(db: Session, limit: int) -> list[Case]:
     stmt = select(Case).order_by(Case.created_at.desc()).limit(limit)
-    return db.execute(stmt).scalars().all()
+    return list(db.execute(stmt).scalars().all())
 
 
 def get_case(db: Session, case_id: str) -> Case | None:
@@ -90,7 +98,8 @@ async def observe_requests(request: Request, call_next):
         return response
     finally:
         duration = perf_counter() - start
-        path = request.url.path
+        route = request.scope.get("route")
+        path = getattr(route, "path", "unmatched")
         status = str(response.status_code) if response is not None else "500"
         HTTP_REQUESTS.labels(request.method, path, status).inc()
         HTTP_REQUEST_LATENCY.labels(request.method, path).observe(duration)
@@ -117,7 +126,26 @@ def health_live() -> HealthResponse:
 
 @app.get("/health/ready", response_model=HealthResponse)
 def health_ready(db: Session = Depends(get_db)) -> HealthResponse:
-    db.execute(text("SELECT 1"))
+    try:
+        db.execute(text("SELECT 1"))
+    except SQLAlchemyError as exc:
+        logger.exception("database_readiness_failed")
+        raise HTTPException(status_code=503, detail="Database unavailable") from exc
+    try:
+        prepare_storage()
+        settings = get_settings()
+        with os.scandir(settings.reference_root):
+            pass
+        for directory in (
+            settings.media_root / "inputs",
+            settings.media_root / "candidates",
+            settings.model_cache_root,
+        ):
+            with tempfile.TemporaryFile(dir=directory):
+                pass
+    except OSError as exc:
+        logger.exception("storage_readiness_failed")
+        raise HTTPException(status_code=503, detail="Storage unavailable") from exc
     return HealthResponse(service="api", status="ok")
 
 
@@ -166,3 +194,7 @@ def read_job(job_id: int, db: Session = Depends(get_db)) -> JobRead:
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
     return JobRead.model_validate(job)
+
+
+app.include_router(web_router)
+app.include_router(demo_router)

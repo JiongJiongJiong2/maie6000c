@@ -1,14 +1,22 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: maie6000c
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     ports:
-      - "${POSTGRES_HOST_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    logging: *default-logging
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d maie6000c"]
       interval: 5s
@@ -16,14 +24,19 @@ services:
       retries: 10
 
   ai:
+    profiles: ["starter", "observability"]
     build: .
     command: uvicorn services.ai.app.main:app --host 0.0.0.0 --port 8100
-    env_file:
-      - .env
     environment:
-      AI_SERVICE_URL: http://ai:8100
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
-      - "${AI_HOST_PORT:-8100}:8100"
+      - "${AI_BIND_HOST:-127.0.0.1}:${AI_HOST_PORT:-8100}:8100"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8100/health/live')"]
       interval: 10s
@@ -32,48 +45,113 @@ services:
 
   api:
     build: .
-    command: /bin/sh -c "alembic upgrade head && uvicorn services.api.app.main:app --host 0.0.0.0 --port 8000"
-    env_file:
-      - .env
+    command: /bin/sh -c "alembic upgrade head && exec uvicorn services.api.app.main:app --host 0.0.0.0 --port 8000"
     environment:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/maie6000c
-      AI_SERVICE_URL: http://ai:8100
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/maie6000c
+      DEVICE_TOKEN: ${DEVICE_TOKEN:-}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-10485760}
+      MEDIA_ROOT: /data/media
+      REFERENCE_ROOT: /data/reference
+      MODEL_CACHE_ROOT: /data/models
     ports:
-      - "${API_HOST_PORT:-8000}:8000"
+      - "${API_BIND_HOST:-127.0.0.1}:${API_HOST_PORT:-8000}:8000"
+    volumes:
+      - task_media:/data/media
+      - "${REFERENCE_HOST_PATH:-./data/reference}:/data/reference:ro"
+      - model_cache:/data/models
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
-      ai:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
       interval: 10s
       timeout: 5s
       retries: 10
 
   worker:
     build: .
-    command: python -m services.worker.app.main
-    env_file:
-      - .env
+    command: python -m services.worker.app.search_worker
     environment:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/maie6000c
-      AI_SERVICE_URL: http://ai:8100
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/maie6000c
+      WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-2.0}
+      RETRIEVAL_TIMEOUT_SECONDS: ${RETRIEVAL_TIMEOUT_SECONDS:-120}
+      MAX_CANDIDATE_BYTES: ${MAX_CANDIDATE_BYTES:-26214400}
+      MEDIA_RETENTION_DAYS: ${MEDIA_RETENTION_DAYS:-7}
+      MEDIA_ROOT: /data/media
+      REFERENCE_ROOT: /data/reference
+      MODEL_CACHE_ROOT: /data/models
+    volumes:
+      - task_media:/data/media
+      - "${REFERENCE_HOST_PATH:-./data/reference}:/data/reference:ro"
+      - model_cache:/data/models
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: ${SEARCH_WORKER_STOP_GRACE_PERIOD:-150s}
+    logging: *default-logging
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
-      ai:
-        condition: service_healthy
       api:
+        condition: service_healthy
+
+  starter-worker:
+    profiles: ["starter"]
+    build: .
+    command: python -m services.worker.app.main
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/maie6000c
+      WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-2.0}
+      WORKER_REQUEST_TIMEOUT_SECONDS: ${WORKER_REQUEST_TIMEOUT_SECONDS:-20.0}
+      AI_SERVICE_URL: http://ai:8100
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: ${STARTER_WORKER_STOP_GRACE_PERIOD:-30s}
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+      ai:
         condition: service_healthy
 
   prometheus:
     image: prom/prometheus:v2.54.1
     profiles: ["observability"]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --storage.tsdb.retention.size=2GB
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_BIND_HOST:-127.0.0.1}:9090:9090"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
@@ -82,3 +160,6 @@ services:
 
 volumes:
   postgres_data:
+  task_media:
+  model_cache:
+  prometheus_data:
