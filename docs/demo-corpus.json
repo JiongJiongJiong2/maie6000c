@@ -1,0 +1,81 @@
+{
+  "corpus_version": "noto-reactions-v1",
+  "creator": "Google",
+  "license": "CC BY 4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "source_page": "https://googlefonts.github.io/noto-emoji-animation/",
+  "assets": [
+    {
+      "codepoint": "1f602",
+      "title": "Laughing tears",
+      "source_url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f602/512.gif",
+      "sha256": "ed0f5e16efdbed5d64db46c41cdbbe6bc9a1d8ca2fd8466553a4230b63c59f14"
+    },
+    {
+      "codepoint": "1f62d",
+      "title": "Ugly crying",
+      "source_url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f62d/512.gif",
+      "sha256": "ca8981b48c104a6bc4d66b7d7962f4339b5290fae5b16f519ddabe37ca4fff7b"
+    },
+    {
+      "codepoint": "1f60e",
+      "title": "Too cool",
+      "source_url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f60e/512.gif",
+      "sha256": "9bc24379d9d52a3a863f7a7bd53bef063cd8651fd90e3a035fcb710897c75ad5"
+    },
+    {
+      "codepoint": "1f621",
+      "title": "Big mad",
+      "source_url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f621/512.gif",
+      "sha256": "e444668200b557ed13fb92d11337c6ad1f6d943f0e82cdca6fe243d10e6c674b"
+    },
+    {
+      "codepoint": "1f929",
+      "title": "Starstruck",
+      "source_url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f929/512.gif",
+      "sha256": "3a057adcb1fba20116436fb1892da7bade652a16039fa5bee74cdf15f075bec5"
+    },
+    {
+      "codepoint": "1f92f",
+      "title": "Mind blown",
+      "source_url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f92f/512.gif",
+      "sha256": "021a790d5e4f989cbf59cdf83180de6cd80de4dc3cca7666a3bb33a81da97342"
+    },
+    {
+      "codepoint": "1f634",
+      "title": "Nap mode",
+      "source_url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f634/512.gif",
+      "sha256": "a9b8b73c95385d121fd476e0aca68337001b423ba352c5d7c12c8b462977b6d8"
+    },
+    {
+      "codepoint": "1f914",
+      "title": "Deep thoughts",
+      "source_url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f914/512.gif",
+      "sha256": "cc4b16879b5f7264a37d7000783776b817b2f8f9e8084672c01d0849ab1bd27c"
+    },
+    {
+      "codepoint": "1f47b",
+      "title": "Boo crew",
+      "source_url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f47b/512.gif",
+      "sha256": "8d7352283c1a945867f3a56770f8de3eed8042915302a3e741b747ebe0ab2d82"
+    },
+    {
+      "codepoint": "1f916",
+      "title": "Robot friend",
+      "source_url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f916/512.gif",
+      "sha256": "2a53e434118916a967f30b9968d1e3fd3cf6a4978d39bdb3551c9fb4c8c1fccf"
+    },
+    {
+      "codepoint": "1f525",
+      "title": "This is fire",
+      "source_url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f525/512.gif",
+      "sha256": "d8785d856b415fed27d3fafde40cc34bfb2ef9f2bffeecc9cbe7b3428e0f7e3e"
+    },
+    {
+      "codepoint": "1f389",
+      "title": "Party time",
+      "source_url": "https://fonts.gstatic.com/s/e/notoemoji/latest/1f389/512.gif",
+      "sha256": "86879c45175f3901a8676d9b0bb5132c7a98b20a9f40487c21e4c896ce196616"
+    }
+  ]
+}

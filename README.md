@@ -6,7 +6,7 @@ MemeRetrieve is a proposed MAIE 6000C semester project motivated by an iPhone us
 
 ## Project status
 
-The W04 proposal is preserved below. The W07 backend now implements screenshot submission, persistent search jobs, candidates/reviews/retries, corpus import, shared storage, and Docker deployment. See the [backend guide](docs/backend-guide.md) for running instructions, API contracts, and verification. The web client, permitted corpus, and real pretrained retrieval still require the other owners' integration; no retrieval quality or device integration is claimed.
+The local W07 demo now connects the web client, PostgreSQL, an independent worker, and real CLIP image retrieval over 12 attributed animated reaction GIFs. Upload, candidate review, and original GIF download are available at `http://127.0.0.1:8000/web/`. Follow the [local demo guide](docs/local-demo.md) to prepare and run it. The collection is deliberately small; arbitrary internet meme recovery and physical iPhone acceptance remain unverified. The W04 proposal is preserved below.
 
 | Item | Proposal |
 |---|---|
@@ -78,7 +78,7 @@ The team lead has authorized this proposal checkpoint for repository publication
 
 ## Course starter and development
 
-The repository retains the course's case/job/triage starter implementation, including its separate internal AI service. The MemeRetrieve backend schema and routes are now implemented alongside that baseline; the web client and local pretrained retrieval are not yet integrated.
+The repository retains the course's case/job/triage starter implementation, including its separate internal AI service. The MemeRetrieve backend schema and routes are implemented alongside that baseline. The local demo integrates the web client and pretrained retrieval; see the local demo guide above.
 
 The original [starter guide](docs/starter-guide.md) and [starter architecture](docs/starter-architecture.md) preserve the existing operating instructions and baseline flow. They describe the current code; [the project architecture](docs/architecture.md) describes the proposed semester change.
 
@@ -101,3 +101,11 @@ docker compose run --rm api alembic upgrade head
 ```
 
 The case-flow smoke test requires the `starter` profile. See the [backend guide](docs/backend-guide.md) for search-specific smoke tests and PostgreSQL concurrency/migration verification, and the starter guide for seed data and other baseline commands.
+
+### W07 web client
+
+The web client is served by the API at `http://localhost:8000/web/`. It implements
+image upload, status polling, animated candidate previews, review, and download.
+See [the web guide](web/README.md) for setup, API integration, verification evidence,
+and the API contract. For the complete running stack, use the
+[local demo guide](docs/local-demo.md).

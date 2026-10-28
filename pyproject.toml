@@ -24,6 +24,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+retrieval = [
+  "numpy==2.2.6",
+  "torch==2.9.0",
+  "transformers==4.57.1",
+]
 dev = [
   "httpx2>=2.0.0",
   "pytest==8.4.1",

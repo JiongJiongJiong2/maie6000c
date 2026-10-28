@@ -6,6 +6,7 @@ import tempfile
 from time import perf_counter
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from services.api.app.web import router as web_router
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
     Counter,
@@ -16,6 +17,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from services.api.app.demo import router as demo_router
 from services.api.app.search import router as search_router
 from services.common.config import configure_logging, get_settings
 from services.common.db import get_db
@@ -192,3 +194,7 @@ def read_job(job_id: int, db: Session = Depends(get_db)) -> JobRead:
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
     return JobRead.model_validate(job)
+
+
+app.include_router(web_router)
+app.include_router(demo_router)

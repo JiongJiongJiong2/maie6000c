@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     reference_root: Path = Path("data/reference")
     model_cache_root: Path = Path("data/models")
     device_token: str = ""
+    enable_demo_library: bool = False
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, gt=0)
     max_candidate_bytes: int = Field(default=25 * 1024 * 1024, gt=0)
     media_retention_days: int = Field(default=7, ge=1)

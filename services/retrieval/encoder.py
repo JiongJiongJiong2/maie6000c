@@ -1,59 +1,46 @@
+"""CLIP image features, based on YuanJian's W07 encoder.
 
-"""CLIP image feature extraction for MemeRetrieve."""
+Weights are prepared explicitly and inference never downloads files or sends images.
+"""
 
 from functools import lru_cache
 
 import numpy as np
 import torch
 from PIL import Image
-from transformers import CLIPModel, CLIPProcessor
+from transformers import CLIPImageProcessor, CLIPModel
 
+from services.common.config import get_settings
 
-# Pretrained CLIP ViT-B/32
 MODEL_NAME = "openai/clip-vit-base-patch32"
+MODEL_REVISION = "37000f5cdccec47a3f6f83142bff131370757470"
+MODEL_VERSION = f"clip-vit-base-patch32@{MODEL_REVISION}"
 
 
 @lru_cache(maxsize=1)
 def load_model():
-    """Load CLIP once and reuse it for subsequent requests."""
-
-    device = torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu"
-    )
-
-    print(f"Loading CLIP on {device}...")
-
-    processor = CLIPProcessor.from_pretrained(MODEL_NAME)
-    model = CLIPModel.from_pretrained(MODEL_NAME)
-
-    model = model.to(device)
+    path = get_settings().model_cache_root / "clip-vit-base-patch32"
+    torch.set_num_threads(4)
+    processor = CLIPImageProcessor.from_pretrained(path, local_files_only=True, use_fast=False)
+    model = CLIPModel.from_pretrained(path, local_files_only=True, use_safetensors=True)
     model.eval()
+    return model, processor, torch.device("cpu")
 
-    return model, processor, device
+
+def on_white(image: Image.Image) -> Image.Image:
+    rgba = image.convert("RGBA")
+    background = Image.new("RGBA", rgba.size, "white")
+    return Image.alpha_composite(background, rgba).convert("RGB")
+
+
+def encode_images(images: list[Image.Image]) -> np.ndarray:
+    model, processor, device = load_model()
+    inputs = processor(images=[on_white(image) for image in images], return_tensors="pt")
+    with torch.inference_mode():
+        features = model.get_image_features(pixel_values=inputs["pixel_values"].to(device))
+        features = torch.nn.functional.normalize(features, p=2, dim=-1)
+    return features.cpu().numpy().astype(np.float32)
 
 
 def encode_image(image: Image.Image) -> np.ndarray:
-    """Return a normalized 512-dimensional CLIP embedding."""
-
-    model, processor, device = load_model()
-
-    # Preprocess the input image
-    inputs = processor(
-        images=image.convert("RGB"),
-        return_tensors="pt",
-    )
-
-    pixel_values = inputs["pixel_values"].to(device)
-
-    # Run inference on GPU when available
-    with torch.inference_mode():
-        features = model.get_image_features(
-            pixel_values=pixel_values
-        )
-
-        # L2 normalization for cosine similarity
-        features = torch.nn.functional.normalize(
-            features, p=2, dim=-1
-        )
-
-    return features[0].cpu().numpy().astype(np.float32)
+    return encode_images([image])[0]

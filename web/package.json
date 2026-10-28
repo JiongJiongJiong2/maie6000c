@@ -1,0 +1,15 @@
+{
+  "name": "memeretrieve-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write *.html *.css *.js tests/*.js",
+    "format:check": "prettier --check *.html *.css *.js tests/*.js",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "prettier": "3.6.2"
+  }
+}
