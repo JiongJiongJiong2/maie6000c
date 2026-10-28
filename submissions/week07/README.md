@@ -41,4 +41,3 @@ First reproduce the complete live flow and agree team acceptance. Then expand th
 ## 10. AI Use Statement
 
 Codex assisted with integrating team backend, encoder, and web work; retrieval/index and local preparation code; tests; and documentation. Existing component authorship is retained. Prior author checks are recorded separately from new integration checks. Team members must review generated changes, reproduce the demo, and accept or revise claims before final main/tag/Canvas submission. AI-assisted implementation and an author walkthrough do not replace team acceptance or independent retrieval evaluation.
-
