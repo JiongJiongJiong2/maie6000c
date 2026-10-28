@@ -82,7 +82,7 @@ def rank_assets(embeddings, asset_ids, query, top_k: int, minimum: float) -> lis
 
 
 def search(image_path: Path, top_k: int = 3) -> dict:
-    if not 1 <= top_k <= 3:
+    if type(top_k) is not int or not 1 <= top_k <= 3:
         raise ValueError("top_k must be between 1 and 3")
     minimum = float(os.environ.get("RETRIEVAL_MIN_SIMILARITY", "0.82"))
     if not np.isfinite(minimum) or not -1 <= minimum <= 1:

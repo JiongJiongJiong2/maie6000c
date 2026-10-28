@@ -1,48 +1,17 @@
-# Operations Notes
+# Operations notes
 
-## Local startup
+The W07 supported local profile runs host Python API and worker processes with Docker PostgreSQL. Follow [the local demo guide](local-demo.md), including PowerShell commands, preparation, and verification. Python 3.11 and Docker Desktop are required; Node.js is needed for browser tests. Model weights, corpus, and index must be prepared before startup. The base application Docker image lacks the optional retrieval dependencies and is not the verified inference deployment.
 
-1. copy `.env.example` to `.env`
-2. set `POSTGRES_PASSWORD` in `.env` to a private hexadecimal value
-3. run `docker compose --profile starter up --build` for the starter flow
-4. open the API docs if desired
-5. submit a case through the API
-6. confirm the worker processes the job
+The runner applies migrations, imports the corpus, creates an ignored random-password environment file, and starts separate API/worker processes. API: `http://127.0.0.1:8000`; web: `/web/`; database: loopback port 55432 in the `memeretrieve-local` Compose project. Stop the runner with Ctrl+C. Stop PostgreSQL without deleting records using:
 
-For MemeRetrieve, the default `docker compose up --build` instead starts the
-search worker. Follow the [backend guide](backend-guide.md) for corpus import,
-search contracts, shared-file retention, and backend verification.
+```text
+docker compose -p memeretrieve-local --env-file .cache/local-demo.env stop db
+```
 
-## Health endpoints
+`/health/live` checks API liveness; `/health/ready` checks dependencies. Readiness alone does not prove worker progress or successful inference. Check persisted job transitions and `.cache/local-api.log` / `.cache/local-worker.log`, correlated by request/job IDs. Missing models or stale indexes require preparation/reindexing; execution failures should persist a failed job, not synthetic results.
 
-- API live: `/health/live`
-- API ready: `/health/ready`
-- AI live: `/health/live`
-- AI ready: `/health/ready`
+Database data lives in a persistent Docker volume; GIFs, uploads, model cache, and index live in ignored host paths under `data/`. Keep both for restart checks. Volume deletion is destructive and is not a routine stop command. Never commit local environment files or downloaded weights.
 
-## Metrics
+See [the backend guide](backend-guide.md) for migrations, API contracts, retention, and PostgreSQL verification. The [starter guide](starter-guide.md) documents the historical case/triage flow and its separate AI service, enabled with the starter Compose profile. Those AI health/metrics endpoints do not describe the W07 in-worker CLIP module.
 
-- API metrics: `/metrics`
-- AI metrics: `/metrics`
-- Prometheus: enable the `observability` profile
-
-## Common useful commands
-
-- run tests: `pytest -q`
-- run smoke tests: `SMOKE_BASE_URL=http://localhost:8000 pytest tests/smoke -q`
-- run migrations: `docker compose run --rm api alembic upgrade head`
-- seed demo data: `docker compose run --rm api python scripts/seed_demo_data.py`
-
-## Failure handling in the starter
-
-If AI processing fails:
-
-- the job is marked failed
-- the case is marked failed
-- the error is recorded on the job row
-
-## Resetting local state
-
-To remove local database state:
-
-- `docker compose down -v --remove-orphans`
+The [author verification record](local-demo-verification.json) reports live inference and restart persistence; independent reproduction and final team acceptance remain pending. CI fixture tests do not establish live model behavior.

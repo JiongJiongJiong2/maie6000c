@@ -6,7 +6,11 @@ MemeRetrieve is a proposed MAIE 6000C semester project motivated by an iPhone us
 
 ## Project status
 
-The local W07 demo now connects the web client, PostgreSQL, an independent worker, and real CLIP image retrieval over 12 attributed animated reaction GIFs. Upload, candidate review, and original GIF download are available at `http://127.0.0.1:8000/web/`. Follow the [local demo guide](docs/local-demo.md) to prepare and run it. The collection is deliberately small; arbitrary internet meme recovery and physical iPhone acceptance remain unverified. The W04 proposal is preserved below.
+The local W07 demo now connects the web client, PostgreSQL, an independent worker, and real CLIP image retrieval over 12 attributed animated reaction GIFs. Upload, candidate review, and original GIF download are available at `http://127.0.0.1:8000/web/`. Follow the [local demo guide](docs/local-demo.md) to prepare and run it. The collection is deliberately small; arbitrary internet meme recovery and physical iPhone acceptance remain unverified. See the [W07 submission](submissions/week07/README.md) for evidence and remaining acceptance. No W07 milestone tag or Canvas submission is claimed. The W04 proposal is preserved below under historical context.
+
+## Historical W04 proposal context
+
+The following planned scope and milestone details are historical; current W07 scope is the browser demo above.
 
 | Item | Proposal |
 |---|---|
@@ -72,7 +76,7 @@ fixtures establish a working pretrained retrieval product.
 
 ## Evidence and submission
 
-The assignment is the source for W04 requirements. Technical documentation references and unresolved decisions are listed in the architecture. The corpus is planned, not yet collected; no accuracy or provider availability is claimed. Team identity and ownership are recorded below the project summary. The Week 4 AI Use Statement records the team lead's directions and publication approval, distinguishes assistant checks, and identifies unverified implementation work.
+The assignment is the source for W04 requirements. Technical documentation references and unresolved decisions are listed in the architecture. At W04 the corpus was planned; W07 now prepares 12 attributed GIFs. No independent retrieval accuracy or provider availability is claimed. Team identity and ownership are recorded below the project summary. The Week 4 AI Use Statement records the team lead's directions and publication approval, distinguishes assistant checks, and identifies unverified implementation work.
 
 The team lead has authorized this proposal checkpoint for repository publication. The required repository tag is `w04-proposal`; Canvas submission uses its commit SHA and remains a separate step. The Chinese preparation guide and Canvas template in the local package are internal submission aids.
 
@@ -80,7 +84,7 @@ The team lead has authorized this proposal checkpoint for repository publication
 
 The repository retains the course's case/job/triage starter implementation, including its separate internal AI service. The MemeRetrieve backend schema and routes are implemented alongside that baseline. The local demo integrates the web client and pretrained retrieval; see the local demo guide above.
 
-The original [starter guide](docs/starter-guide.md) and [starter architecture](docs/starter-architecture.md) preserve the existing operating instructions and baseline flow. They describe the current code; [the project architecture](docs/architecture.md) describes the proposed semester change.
+The original [starter guide](docs/starter-guide.md) and [starter architecture](docs/starter-architecture.md) preserve the existing operating instructions and baseline flow. They describe the current code; [the project architecture](docs/architecture.md) separates the W07 implementation from the historical semester proposal.
 
 ### Run the starter
 

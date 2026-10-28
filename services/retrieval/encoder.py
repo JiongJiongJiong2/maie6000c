@@ -6,9 +6,7 @@ Weights are prepared explicitly and inference never downloads files or sends ima
 from functools import lru_cache
 
 import numpy as np
-import torch
 from PIL import Image
-from transformers import CLIPImageProcessor, CLIPModel
 
 from services.common.config import get_settings
 
@@ -19,6 +17,9 @@ MODEL_VERSION = f"clip-vit-base-patch32@{MODEL_REVISION}"
 
 @lru_cache(maxsize=1)
 def load_model():
+    import torch
+    from transformers import CLIPImageProcessor, CLIPModel
+
     path = get_settings().model_cache_root / "clip-vit-base-patch32"
     torch.set_num_threads(4)
     processor = CLIPImageProcessor.from_pretrained(path, local_files_only=True, use_fast=False)
@@ -34,6 +35,8 @@ def on_white(image: Image.Image) -> Image.Image:
 
 
 def encode_images(images: list[Image.Image]) -> np.ndarray:
+    import torch
+
     model, processor, device = load_model()
     inputs = processor(images=[on_white(image) for image in images], return_tensors="pt")
     with torch.inference_mode():

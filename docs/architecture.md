@@ -1,3 +1,19 @@
+# MemeRetrieve architecture
+
+## W07 implementation
+
+The current demo is a same-origin web client served by FastAPI. Host Python runs the API and an independent database-backed worker; Docker runs PostgreSQL 16. The API stores the uploaded crop and commits request/job rows before returning 202. The worker claims pending jobs, invokes `services/retrieval/`, and persists candidates or a typed failure. Polling displays pending, running, completed, or failed. Completed searches distinguish candidates from no_candidates. Review and GIF download are separate outcomes.
+
+The corpus contains 12 Google Noto Animated Emoji GIFs with provenance and checksums in [the catalog](demo-corpus.json). CPU CLIP ViT-B/32 is pinned to `37000f5cdccec47a3f6f83142bff131370757470`. Eight frames per GIF produce 96 indexed vectors. Fresh query inference ranks distinct GIFs by best-frame cosine similarity; the experimental 0.82 threshold is not a calibrated confidence. Model/index versions and manifest checks protect against stale indexes.
+
+PostgreSQL stores reference assets, requests, jobs, candidates, and reviews. API and worker share persistent host input/reference paths. Submission and review keys support idempotent replay and conflict detection. Logs carry request/job IDs. See [backend contracts](backend-guide.md) and [local startup](local-demo.md).
+
+W07 accepts an already cropped screenshot through the browser. Native iOS collection, automatic cropping, internet search, WeChat export, broad retrieval evaluation, and physical iPhone saving remain outside this milestone. Fully containerized model inference is not the verified profile. Author-reported live evidence is in [the verification record](local-demo-verification.json); fresh integration checks and team acceptance must be distinguished from that record.
+
+## Historical W04 proposal
+
+The following proposal is retained for traceability. Its planned corpus sizes, native workflow, evaluation design, diagrams, and deployment assumptions describe W04 intentions, not W07 completion. The [W04 submission](../submissions/week04/README.md) remains the historical milestone entry.
+
 # MemeRetrieve - Architecture and Semester Plan
 
 **Milestone:** W04 Team Architecture Proposal and Project Plan

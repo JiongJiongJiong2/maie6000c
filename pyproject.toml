@@ -30,6 +30,7 @@ retrieval = [
   "transformers==4.57.1",
 ]
 dev = [
+  "numpy==2.2.6",
   "httpx2>=2.0.0",
   "pytest==8.4.1",
   "pytest-cov==6.2.1",

@@ -25,6 +25,22 @@ Stop the API and worker with Ctrl+C in the runner. PostgreSQL and its data remai
 docker compose -p memeretrieve-local --env-file .cache/local-demo.env stop db
 ```
 
+### Windows PowerShell
+
+Use these equivalents from the repository root:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,retrieval]"
+.\.venv\Scripts\python.exe scripts/prepare_demo.py
+.\.venv\Scripts\python.exe scripts/download_model.py
+$env:HF_HUB_OFFLINE = "1"
+.\.venv\Scripts\python.exe -m services.retrieval.engine index
+.\.venv\Scripts\python.exe scripts/run_local_demo.py
+```
+
+For verification, use `.\.venv\Scripts\python.exe -m pytest -q` and `.\.venv\Scripts\python.exe -m ruff check .`. For live browser tests in `web/`, set `$env:WEB_BASE_URL = "http://127.0.0.1:8000"`, `$env:WEB_LIVE_DEMO = "1"`, and `$env:PLAYWRIGHT_CHANNEL = "chrome"` before the same npm command shown below.
+
 ## Try the flow
 
 1. Scroll to **Okay, show us the evidence.**
@@ -57,14 +73,15 @@ WEB_BASE_URL=http://127.0.0.1:8000 WEB_LIVE_DEMO=1 PLAYWRIGHT_CHANNEL=chrome \
   npm test -- client.spec.js design.spec.js live.spec.js
 ```
 
-The live browser tests upload a real screenshot, wait for actual inference, save and restore a review, and compare the downloaded file's SHA-256 with the source GIF. They also exercise the example picker and rejection. The normal client tests use isolated network fixtures for error and recovery coverage. See [the verification record](local-demo-verification.json) for observed results and limitations.
+The live browser tests upload a real screenshot, wait for actual inference, save and restore a review, and compare the downloaded file's SHA-256 with the source GIF. They also exercise the example picker and rejection. The normal client tests use isolated network fixtures for error and recovery coverage. See [the author verification record](local-demo-verification.json) for reported results and limitations. This record has not yet been independently reproduced during integration; its counts are distinct from CI. Prior PR #3 Actions reported Python 60 passed / 1 skipped and 16 browser checks. Fresh integration results belong in the W07 submission.
 
 Logs are in `.cache/local-api.log` and `.cache/local-worker.log`. They include request/job IDs. Model weights, reference GIFs, uploads, and the index live under ignored `data/` paths. Database records live in the Docker volume. These survive API/worker restarts. If port 8000 is occupied, stop the earlier preview server before running the complete demo. If an index or model is unavailable, rerun the preparation steps; the worker reports an explicit failed job instead of fabricating candidates.
 
-The verified deployment uses host Python processes plus containerized PostgreSQL. Running all services inside application containers, general deployment hardening, physical iPhone saving, and final team acceptance are separate checks. The base Dockerfile does not install the optional retrieval extra; a fully containerized worker requires that extra and the prepared model/index mounts.
+The author-reported deployment uses host Python processes plus containerized PostgreSQL. Running all services inside application containers, general deployment hardening, physical iPhone saving, and final team acceptance are separate checks. The base Dockerfile does not install the optional retrieval extra; a fully containerized worker requires that extra and the prepared model/index mounts.
 
 ## Integration scope
 
 Backend baseline: `origin/feature/w07-backend` at `501969f4ee11fb2d03c09c96c8744d3118824a67`. Encoder baseline: `origin/feature/w07-retrieval` at `37ba4d2`. The full integration is prepared on `codex/w07-fullstack-demo` for review into `dev`. The backend and encoder commits retain their original authorship. This work does not publish a course submission or milestone tag.
 
 AI use: Codex integrated the existing modules, implemented missing local retrieval/index preparation and example controls, and ran the recorded checks. Zirui completed a local browser walkthrough before publication. Final team acceptance and code review remain pending.
+`codex/w07-integration` retains the #3 engine/index contract and adapts validation coverage informed by YuanJian's #4 prototype. The separate CSV/index format in #4 is not an active runtime path. Fresh CPU inference evidence is in [the integration record](w07-integration-verification.json); the full live database flow still needs reproduction on a working Docker host.
