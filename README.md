@@ -6,7 +6,9 @@ MemeRetrieve is a proposed MAIE 6000C semester project motivated by an iPhone us
 
 ## Project status
 
-The local W07 demo now connects the web client, PostgreSQL, an independent worker, and real CLIP image retrieval over 12 attributed animated reaction GIFs. Upload, candidate review, and original GIF download are available at `http://127.0.0.1:8000/web/`. Follow the [local demo guide](docs/local-demo.md) to prepare and run it. The collection is deliberately small; arbitrary internet meme recovery and physical iPhone acceptance remain unverified. See the [W07 submission](submissions/week07/README.md) for evidence and remaining acceptance. No W07 milestone tag or Canvas submission is claimed. The W04 proposal is preserved below under historical context.
+The local W07 demo now connects the web client, PostgreSQL, an independent worker, and real CLIP image retrieval over 12 attributed animated reaction GIFs. Upload, candidate review, and original GIF download are available at `http://127.0.0.1:8000/web/`. Follow the [local demo guide](docs/local-demo.md) to prepare and run it. The collection is deliberately small; arbitrary internet meme recovery and physical iPhone acceptance remain unverified. See the [W07 submission](submissions/week07/README.md) for evidence and remaining acceptance. The W07 repository checkpoint is identified by the w07-midterm tag. The W04 proposal is preserved below under historical context.
+
+The [W07 PPT materials](submissions/week07/assets/index.html) include real browser screenshots, PostgreSQL records, correlated worker logs and an original GIF download. This capture used native Windows PostgreSQL with the same API and worker; see the [Windows fallback](docs/local-demo.md#windows-without-docker). The `w07-midterm` tag identifies the submitted checkpoint when created.
 
 ## Historical W04 proposal context
 

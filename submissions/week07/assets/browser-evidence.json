@@ -1,0 +1,333 @@
+{
+  "captured_at": "2026-10-29T06:45:24.450Z",
+  "base_url": "http://127.0.0.1:8000",
+  "responses": [
+    {
+      "at": "2026-10-29T06:45:24.933Z",
+      "method": "GET",
+      "path": "/health/ready",
+      "http_status": 200,
+      "body": {
+        "service": "api",
+        "status": "ok"
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:25.846Z",
+      "method": "POST",
+      "path": "/search-requests",
+      "http_status": 202,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "pending"
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:25.875Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "pending",
+        "result_kind": null,
+        "candidates": [],
+        "error": null
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:27.386Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "running",
+        "result_kind": null,
+        "candidates": [],
+        "error": null
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:28.899Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "running",
+        "result_kind": null,
+        "candidates": [],
+        "error": null
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:30.409Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "running",
+        "result_kind": null,
+        "candidates": [],
+        "error": null
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:31.921Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "running",
+        "result_kind": null,
+        "candidates": [],
+        "error": null
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:33.432Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "running",
+        "result_kind": null,
+        "candidates": [],
+        "error": null
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:34.941Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "running",
+        "result_kind": null,
+        "candidates": [],
+        "error": null
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:36.451Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "running",
+        "result_kind": null,
+        "candidates": [],
+        "error": null
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:37.966Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "running",
+        "result_kind": null,
+        "candidates": [],
+        "error": null
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:39.482Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "running",
+        "result_kind": null,
+        "candidates": [],
+        "error": null
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:40.995Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "running",
+        "result_kind": null,
+        "candidates": [],
+        "error": null
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:42.510Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "running",
+        "result_kind": null,
+        "candidates": [],
+        "error": null
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:44.019Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "running",
+        "result_kind": null,
+        "candidates": [],
+        "error": null
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:45.529Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "running",
+        "result_kind": null,
+        "candidates": [],
+        "error": null
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:47.044Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "running",
+        "result_kind": null,
+        "candidates": [],
+        "error": null
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:48.558Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "completed",
+        "result_kind": "candidates",
+        "candidates": [
+          {
+            "candidate_id": "6e0a0500-b0cc-4e44-9c1b-9987c2b5b903",
+            "rank": 1,
+            "score": 0.9579276996922204,
+            "media_url": "/candidates/6e0a0500-b0cc-4e44-9c1b-9987c2b5b903/media"
+          },
+          {
+            "candidate_id": "9da9b538-bc7b-45fb-864f-b5a4f69a5c30",
+            "rank": 2,
+            "score": 0.9062079269059709,
+            "media_url": "/candidates/9da9b538-bc7b-45fb-864f-b5a4f69a5c30/media"
+          },
+          {
+            "candidate_id": "749011bc-8d51-431d-8c55-8f052b85b3da",
+            "rank": 3,
+            "score": 0.8760090327279784,
+            "media_url": "/candidates/749011bc-8d51-431d-8c55-8f052b85b3da/media"
+          }
+        ],
+        "error": null
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:48.818Z",
+      "method": "POST",
+      "path": "/search-jobs/852892f8-4f68-4e3b-b4c8-1406457210ea/reviews",
+      "http_status": 201,
+      "body": {
+        "review_id": "a28ccac5-aebd-4ca3-bf02-9c29e6a1d910"
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:49.723Z",
+      "method": "GET",
+      "path": "/health/ready",
+      "http_status": 200,
+      "body": {
+        "service": "api",
+        "status": "ok"
+      }
+    },
+    {
+      "at": "2026-10-29T06:45:49.815Z",
+      "method": "GET",
+      "path": "/search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "http_status": 200,
+      "body": {
+        "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+        "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+        "status": "completed",
+        "result_kind": "candidates",
+        "candidates": [
+          {
+            "candidate_id": "6e0a0500-b0cc-4e44-9c1b-9987c2b5b903",
+            "rank": 1,
+            "score": 0.9579276996922204,
+            "media_url": "/candidates/6e0a0500-b0cc-4e44-9c1b-9987c2b5b903/media"
+          },
+          {
+            "candidate_id": "9da9b538-bc7b-45fb-864f-b5a4f69a5c30",
+            "rank": 2,
+            "score": 0.9062079269059709,
+            "media_url": "/candidates/9da9b538-bc7b-45fb-864f-b5a4f69a5c30/media"
+          },
+          {
+            "candidate_id": "749011bc-8d51-431d-8c55-8f052b85b3da",
+            "rank": 3,
+            "score": 0.8760090327279784,
+            "media_url": "/candidates/749011bc-8d51-431d-8c55-8f052b85b3da/media"
+          }
+        ],
+        "error": null
+      }
+    }
+  ],
+  "accepted": {
+    "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+    "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+    "status": "pending"
+  },
+  "review": {
+    "review_id": "a28ccac5-aebd-4ca3-bf02-9c29e6a1d910"
+  },
+  "browser_refresh": "persisted search and accepted review restored",
+  "download_sha256": "021a790d5e4f989cbf59cdf83180de6cd80de4dc3cca7666a3bb33a81da97342",
+  "original_sha256": "021a790d5e4f989cbf59cdf83180de6cd80de4dc3cca7666a3bb33a81da97342"
+}

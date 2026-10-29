@@ -1,0 +1,4 @@
+{"asctime": "2026-10-29 14:39:04,841", "levelname": "INFO", "service": null, "name": "services.worker.search", "message": "search_worker_started"}
+{"asctime": "2026-10-29 14:45:01,676", "levelname": "INFO", "service": null, "name": "services.worker.search", "message": "search_worker_started"}
+{"asctime": "2026-10-29 14:45:26,243", "levelname": "INFO", "service": null, "name": "services.worker.search", "message": "search_claimed", "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db", "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea"}
+{"asctime": "2026-10-29 14:45:47,684", "levelname": "INFO", "service": null, "name": "services.worker.search", "message": "search_completed", "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db", "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea", "result_kind": "candidates", "candidate_count": 3, "duration_seconds": 20.497452}

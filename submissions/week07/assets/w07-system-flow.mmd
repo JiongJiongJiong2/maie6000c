@@ -1,0 +1,11 @@
+flowchart LR
+  B[Browser: crop upload / review / GIF download] -->|PNG| A[FastAPI]
+  A -->|Commit request and pending job| D[(PostgreSQL)]
+  D -->|Claim pending job| W[Independent worker]
+  W --> C[Local CLIP ViT-B/32 and 12-GIF / 96-frame index]
+  C --> W
+  W -->|Persist ranked candidates| D
+  D -->|Read status and results| A
+  A -->|Polling and original GIF| B
+  B -->|Accept or reject| A
+  A -->|Persist review| D
