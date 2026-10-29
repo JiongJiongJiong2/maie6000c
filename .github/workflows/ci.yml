@@ -28,6 +28,7 @@ jobs:
     env:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/maie6000c
       AI_SERVICE_URL: http://localhost:8100
+      TEST_POSTGRES_URL: postgresql+psycopg://postgres:postgres@localhost:5432/maie6000c
 
     steps:
       - name: Checkout

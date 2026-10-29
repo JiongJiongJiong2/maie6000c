@@ -6,7 +6,13 @@ MemeRetrieve is a proposed MAIE 6000C semester project motivated by an iPhone us
 
 ## Project status
 
-This checkpoint is an architecture proposal. Application behavior, model/resource feasibility, corpus assets, device integration, and retrieval performance have not been verified through implementation tests.
+The local W07 demo now connects the web client, PostgreSQL, an independent worker, and real CLIP image retrieval over 12 attributed animated reaction GIFs. Upload, candidate review, and original GIF download are available at `http://127.0.0.1:8000/web/`. Follow the [local demo guide](docs/local-demo.md) to prepare and run it. The collection is deliberately small; arbitrary internet meme recovery and physical iPhone acceptance remain unverified. See the [W07 submission](submissions/week07/README.md) for evidence and remaining acceptance. The W07 repository checkpoint is identified by the w07-midterm tag. The W04 proposal is preserved below under historical context.
+
+The [W07 PPT materials](submissions/week07/assets/index.html) include real browser screenshots, PostgreSQL records, correlated worker logs and an original GIF download. This capture used native Windows PostgreSQL with the same API and worker; see the [Windows fallback](docs/local-demo.md#windows-without-docker). The `w07-midterm` tag identifies the submitted checkpoint when created.
+
+## Historical W04 proposal context
+
+The following planned scope and milestone details are historical; current W07 scope is the browser demo above.
 
 | Item | Proposal |
 |---|---|
@@ -62,25 +68,32 @@ OCR-assisted ranking, shortcut/share collection, automatic crop suggestions, bat
 
 The backend has separate API and worker processes. Pretrained inference/ranking are initially worker modules behind a bounded interface; starter adaptation and any course requirement for a separate AI service must be checked before implementation. SQLAlchemy/Alembic define the relational model and migrations.
 
-This package supplies no application startup commands because MemeRetrieve is not implemented. When merged into the actual course repository, preserve its existing starter startup/test instructions and distinguish them from proposed product behavior.
+The W07 backend startup and tests are documented in the
+[backend guide](docs/backend-guide.md). For an implementation-oriented
+architecture walkthrough and development log of Haoxuan's backend, data, and
+deployment work, see the
+[backend development log](docs/backend-development-log.md). The starter remains
+available using its Compose profile; neither backend scaffolding nor test
+fixtures establish a working pretrained retrieval product.
 
 ## Evidence and submission
 
-The assignment is the source for W04 requirements. Technical documentation references and unresolved decisions are listed in the architecture. The corpus is planned, not yet collected; no accuracy or provider availability is claimed. Team identity and ownership are recorded below the project summary. The Week 4 AI Use Statement records the team lead's directions and publication approval, distinguishes assistant checks, and identifies unverified implementation work.
+The assignment is the source for W04 requirements. Technical documentation references and unresolved decisions are listed in the architecture. At W04 the corpus was planned; W07 now prepares 12 attributed GIFs. No independent retrieval accuracy or provider availability is claimed. Team identity and ownership are recorded below the project summary. The Week 4 AI Use Statement records the team lead's directions and publication approval, distinguishes assistant checks, and identifies unverified implementation work.
 
 The team lead has authorized this proposal checkpoint for repository publication. The required repository tag is `w04-proposal`; Canvas submission uses its commit SHA and remains a separate step. The Chinese preparation guide and Canvas template in the local package are internal submission aids.
 
 ## Course starter and development
 
-The repository still contains the course's case/job/triage starter implementation, including its separate internal AI service. The proposed MemeRetrieve schema, routes, client, and local pretrained retrieval have not been implemented at this checkpoint. Existing application code, migrations, and verification remain the starter baseline.
+The repository retains the course's case/job/triage starter implementation, including its separate internal AI service. The MemeRetrieve backend schema and routes are implemented alongside that baseline. The local demo integrates the web client and pretrained retrieval; see the local demo guide above.
 
-The original [starter guide](docs/starter-guide.md) and [starter architecture](docs/starter-architecture.md) preserve the existing operating instructions and baseline flow. They describe the current code; [the project architecture](docs/architecture.md) describes the proposed semester change.
+The original [starter guide](docs/starter-guide.md) and [starter architecture](docs/starter-architecture.md) preserve the existing operating instructions and baseline flow. They describe the current code; [the project architecture](docs/architecture.md) separates the W07 implementation from the historical semester proposal.
 
 ### Run the starter
 
 ```bash
 cp .env.example .env
-docker compose up --build
+# Set POSTGRES_PASSWORD in .env to a private hexadecimal value before starting.
+docker compose --profile starter up --build
 ```
 
 API documentation: `http://localhost:8000/docs`. Internal AI service documentation: `http://localhost:8100/docs`.
@@ -93,4 +106,12 @@ SMOKE_BASE_URL=http://localhost:8000 pytest tests/smoke -q
 docker compose run --rm api alembic upgrade head
 ```
 
-These commands refer to the existing starter, not an implemented MemeRetrieve application. See the starter guide for observability, seed data, and other development commands.
+The case-flow smoke test requires the `starter` profile. See the [backend guide](docs/backend-guide.md) for search-specific smoke tests and PostgreSQL concurrency/migration verification, and the starter guide for seed data and other baseline commands.
+
+### W07 web client
+
+The web client is served by the API at `http://localhost:8000/web/`. It implements
+image upload, status polling, animated candidate previews, review, and download.
+See [the web guide](web/README.md) for setup, API integration, verification evidence,
+and the API contract. For the complete running stack, use the
+[local demo guide](docs/local-demo.md).

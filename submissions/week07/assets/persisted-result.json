@@ -1,0 +1,27 @@
+{
+  "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+  "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+  "status": "completed",
+  "result_kind": "candidates",
+  "candidates": [
+    {
+      "candidate_id": "6e0a0500-b0cc-4e44-9c1b-9987c2b5b903",
+      "rank": 1,
+      "score": 0.9579276996922204,
+      "media_url": "/candidates/6e0a0500-b0cc-4e44-9c1b-9987c2b5b903/media"
+    },
+    {
+      "candidate_id": "9da9b538-bc7b-45fb-864f-b5a4f69a5c30",
+      "rank": 2,
+      "score": 0.9062079269059709,
+      "media_url": "/candidates/9da9b538-bc7b-45fb-864f-b5a4f69a5c30/media"
+    },
+    {
+      "candidate_id": "749011bc-8d51-431d-8c55-8f052b85b3da",
+      "rank": 3,
+      "score": 0.8760090327279784,
+      "media_url": "/candidates/749011bc-8d51-431d-8c55-8f052b85b3da/media"
+    }
+  ],
+  "error": null
+}

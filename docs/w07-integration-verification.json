@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-29",
+  "device": "CPU",
+  "model_version": "clip-vit-base-patch32@37000f5cdccec47a3f6f83142bff131370757470",
+  "corpus_version": "noto-reactions-v1",
+  "assets": 12,
+  "indexed_frames": 96,
+  "in_corpus_checks": [
+    {
+      "title": "Laughing tears",
+      "top1_correct": true,
+      "score": 0.9942107390068884
+    },
+    {
+      "title": "Ugly crying",
+      "top1_correct": true,
+      "score": 0.9945588209176677
+    },
+    {
+      "title": "Too cool",
+      "top1_correct": true,
+      "score": 0.99798749460696
+    },
+    {
+      "title": "Big mad",
+      "top1_correct": true,
+      "score": 0.9966267180441264
+    },
+    {
+      "title": "Starstruck",
+      "top1_correct": true,
+      "score": 0.9935805707395211
+    },
+    {
+      "title": "Mind blown",
+      "top1_correct": true,
+      "score": 0.9579276996922204
+    },
+    {
+      "title": "Nap mode",
+      "top1_correct": true,
+      "score": 0.997367719833818
+    },
+    {
+      "title": "Deep thoughts",
+      "top1_correct": true,
+      "score": 0.9999400585042839
+    },
+    {
+      "title": "Boo crew",
+      "top1_correct": true,
+      "score": 0.9062416642173048
+    },
+    {
+      "title": "Robot friend",
+      "top1_correct": true,
+      "score": 0.9988807016767396
+    },
+    {
+      "title": "This is fire",
+      "top1_correct": true,
+      "score": 0.9933742064782427
+    },
+    {
+      "title": "Party time",
+      "top1_correct": true,
+      "score": 0.9645415473037726
+    }
+  ],
+  "white_image_matches": [],
+  "limitations": "Queries derived from indexed GIFs; no independent accuracy estimate. Full PostgreSQL/API/worker flow not rerun: local Docker failed to start."
+}

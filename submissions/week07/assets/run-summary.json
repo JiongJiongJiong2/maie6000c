@@ -1,0 +1,41 @@
+{
+  "captured_at_utc": "2026-10-29T06:45:24.450Z",
+  "exported_at_utc": "2026-10-29T06:54:13.617948+00:00",
+  "source_commit": "c9f2922c149044efeb8eb0d0afa72539a408a109",
+  "branch": "dev",
+  "checkpoint_tag": "not created",
+  "database_version": "PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit",
+  "working_tree_note": "Includes local native PostgreSQL launcher and worker log timezone fix.",
+  "worker_source_sha256": "7c00cfb7972d316602c85e7137f8480830669c5be128652ff40759640730d134",
+  "runtime": "Windows host Python API + independent worker + native PostgreSQL",
+  "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+  "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+  "review_id": "a28ccac5-aebd-4ca3-bf02-9c29e6a1d910",
+  "observed_states": [
+    "pending",
+    "running",
+    "completed"
+  ],
+  "input_sha256_verified": true,
+  "persisted_candidates": 3,
+  "persisted_reviews": 1,
+  "worker_seconds": 20.497452,
+  "model_version": "clip-vit-base-patch32@37000f5cdccec47a3f6f83142bff131370757470",
+  "corpus_version": "noto-reactions-v1",
+  "gif_frames": 83,
+  "gif_dimensions": [
+    512,
+    512
+  ],
+  "download_sha256": "021a790d5e4f989cbf59cdf83180de6cd80de4dc3cca7666a3bb33a81da97342",
+  "download_matches_original": true,
+  "health": {
+    "http_status": 200,
+    "body": {
+      "service": "api",
+      "status": "ok"
+    }
+  },
+  "browser_refresh": "persisted search and accepted review restored",
+  "limitations": "One in-corpus example, not an independent accuracy benchmark. Docker startup remains unavailable; native PostgreSQL was used. Main/tag/Canvas and team acceptance are pending."
+}

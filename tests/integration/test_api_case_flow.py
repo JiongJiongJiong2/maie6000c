@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from services.common.models import Case, CaseStatus, Job, JobStatus
+from services.worker.app.main import recover_interrupted_jobs
+
 
 def test_health_endpoints(client):
     for path in ["/", "/health/live", "/health/ready"]:
@@ -62,3 +65,45 @@ def test_read_jobs_for_case(client):
 
     missing_response = client.get("/cases/does-not-exist/jobs")
     assert missing_response.status_code == 404
+
+
+def test_starter_worker_requeues_interrupted_jobs(client, db_session):
+    interrupted_response = client.post(
+        "/cases",
+        json={
+            "title": "Interrupted case",
+            "description": "The worker stopped while processing this case.",
+        },
+    )
+    completed_response = client.post(
+        "/cases",
+        json={
+            "title": "Completed case",
+            "description": "This case was already processed.",
+        },
+    )
+    interrupted = interrupted_response.json()
+    completed = completed_response.json()
+
+    interrupted_job = db_session.get(Job, interrupted["job"]["id"])
+    completed_job = db_session.get(Job, completed["job"]["id"])
+    assert interrupted_job is not None
+    assert completed_job is not None
+    interrupted_job.status = JobStatus.CLAIMED.value
+    interrupted_job.error = "stale error"
+    completed_job.status = JobStatus.COMPLETED.value
+    interrupted_case = db_session.get(Case, interrupted["case"]["id"])
+    assert interrupted_case is not None
+    interrupted_case.status = CaseStatus.FAILED.value
+    db_session.commit()
+
+    assert recover_interrupted_jobs(db_session) == 1
+
+    db_session.refresh(interrupted_job)
+    db_session.refresh(completed_job)
+    assert interrupted_job.status == JobStatus.PENDING.value
+    assert interrupted_job.claimed_at is None
+    assert interrupted_job.error is None
+    db_session.refresh(interrupted_case)
+    assert interrupted_case.status == CaseStatus.QUEUED.value
+    assert completed_job.status == JobStatus.COMPLETED.value

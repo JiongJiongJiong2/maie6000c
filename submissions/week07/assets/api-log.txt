@@ -1,0 +1,21 @@
+{"asctime": "2026-10-29 14:45:25,840", "levelname": "INFO", "service": null, "name": "services.api.search", "message": "search_accepted", "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db", "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea"}
+INFO:     127.0.0.1:60222 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60222 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60222 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60222 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60222 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60222 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60222 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60222 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60222 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60222 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60222 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60222 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60222 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10502 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10502 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10502 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+{"asctime": "2026-10-29 14:45:48,815", "levelname": "INFO", "service": null, "name": "services.api.search", "message": "review_recorded", "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea", "review_id": "a28ccac5-aebd-4ca3-bf02-9c29e6a1d910"}
+INFO:     127.0.0.1:60616 - "POST /search-jobs/852892f8-4f68-4e3b-b4c8-1406457210ea/reviews HTTP/1.1" 201 Created
+INFO:     127.0.0.1:18482 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53516 - "GET /search-requests/dbe3a8aa-b060-4c2c-a57b-b763dc5f68db HTTP/1.1" 200 OK

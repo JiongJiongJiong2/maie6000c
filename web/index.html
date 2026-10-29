@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f3e9" />
+    <meta
+      name="description"
+      content="Lost the meme? Drop a screenshot, find matching GIFs, and bring the reaction back."
+    />
+    <title>MemeRetrieve — Lost the meme. Found the vibe.</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%23cbf45e'/%3E%3Cellipse cx='14' cy='18' rx='5' ry='8' fill='%231b1b20'/%3E%3Cellipse cx='27' cy='18' rx='5' ry='8' fill='%231b1b20'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#workspace">Skip to upload</a>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="MemeRetrieve home"
+        ><span class="brand-mark" aria-hidden="true"><i></i><i></i></span
+        ><span
+          >Meme<span class="brand-light">Retrieve</span
+          ><small>INTERNET LOST & FOUND</small></span
+        ></a
+      >
+      <nav class="header-actions" aria-label="Page controls">
+        <button id="motion-toggle" class="quiet small" aria-pressed="true">
+          Motion: on
+        </button>
+        <button
+          id="connection-toggle"
+          class="quiet small connection-button"
+          aria-expanded="false"
+          aria-controls="connection-panel"
+        >
+          <span class="status-dot" id="health-dot"></span
+          ><span id="health-label">Check connection</span
+          ><span aria-hidden="true">↗</span>
+        </button>
+      </nav>
+    </header>
+    <main>
+      <section
+        id="connection-panel"
+        class="connection-panel"
+        hidden
+        aria-label="Connection settings"
+      >
+        <div>
+          <strong>Connection settings</strong>
+          <p>
+            Enter an access token if your server requires one. It stays in
+            memory for this page only.
+          </p>
+        </div>
+        <form id="connection-form">
+          <label for="token">Access token (optional)</label>
+          <div class="inline">
+            <input
+              id="token"
+              type="password"
+              autocomplete="off"
+              placeholder="Enter DEVICE_TOKEN"
+            /><button class="secondary" type="submit">
+              Apply and reconnect
+            </button>
+          </div>
+        </form>
+      </section>
+      <section class="intro" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">
+            <span class="tiny-star" aria-hidden="true">✳</span> SERIOUS SEARCH.
+            UNSERIOUS CONTENT.
+          </p>
+          <h1 id="hero-title">
+            LOST YOUR<br /><span class="meme-word"
+              >MEME<span class="question">?</span></span
+            >
+          </h1>
+          <p class="intro-copy">
+            You have the screenshot.<br />We have a very particular set of
+            <s>skills</s> GIFs.
+          </p>
+          <div class="hero-actions">
+            <a class="hero-cta" href="#workspace"
+              >Let's find that little guy <span aria-hidden="true">↘</span></a
+            ><span class="hero-aside"
+              >less scrolling.<br />more <em>lol.</em></span
+            >
+          </div>
+        </div>
+        <div class="hero-art" id="hero-art">
+          <span class="floating-star star-one" aria-hidden="true">✳</span>
+          <div class="sticker screenshot-sticker" aria-hidden="true">
+            <span class="sticker-eyebrow">LAST SEEN</span>
+            <div class="pixel-face">(·_·)</div>
+            <span>in your camera roll</span>
+            <div class="tape"></div>
+          </div>
+          <div class="mascot-window">
+            <div class="window-bar">
+              <span><i></i><i></i><i></i></span><span>vibe_recovery.exe</span
+              ><span aria-hidden="true">↗</span>
+            </div>
+            <div class="mascot-screen">
+              <span class="screen-tag">MISSING: ONE (1) BRAIN CELL</span>
+              <button
+                id="mascot"
+                class="mascot"
+                aria-label="Poke the mascot"
+                aria-describedby="mascot-caption"
+              >
+                <svg
+                  viewBox="0 0 300 250"
+                  role="img"
+                  aria-label="A goofy purple creature with big eyes and a pink tongue"
+                >
+                  <path
+                    class="blob-shadow"
+                    d="M57 204C15 165 43 128 31 96 18 49 65 15 108 33 142-2 182 14 201 36 253 13 283 50 264 93 299 123 282 165 257 180 277 226 221 251 188 227 139 258 92 245 80 221Z"
+                  />
+                  <path
+                    class="blob-body"
+                    d="M50 194C8 155 36 118 24 86 11 39 58 5 101 23 135-12 175 4 194 26 246 3 276 40 257 83 292 113 275 155 250 170 270 216 214 241 181 217 132 248 85 235 73 211Z"
+                  />
+                  <g class="mascot-eyes">
+                    <ellipse cx="109" cy="97" rx="36" ry="46" />
+                    <ellipse cx="181" cy="91" rx="36" ry="46" />
+                    <g class="pupils">
+                      <ellipse cx="120" cy="104" rx="12" ry="21" />
+                      <ellipse cx="192" cy="98" rx="12" ry="21" />
+                      <circle cx="124" cy="96" r="4" />
+                      <circle cx="196" cy="90" r="4" />
+                    </g>
+                  </g>
+                  <path
+                    d="M105 157Q154 183 205 147Q207 198 162 202Q120 204 105 157Z"
+                    fill="#202024"
+                    stroke="#202024"
+                    stroke-width="4"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M149 179Q170 166 188 178L194 211Q182 238 161 224Z"
+                    fill="#ff91c8"
+                    stroke="#202024"
+                    stroke-width="4"
+                  />
+                  <path
+                    d="M169 182L176 208"
+                    fill="none"
+                    stroke="#202024"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M58 137L74 141M219 127L233 121"
+                    stroke="#202024"
+                    stroke-width="5"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </button>
+              <p id="mascot-caption" class="mascot-caption" aria-live="polite">
+                head empty. GIF folder full.
+              </p>
+            </div>
+            <div class="window-footer">
+              <span class="pixel-dot"></span> certified little weirdo
+              <span>click to boop ↑</span>
+            </div>
+          </div>
+          <div class="sticker round-sticker" aria-hidden="true">
+            <span>SMALL FILE.</span><b>BIG<br />MOOD.</b
+            ><span>↖ VERY IMPORTANT</span>
+          </div>
+          <span class="floating-star star-two" aria-hidden="true">✦</span>
+          <span class="scribble" aria-hidden="true">the suspect ↑</span>
+        </div>
+      </section>
+      <div class="ticker" aria-hidden="true">
+        <div class="ticker-track">
+          <span
+            >LOST THE MEME. FOUND THE VIBE. <b>✳</b> SCREENSHOT IN. CHAOS OUT.
+            <b>✳</b> PUT THAT REACTION BACK. <b>✳</b> </span
+          ><span
+            >LOST THE MEME. FOUND THE VIBE. <b>✳</b> SCREENSHOT IN. CHAOS OUT.
+            <b>✳</b> PUT THAT REACTION BACK. <b>✳</b>
+          </span>
+        </div>
+      </div>
+      <section
+        class="workbench"
+        id="workspace"
+        aria-labelledby="workbench-title"
+      >
+        <div class="workbench-heading">
+          <div>
+            <p class="eyebrow">THE RECOVERY ROOM</p>
+            <h2 id="workbench-title">Okay, show us the evidence.</h2>
+          </div>
+          <span class="desk-note">one frame is all it takes to start ↙</span>
+        </div>
+        <ol class="steps" aria-label="How it works">
+          <li class="active"><b>01</b><span>Drop the evidence</span></li>
+          <li><b>02</b><span>Let us investigate</span></li>
+          <li><b>03</b><span>Reunite with your GIF</span></li>
+        </ol>
+        <div id="notice" class="notice" role="alert" hidden></div>
+        <div class="workspace">
+          <section class="panel input-panel" aria-labelledby="input-title">
+            <div class="panel-bar">
+              <span><i></i><i></i><i></i></span><span>exhibit_a.png</span
+              ><span aria-hidden="true">⌁</span>
+            </div>
+            <div class="panel-content">
+              <div class="section-heading">
+                <h3 id="input-title">Got a screenshot?</h3>
+                <span class="section-number">01 / INPUT</span>
+              </div>
+              <p class="muted">Crop to one meme. Give us your best clue.</p>
+              <label class="dropzone" id="dropzone" for="file-input">
+                <input
+                  id="file-input"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  aria-label="Choose screenshot"
+                />
+                <span id="upload-placeholder"
+                  ><span class="upload-icon" aria-hidden="true"
+                    ><svg viewBox="0 0 80 72">
+                      <path
+                        d="M7 17H32L39 25H72V62H7Z"
+                        fill="#cbf45e"
+                        stroke="currentColor"
+                        stroke-width="3"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="M7 32H74L65 62H7Z"
+                        fill="#e5ffa4"
+                        stroke="currentColor"
+                        stroke-width="3"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="M32 45V52M48 45V52M36 55Q40 58 44 55"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="3"
+                        stroke-linecap="round"
+                      /></svg></span
+                  ><strong>Drop it like it's a screenshot.</strong
+                  ><span class="upload-link">or click to choose a file ↗</span
+                  ><span class="file-types"
+                    >PNG / JPG / WEBP · MAX 10 MiB</span
+                  ></span
+                >
+                <img
+                  id="input-preview"
+                  alt="Screenshot for this search"
+                  hidden
+                />
+                <span id="replace-hint" hidden
+                  >New evidence? Click to replace.</span
+                >
+              </label>
+              <div class="file-meta">
+                <span id="file-name">No image selected</span
+                ><span id="file-size"></span>
+              </div>
+              <button id="submit" class="primary full" disabled>
+                Find my GIF ↗
+              </button>
+              <button id="new-search" class="quiet full" hidden>
+                Start a new search
+              </button>
+              <details id="demo-library" class="demo-library" hidden>
+                <summary>No screenshot? Borrow some evidence.</summary>
+                <p class="muted">
+                  Pick a real frame from our 12-GIF demo collection, then hit
+                  Find my GIF.
+                </p>
+                <div id="demo-examples" class="demo-examples"></div>
+                <p class="demo-credit">
+                  Animated emoji by
+                  <a
+                    href="https://googlefonts.github.io/noto-emoji-animation/"
+                    target="_blank"
+                    rel="noreferrer"
+                    >Google Noto Emoji</a
+                  >,
+                  <a
+                    href="https://creativecommons.org/licenses/by/4.0/"
+                    target="_blank"
+                    rel="noreferrer"
+                    >CC BY 4.0</a
+                  >. Example screenshots are extracted frames on a white
+                  background. Downloads preserve the original GIFs.
+                </p>
+              </details>
+              <p class="privacy-note">
+                <span aria-hidden="true">▣</span> Your current search stays in
+                this browser.<br />Refresh happens. We get it.
+              </p>
+            </div>
+          </section>
+          <section
+            class="panel results-panel"
+            aria-labelledby="results-title"
+            aria-busy="false"
+          >
+            <div class="panel-bar">
+              <span><i></i><i></i><i></i></span
+              ><span>the_usual_suspects.gif</span
+              ><span aria-hidden="true">⌁</span>
+            </div>
+            <div class="panel-content">
+              <div class="section-heading">
+                <h3 id="results-title">The usual suspects</h3>
+                <span id="result-count" class="pill">Awaiting upload</span>
+              </div>
+              <div class="search-status" aria-live="polite" aria-atomic="true">
+                <h4 id="status-title">It's quiet. Too quiet.</h4>
+                <p id="status-description">
+                  Drop a screenshot. We'll round up the GIFs for a little
+                  identity parade.
+                </p>
+              </div>
+              <div id="empty-art" class="empty-art" aria-hidden="true">
+                <div class="lineup-lines"></div>
+                <div class="suspect suspect-one">
+                  <span class="suspect-eyes">••</span
+                  ><span class="suspect-mouth">~</span
+                  ><span class="suspect-tag">WHO, ME?</span>
+                </div>
+                <div class="suspect suspect-two">
+                  <span class="suspect-eyes">××</span
+                  ><span class="suspect-mouth">◡</span
+                  ><span class="suspect-tag">NO COMMENT</span>
+                </div>
+                <div class="suspect suspect-three">
+                  <span class="suspect-eyes">••</span
+                  ><span class="suspect-mouth">○</span
+                  ><span class="suspect-tag">JUST A GIF</span>
+                </div>
+                <span class="art-caption"
+                  >YOUR NEXT REACTION IS HIDING SOMEWHERE.</span
+                >
+              </div>
+              <div id="progress" class="progress" hidden>
+                <div class="scanner">
+                  <span class="scan-eye" aria-hidden="true">◉</span
+                  ><span>SEARCH IN PROGRESS</span
+                  ><span class="search-dots" aria-hidden="true">•••</span>
+                </div>
+                <div class="progress-track"><span></span></div>
+                <p>Asking the pixels some very serious questions.</p>
+              </div>
+              <button id="refresh" class="secondary" hidden>
+                Refresh status
+              </button>
+              <div id="candidates" class="candidates"></div>
+              <div id="review-panel" class="review-panel" hidden>
+                <p class="muted">
+                  Recognize anyone? Check the full animation. Similarity is a
+                  ranking signal, not a probability.
+                </p>
+                <button id="reject" class="secondary">
+                  None of these match</button
+                ><button id="review-retry" class="secondary" hidden>
+                  Retry saving choice
+                </button>
+                <p id="review-status" class="feedback" role="status"></p>
+              </div>
+              <p id="download-status" class="feedback" role="status"></p>
+              <details id="trace" class="trace" hidden>
+                <summary>Open the case file</summary>
+                <dl>
+                  <dt>Request ID</dt>
+                  <dd id="request-id"></dd>
+                  <dt>Job ID</dt>
+                  <dd id="job-id"></dd>
+                  <dt>Review ID</dt>
+                  <dd id="review-id">Not reviewed yet</dd>
+                </dl>
+              </details>
+            </div>
+          </section>
+        </div>
+        <div class="bottom-note">
+          <span class="note-icon" aria-hidden="true">i</span>
+          <p>
+            Small GIF collection. Big feelings. Memes outside the collection may
+            not have a match.
+          </p>
+          <button id="forget" class="text-button">Clear local search</button>
+        </div>
+      </section>
+      <section
+        class="how-it-works"
+        aria-label="A very serious three-step process"
+      >
+        <article>
+          <span>01 / THE CLUE</span>
+          <h3>Screenshot happens.</h3>
+          <p>Crop the meme you want. One target, one tiny mystery.</p>
+        </article>
+        <article>
+          <span>02 / THE SEARCH</span>
+          <h3>Pixels, meet pixels.</h3>
+          <p>We compare your image with frames from our GIF collection.</p>
+        </article>
+        <article>
+          <span>03 / THE REUNION</span>
+          <h3>That's the little guy.</h3>
+          <p>Pick a match, download the GIF, and check that it plays.</p>
+        </article>
+      </section>
+    </main>
+    <footer>
+      <span class="footer-brand">Memeory<span aria-hidden="true">✳</span></span
+      ><span>Built for the bit.<br /><small>MAIE 6000C · W07</small></span
+      ><a href="#hero-title">Back to the weird stuff ↑</a>
+    </footer>
+    <div id="celebration" class="celebration" aria-hidden="true"></div>
+    <noscript
+      ><p class="notice">
+        Enable JavaScript to upload images and search for GIFs.
+      </p></noscript
+    >
+  </body>
+</html>
