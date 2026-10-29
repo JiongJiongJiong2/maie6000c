@@ -1,0 +1,70 @@
+MemeRetrieve W07：PPT 素材使用说明
+采集日期：2026-10-29。团队：Memeory。
+
+打开 assets/index.html 可浏览全部素材。图片可直接插入 PowerPoint。素材中的文字使用英文，便于课程提交。本文件提供中文组稿建议。
+
+建议做 8 页，每页说明一件事，不需要视频或配音。
+
+第 1 页：MemeRetrieve — Screenshot-to-GIF Retrieval
+用 00-product-home.png。介绍用户输入一张已裁剪截图，在精选 GIF 库中检索，再由用户确认和下载。
+英文图注：A cropped screenshot helps the user recover an animated GIF from a curated collection.
+
+第 2 页：The implemented W07 system path
+用 10-w07-system-flow.png。讲清 Browser、FastAPI、PostgreSQL、独立 worker 与本地 CLIP 的连接关系。可编辑源为 w07-system-flow.mmd，证据图原稿为 evidence-boards.html。
+英文图注：The API commits a request and job before an independent worker performs local CLIP retrieval.
+
+第 3 页：A real input enters the system
+用 01-input.png，并裁切展示 02-async-processing.png 的 Queued 与 request/job ID 区域。原始输入图为 input-crop.png。
+英文图注：The browser submits a PNG crop. POST /search-requests returns HTTP 202 with durable request and job IDs.
+
+第 4 页：Persisted state and asynchronous work
+用 07-database-evidence.png 和 08-worker-health.png，可拆成两页以保证字号。数据来自 PostgreSQL 查询与 worker 日志，request/job IDs 相互对应。
+英文图注：PostgreSQL stores the job, and the independent worker records search_claimed and search_completed for the same job ID.
+
+第 5 页：Ranked candidates and human review
+用 03-candidates.png 和 04-review-and-download.png。可以只放后者，文字说明 Top-1 对应输入动画，用户点击确认后保存 review。
+英文图注：Real CLIP inference returns three ranked candidates. The user confirms one candidate, and the API persists that decision.
+
+第 6 页：An original animated output
+并排放 input-crop.png 与 05-downloaded-original.gif，补充 06-restored-after-refresh.png 的局部。GIF 在 PowerPoint 的幻灯片放映模式中播放。
+英文图注：The downloaded GIF has 83 frames at 512 × 512 pixels. Its SHA-256 matches the original corpus file. Refresh restores the search and accepted review.
+
+第 7 页：Operational evidence
+若第 4 页未放日志，就用 08-worker-health.png。显示 /health/ready 的 HTTP 200、实际状态序列和 worker 日志。此次 worker 耗时约 20.50 秒，只是一笔本机样例，不是平均性能或延迟承诺。
+英文图注：Readiness returns HTTP 200. Job-correlated logs and the persisted result provide evidence of worker progress beyond API health.
+
+第 8 页：Current status, remaining work and risks
+用 09-status-and-next.png。已验证上传、真实检索、候选、确认、下载和刷新恢复；另一个保留请求通过了 API/worker 重启检查。待办是团队验收、最终 PPT、main/checkpoint/tag/Canvas、扩充素材库和独立样例评估。
+
+关键边界
+此次从 dev 的 c9f2922 基线运行，并包含本次本地 worker 日志时区修正。截图不是 main 的运行证据。提交时请读取 w07-midterm 所指向的实际提交；c9f2922 是证据采集基线，不是最终 tag 的 SHA。
+此次使用 Windows 本机 PostgreSQL 16.15，API 与 worker 为独立 Python 进程。未使用 Docker 容器运行数据库。
+查询示例来自索引库中的 GIF，证明功能连通，不代表独立测试准确率，更不能声称可以找回任意互联网截图。库中只有 12 个 GIF、96 个采样帧。相似度不是概率。
+
+原始证据
+browser-evidence.json：真实 HTTP 状态、API 响应、状态变化、review 与下载校验。
+database-records.json / database-queries.sql：本次请求对应的 PostgreSQL 记录及查询。
+worker-log.txt / api-log.txt / api-metrics.txt：真实日志及指标快照。
+run-summary.json / persisted-result.json：本次运行摘要和最终 API 结果。
+earlier-request-restart-check.json：另一笔请求 506db262 的 API/worker 重启后结果一致检查。
+earlier-running-row.json：早期运行请求 25732f51 的数据库 running 状态快照，不要与主截图 request ID 混用。
+
+本机启动
+在仓库根目录执行：
+  .\.venv\Scripts\python.exe scripts/run_windows_demo.py
+打开：http://127.0.0.1:8000/web/
+当前服务已在本机运行，不要重复启动。完整准备步骤见 docs/local-demo.md。
+
+Canvas 文本格式
+Repository: https://github.com/JiongJiongJiong2/maie6000c
+Required tag: w07-midterm
+Tagged commit SHA: 验收并创建 tag 后填写其真实 commit SHA
+Primary artifact: submissions/week07/README.md
+Team name: Memeory
+Demo readiness note: Local browser/API/worker/PostgreSQL slice verified with real CLIP retrieval and original GIF download. Final checkpoint pending team acceptance.
+
+素材署名
+Google Noto Animated Emoji，作者 Google，CC BY 4.0。
+来源：https://googlefonts.github.io/noto-emoji-animation/
+许可：https://creativecommons.org/licenses/by/4.0/
+输入 PNG 从原始 GIF 提取并合成白底；下载 GIF 保留原始字节。截图包含这些动画及其派生画面。

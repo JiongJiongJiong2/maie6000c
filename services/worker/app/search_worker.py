@@ -8,7 +8,7 @@ import sys
 import threading
 import time
 from collections.abc import Callable
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -38,6 +38,13 @@ from services.common.storage import (
 
 logger = logging.getLogger("services.worker.search")
 Retriever = Callable[[Path], RetrievalResult]
+
+
+def elapsed_seconds(started_at: datetime, finished_at: datetime) -> float:
+    # SQLite fixtures can return naive UTC; PostgreSQL can return an offset.
+    if started_at.tzinfo is None:
+        started_at = started_at.replace(tzinfo=finished_at.tzinfo)
+    return (finished_at - started_at).total_seconds()
 
 
 def register_shutdown_handlers(stop_event: threading.Event) -> None:
@@ -231,9 +238,7 @@ def process_search_job(job_id: str, retriever: Retriever = invoke_retrieval) -> 
                     "job_id": job.id,
                     "result_kind": job.result_kind,
                     "candidate_count": len(result.matches),
-                    "duration_seconds": (
-                        finished_at - job.started_at.replace(tzinfo=finished_at.tzinfo)
-                    ).total_seconds(),
+                    "duration_seconds": elapsed_seconds(job.started_at, finished_at),
                 },
             )
     except BaseException:

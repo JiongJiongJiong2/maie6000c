@@ -1,0 +1,75 @@
+{
+  "request": [
+    {
+      "id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "client_submission_key": "11eb23c4-a049-410f-9707-2d30102f18fa",
+      "client_item_id": null,
+      "input_path": "inputs/f740e44c-6100-4ddd-abc4-be0a05d302ff.image",
+      "input_sha256": "465688605e3aaf1b44f54faa14afa2f6f75a133db26e1af0eb10af639f9969e2",
+      "user_keywords": null,
+      "created_at": "2026-10-29 14:45:25.836772+08:00"
+    }
+  ],
+  "job": [
+    {
+      "id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+      "request_id": "dbe3a8aa-b060-4c2c-a57b-b763dc5f68db",
+      "attempt_no": 1,
+      "client_retry_key": null,
+      "status": "completed",
+      "result_kind": "candidates",
+      "model_version": "clip-vit-base-patch32@37000f5cdccec47a3f6f83142bff131370757470",
+      "corpus_version": "noto-reactions-v1",
+      "error_code": null,
+      "error_detail": null,
+      "created_at": "2026-10-29 14:45:25.839660+08:00",
+      "started_at": "2026-10-29 14:45:26.228704+08:00",
+      "finished_at": "2026-10-29 14:45:46.726156+08:00"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "6e0a0500-b0cc-4e44-9c1b-9987c2b5b903",
+      "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+      "reference_asset_id": "ac8b7a58-cd70-5bd4-89d4-47eadf8555e2",
+      "rank": 1,
+      "similarity_score": 0.9579276996922204,
+      "local_cache_path": "candidates/852892f8-4f68-4e3b-b4c8-1406457210ea/6e0a0500-b0cc-4e44-9c1b-9987c2b5b903.gif",
+      "frame_count": 83,
+      "cache_expires_at": "2026-11-05 14:45:46.726156+08:00",
+      "verified_at": "2026-10-29 14:45:47.680182+08:00"
+    },
+    {
+      "id": "9da9b538-bc7b-45fb-864f-b5a4f69a5c30",
+      "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+      "reference_asset_id": "b7fffe8a-329d-5513-ad9f-fd85852f0c42",
+      "rank": 2,
+      "similarity_score": 0.9062079269059709,
+      "local_cache_path": "candidates/852892f8-4f68-4e3b-b4c8-1406457210ea/9da9b538-bc7b-45fb-864f-b5a4f69a5c30.gif",
+      "frame_count": 60,
+      "cache_expires_at": "2026-11-05 14:45:46.726156+08:00",
+      "verified_at": "2026-10-29 14:45:47.680182+08:00"
+    },
+    {
+      "id": "749011bc-8d51-431d-8c55-8f052b85b3da",
+      "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+      "reference_asset_id": "755d2971-1b1d-58ae-9576-71bda109e403",
+      "rank": 3,
+      "similarity_score": 0.8760090327279784,
+      "local_cache_path": "candidates/852892f8-4f68-4e3b-b4c8-1406457210ea/749011bc-8d51-431d-8c55-8f052b85b3da.gif",
+      "frame_count": 59,
+      "cache_expires_at": "2026-11-05 14:45:46.726156+08:00",
+      "verified_at": "2026-10-29 14:45:47.680182+08:00"
+    }
+  ],
+  "reviews": [
+    {
+      "id": "a28ccac5-aebd-4ca3-bf02-9c29e6a1d910",
+      "job_id": "852892f8-4f68-4e3b-b4c8-1406457210ea",
+      "candidate_id": "6e0a0500-b0cc-4e44-9c1b-9987c2b5b903",
+      "client_review_key": "be4f0a40-2718-4f90-b096-2a928a59fcae",
+      "decision": "accept",
+      "created_at": "2026-10-29 14:45:48.800625+08:00"
+    }
+  ]
+}

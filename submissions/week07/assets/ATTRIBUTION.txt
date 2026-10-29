@@ -1,0 +1,5 @@
+Google Noto Animated Emoji by Google, licensed under CC BY 4.0.
+Source: https://googlefonts.github.io/noto-emoji-animation/
+License: https://creativecommons.org/licenses/by/4.0/
+Original Mind blown GIF: https://fonts.gstatic.com/s/e/notoemoji/latest/1f92f/512.gif
+The downloaded GIF bytes are unchanged. input-crop.png is an extracted frame composited on white. Browser screenshots include the attributed animations and derived frames. Full catalog: docs/demo-corpus.json.

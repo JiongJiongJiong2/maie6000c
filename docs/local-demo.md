@@ -43,6 +43,18 @@ For verification, use `.\.venv\Scripts\python.exe -m pytest -q` and `.\.venv\Scr
 
 ## Try the flow
 
+### Windows without Docker
+
+The 2026-10-29 PPT capture used native PostgreSQL 16.15 after Docker Desktop failed to initialize its runtime socket. Download the Windows x64 PostgreSQL 16 binary archive from [EDB](https://www.enterprisedb.com/download-postgresql-binaries) and extract its `pgsql` directory to `.cache/pg16/`. With the same model/corpus preparation above, run:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/run_windows_demo.py
+```
+
+This starts PostgreSQL on loopback port 55432 with the password in the ignored `.cache/local-demo.env`, applies migrations, imports the corpus, and runs the same API and independent worker. The cluster is stored in `.cache/w07-postgres`; no Windows service is installed. Do not start this profile concurrently with Docker PostgreSQL or another copy of the API/worker. Ctrl+C stops API/worker while retaining the database. Stop the database without deleting records using `python scripts/run_windows_demo.py --stop-database` from the prepared virtual environment. Treat `.cache/w07-postgres` as persistent demo data despite its location in `.cache`; retain it for restart checks. The binary archive is a local dependency and must not be committed.
+
+### Browser walkthrough
+
 1. Scroll to **Okay, show us the evidence.**
 2. Upload a PNG/JPEG/WebP crop, or expand **No screenshot? Borrow some evidence.** and choose a reaction. These examples are actual frames extracted from the library; the picker creates a normal PNG upload.
 3. Click **Find my GIF**. The API persists the input and a pending job. The independent worker claims it, performs local CLIP inference, and stores the ranked candidates.
