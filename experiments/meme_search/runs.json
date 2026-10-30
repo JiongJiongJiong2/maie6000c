@@ -1,0 +1,963 @@
+{
+  "protocol_version": 1,
+  "provider": "host_web_search",
+  "date_local": "2026-10-30",
+  "timezone": "Asia/Shanghai",
+  "query_planner": {
+    "model": "gpt-6.1-sol",
+    "reasoning": "medium",
+    "independent_contexts": true
+  },
+  "cases": [
+    {
+      "id": "c01",
+      "category": "international_template",
+      "input": "想找那个穿橙色衣服的男人，上半张摆手嫌弃，下半张指着表示喜欢的梗图，最好可以自己加字。",
+      "arms": {
+        "literal": {
+          "query": "想找那个穿橙色衣服的男人，上半张摆手嫌弃，下半张指着表示喜欢的梗图，最好可以自己加字。",
+          "elapsed_seconds": 2.036,
+          "captured_at_utc": "2026-10-30T06:50:17.574Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "“Drake 不要／要” 梗图生成器 | Tripo",
+              "url": "https://tripo.wingzero.tw/zh-CN/tool/drake-no-yes",
+              "reference": "turn9search0"
+            },
+            {
+              "rank": 2,
+              "title": "外国小伙看到后肃然起敬敬礼-梗图在线生成制作-zuomeme.com",
+              "url": "https://www.zuomeme.com/gengJmeme/70",
+              "reference": "turn9search1"
+            },
+            {
+              "rank": 3,
+              "title": "当你用食指指向别人时，有三个都是指向自己 梗图网 | AI梗图搜索引擎与百科",
+              "url": "https://gengtu.net/memes/pointing-finger-three-pointing-self-meme/",
+              "reference": "turn9search2"
+            },
+            {
+              "rank": 4,
+              "title": "免费在线MEME梗图生成器 | 海量高清模板无水印下载-zuomeme.com",
+              "url": "https://www.zuomeme.com/",
+              "reference": "turn9search3"
+            },
+            {
+              "rank": 5,
+              "title": "梗圖產生器｜免費線上做梗圖，上傳圖片加文字、白字黑框，不上傳",
+              "url": "https://tools.vege.club/meme-generator/",
+              "reference": "turn9search4"
+            }
+          ]
+        },
+        "rewrite": {
+          "query": "Drake 摆手 指着喜欢 梗图 空白模板",
+          "elapsed_seconds": 1.973,
+          "captured_at_utc": "2026-10-30T06:50:59.247Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "选择你的英雄断剑的用途-网友制作的MEME梗图-zuomeme.com",
+              "url": "https://www.zuomeme.com/wangyou/detail/992",
+              "reference": "turn11search0"
+            },
+            {
+              "rank": 2,
+              "title": "黑人德瑞克Yes/No（Drake Yes/No）-网友制作的MEME梗图-zuomeme.com",
+              "url": "https://www.zuomeme.com/wangyou/detail/319",
+              "reference": "turn11search1"
+            },
+            {
+              "rank": 3,
+              "title": "黑人德瑞克Yes/No（Drake Yes/No）-网友制作的MEME梗图",
+              "url": "https://www.zuomeme.com/wangyou/detail/360",
+              "reference": "turn11search2"
+            },
+            {
+              "rank": 4,
+              "title": "用户hslg制作的MEME梗图，梗图模板-黑人德瑞克Yes/No（Drake Yes/No）",
+              "url": "https://www.zuomeme.com/wangyou/detail/17089",
+              "reference": "turn11search3"
+            },
+            {
+              "rank": 5,
+              "title": "「德瑞克不要／要」梗圖產生器 | Tripo",
+              "url": "https://tripo.wingzero.tw/zh-TW/tool/drake-no-yes",
+              "reference": "turn11search4"
+            }
+          ]
+        },
+        "skill": {
+          "query": "Drake Hotline Bling blank template",
+          "elapsed_seconds": 2.543,
+          "captured_at_utc": "2026-10-30T06:50:59.818Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "Drake Hotline Bling Meme Template & Editor | ilovecollage",
+              "url": "https://ilovecollage.com/meme-templates/drake-hotline-bling/",
+              "reference": "turn14search0"
+            },
+            {
+              "rank": 2,
+              "title": "Drake Hotline Bling Meme Generator | Groki",
+              "url": "https://www.groki.meme/meme-templates/drake-hotline-bling-drake-hotline",
+              "reference": "turn14search1"
+            },
+            {
+              "rank": 3,
+              "title": "Drake Hotline Bling meme format — how to use it | To Be Memed",
+              "url": "https://tobememed.com/formats/drake-hotline-bling",
+              "reference": "turn14search2"
+            },
+            {
+              "rank": 4,
+              "title": "Drake Hotline Bling — Pop Culture & Emoji (2026)",
+              "url": "https://www.emojitik.com/pop-culture/drake-hotline-bling",
+              "reference": "turn14search3"
+            },
+            {
+              "rank": 5,
+              "title": "Drake Meme Generator — Edit Yes/No Examples, Download PNG | GottaMeme",
+              "url": "https://gottameme.com/meme-templates/drake-meme",
+              "reference": "turn14search4"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c02",
+      "category": "international_template",
+      "input": "一个男人面对两个红色按钮，满头大汗不知道选哪个的表情包。",
+      "arms": {
+        "literal": {
+          "query": "一个男人面对两个红色按钮，满头大汗不知道选哪个的表情包。",
+          "elapsed_seconds": 2.275,
+          "captured_at_utc": "2026-10-30T06:50:59.550Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "两个按钮/每日奋斗 | 梗的历史",
+              "url": "https://meemes.fun/zh-hans/memes/two-buttons",
+              "reference": "turn13search0"
+            },
+            {
+              "rank": 2,
+              "title": "Two Buttons Meme Meaning & Origin Explained",
+              "url": "https://meme.com/memes/two-buttons",
+              "reference": "turn13search1"
+            },
+            {
+              "rank": 3,
+              "title": "Two Buttons Meme Generator & Template (Sweating Guy, Daily Struggle) · QuickMeme",
+              "url": "https://quickmeme.io/templates/two-buttons",
+              "reference": "turn13search2"
+            },
+            {
+              "rank": 4,
+              "title": "环保吸管选择两难梗图 梗图网 | AI梗图搜索引擎与百科",
+              "url": "https://gengtu.net/memes/environmental-straw-choice-dilemma-meme/",
+              "reference": "turn13search3"
+            },
+            {
+              "rank": 5,
+              "title": "Two Buttons Meme Generator - Create Two Buttons Memes Free | meme.app",
+              "url": "https://meme.app/create/two-buttons",
+              "reference": "turn13search4"
+            }
+          ]
+        },
+        "rewrite": {
+          "query": "两个红色按钮 满头大汗 男人 表情包",
+          "elapsed_seconds": 2.133,
+          "captured_at_utc": "2026-10-30T06:50:59.408Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "两个按钮/每日奋斗 | 梗的历史",
+              "url": "https://meemes.fun/zh-hans/memes/two-buttons",
+              "reference": "turn12search0"
+            },
+            {
+              "rank": 2,
+              "title": "Two Buttons Meme - Imgflip",
+              "url": "https://imgflip.com/i/8rt8qo",
+              "reference": "turn12search1"
+            },
+            {
+              "rank": 3,
+              "title": "Two Buttons Meme - Imgflip",
+              "url": "https://imgflip.com/i/9f7of8",
+              "reference": "turn12search2"
+            },
+            {
+              "rank": 4,
+              "title": "Two Buttons Meme - Imgflip",
+              "url": "https://imgflip.com/i/5zwnjq",
+              "reference": "turn12search3"
+            },
+            {
+              "rank": 5,
+              "title": "满头大汉表情包-千图网",
+              "url": "https://ecywang.com/pic/%E6%BB%A1%E5%A4%B4%E5%A4%A7%E6%B1%89%E8%A1%A8%E6%83%85%E5%8C%85/",
+              "reference": "turn12search4"
+            }
+          ]
+        },
+        "skill": {
+          "query": "Two Buttons sweating meme",
+          "elapsed_seconds": 2.821,
+          "captured_at_utc": "2026-10-30T06:51:00.096Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "Daily Struggle meaning — Memefile",
+              "url": "https://memefile.com/memes/daily-struggle/",
+              "reference": "turn15search0"
+            },
+            {
+              "rank": 2,
+              "title": "Daily Struggle / Two Buttons | Know Your Meme",
+              "url": "https://knowyourmeme.com/memes/daily-struggle-two-buttons",
+              "reference": "turn15search1"
+            },
+            {
+              "rank": 3,
+              "title": "Two Buttons meme format — how to use it | To Be Memed",
+              "url": "https://tobememed.com/formats/two-buttons",
+              "reference": "turn15search2"
+            },
+            {
+              "rank": 4,
+              "title": "Two Buttons Meme Template: Free, No Signup | Content Drifter",
+              "url": "https://www.contentdrifter.com/meme-templates/two-buttons",
+              "reference": "turn15search3"
+            },
+            {
+              "rank": 5,
+              "title": "Two Buttons Meme Meaning & Origin Explained",
+              "url": "https://meme.com/memes/two-buttons",
+              "reference": "turn15search4"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c03",
+      "category": "international_template",
+      "input": "男生牵着女朋友却回头看路过的女生，女朋友很生气的那张图。",
+      "arms": {
+        "literal": {
+          "query": "男生牵着女朋友却回头看路过的女生，女朋友很生气的那张图。",
+          "elapsed_seconds": 2.696,
+          "captured_at_utc": "2026-10-30T06:51:19.717Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "〖圖多〗男友分心看正妹？　完整故事曝光網驚「超展開」 - 鏡週刊 Mirror Media",
+              "url": "https://www.mirrormedia.mg/story/20201118edi040",
+              "reference": "turn19search0"
+            },
+            {
+              "rank": 2,
+              "title": "〖圖多〗男友分心看正妹？　完整故事曝光網驚「超展開」",
+              "url": "https://tw.news.yahoo.com/%E5%9C%96%E5%A4%9A-%E7%94%B7%E5%8F%8B%E5%88%86%E5%BF%83%E7%9C%8B%E6%AD%A3%E5%A6%B9-%E5%AE%8C%E6%95%B4%E6%95%85%E4%BA%8B%E6%9B%9D%E5%85%89%E7%B6%B2%E9%A9%9A-%E8%B6%85%E5%B1%95%E9%96%8B-070747114.html",
+              "reference": "turn19search1"
+            },
+            {
+              "rank": 3,
+              "title": "〖圖多〗男友分心看正妹？　完整故事曝光網驚「超展開」 - 鏡週刊 Mirror Media",
+              "url": "https://www.mirrormedia.mg/story/amp/20201118edi040",
+              "reference": "turn19search2"
+            },
+            {
+              "rank": 4,
+              "title": "〖圖話〗男人本色 ？Distracted BF圖庫相與百年前差利電影神相似",
+              "url": "https://www.hk01.com/%E5%BD%B1%E5%83%8F%E7%86%B1%E8%A9%B1/199650/%E5%9C%96%E8%A9%B1-%E7%94%B7%E4%BA%BA%E6%9C%AC%E8%89%B2-distracted-bf%E5%9C%96%E5%BA%AB%E7%9B%B8%E8%88%87%E7%99%BE%E5%B9%B4%E5%89%8D%E5%B7%AE%E5%88%A9%E9%9B%BB%E5%BD%B1%E7%A5%9E%E7%9B%B8%E4%BC%BC",
+              "reference": "turn19search3"
+            },
+            {
+              "rank": 5,
+              "title": "直男哄女友大型翻车现场 梗图网 | AI梗图搜索引擎与百科",
+              "url": "https://gengtu.net/memes/funny-couple-chat-straight-man-mess-up-comforting/",
+              "reference": "turn19search4"
+            }
+          ]
+        },
+        "rewrite": {
+          "query": "分心男友 回头看女生 女朋友生气 梗图",
+          "elapsed_seconds": 2.407,
+          "captured_at_utc": "2026-10-30T06:51:19.429Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "漫畫家腦補《男友偷看妹梗圖》的劇情發展，這一瞄把自己給害慘了！ | 點我一下",
+              "url": "https://clickme.net/47493",
+              "reference": "turn18search0"
+            },
+            {
+              "rank": 2,
+              "title": "〖圖多〗男友分心看正妹？　完整故事曝光網驚「超展開」 - 鏡週刊 Mirror Media",
+              "url": "https://www.mirrormedia.mg/story/20201118edi040",
+              "reference": "turn18search1"
+            },
+            {
+              "rank": 3,
+              "title": "〖圖多〗男友分心看正妹？　完整故事曝光網驚「超展開」 - 鏡週刊 Mirror Media",
+              "url": "https://www.mirrormedia.mg/story/amp/20201118edi040",
+              "reference": "turn18search2"
+            },
+            {
+              "rank": 4,
+              "title": "〖圖多〗男友分心看正妹？　完整故事曝光網驚「超展開」",
+              "url": "https://tw.news.yahoo.com/%E5%9C%96%E5%A4%9A-%E7%94%B7%E5%8F%8B%E5%88%86%E5%BF%83%E7%9C%8B%E6%AD%A3%E5%A6%B9-%E5%AE%8C%E6%95%B4%E6%95%85%E4%BA%8B%E6%9B%9D%E5%85%89%E7%B6%B2%E9%A9%9A-%E8%B6%85%E5%B1%95%E9%96%8B-070747114.html",
+              "reference": "turn18search3"
+            },
+            {
+              "rank": 5,
+              "title": "eyenews01 - 男友分心迷因爆紅！　網路瘋傳「攝影師卻從不開吉」：尊重照片人物就好",
+              "url": "https://www.tw-bank.com.tw/article/3835",
+              "reference": "turn18search4"
+            }
+          ]
+        },
+        "skill": {
+          "query": "Distracted Boyfriend meme",
+          "elapsed_seconds": 1.911,
+          "captured_at_utc": "2026-10-30T06:50:59.186Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "Distracted Boyfriend | Know Your Meme",
+              "url": "https://knowyourmeme.com/memes/distracted-boyfriend",
+              "reference": "turn10search0"
+            },
+            {
+              "rank": 2,
+              "title": "Distracted Boyfriend | Know Your Meme",
+              "url": "https://knowyourmeme.com/memes/distracted-boyfriend/",
+              "reference": "turn10search1"
+            },
+            {
+              "rank": 3,
+              "title": "Distracted Boyfriend — Pop Culture & Emoji (2026)",
+              "url": "https://www.emojitik.com/pop-culture/distracted-boyfriend",
+              "reference": "turn10search2"
+            },
+            {
+              "rank": 4,
+              "title": "Man from ‘distracted boyfriend’ meme explained what really happened in picture",
+              "url": "https://www.ladbible.com/entertainment/distracted-boyfriend-meme-explained-antonio-guillem-photo-447260-20260819",
+              "reference": "turn10search3"
+            },
+            {
+              "rank": 5,
+              "title": "The Story Behind That Viral 'Distracted Boyfriend' Meme Photo | PetaPixel",
+              "url": "https://petapixel.com/2017/09/18/story-behind-viral-distracted-boyfriend-meme-photo/",
+              "reference": "turn10search4"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c04",
+      "category": "international_template",
+      "input": "小女孩站在着火的房子前，回头露出坏笑的那张梗图。",
+      "arms": {
+        "literal": {
+          "query": "小女孩站在着火的房子前，回头露出坏笑的那张梗图。",
+          "elapsed_seconds": 2.184,
+          "captured_at_utc": "2026-10-30T06:51:19.206Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "Meme帮她赚大钱！网传的“灾难女孩”迷因图，原主在NFT出售原图，超过两百万令吉成交！ - Zing Gadget",
+              "url": "https://www.zinggadget.com/disaster-girls-meme-picture-is-sold-on-nft/",
+              "reference": "turn16search0"
+            },
+            {
+              "rank": 2,
+              "title": "火災現場轉頭詭笑成「災難女孩」 迷因哏圖拍賣出1400萬天價",
+              "url": "https://tw.news.yahoo.com/%E7%81%AB%E7%81%BD%E7%8F%BE%E5%A0%B4%E8%BD%89%E9%A0%AD%E8%A9%AD%E7%AC%91%E6%88%90-%E7%81%BD%E9%9B%A3%E5%A5%B3%E5%AD%A9-%E8%BF%B7%E5%9B%A0%E5%93%8F%E5%9C%96%E6%8B%8D%E8%B3%A3%E5%87%BA1400%E8%90%AC%E5%A4%A9%E5%83%B9-020046852.html",
+              "reference": "turn16search1"
+            },
+            {
+              "rank": 3,
+              "title": "網路上流傳一個梗圖 一個小女孩背對著一間熊熊燃燒的房子走向攝影機前露出了得意的微笑 怎麼詮釋它",
+              "url": "https://vocus.cc/article/6832b42dfd89780001430941",
+              "reference": "turn16search2"
+            },
+            {
+              "rank": 4,
+              "title": "迷因復興？《間諜家家酒》安妮亞化身「災難女孩」 招牌呵臉笑得你心發寒！ | 新聞資訊 | udn遊戲角落",
+              "url": "https://game.udn.com/game/story/122089/6287689",
+              "reference": "turn16search3"
+            },
+            {
+              "rank": 5,
+              "title": "323万！“灾难女孩”表情包原图拍卖:网友感叹时光飞快_游侠网 Ali213.net",
+              "url": "https://www.ali213.net/news/html/2021-5/593705.html",
+              "reference": "turn16search4"
+            }
+          ]
+        },
+        "rewrite": {
+          "query": "灾难女孩 着火房子 坏笑 梗图",
+          "elapsed_seconds": 2.753,
+          "captured_at_utc": "2026-10-30T06:51:19.775Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "迷因復興？《間諜家家酒》安妮亞化身「災難女孩」 招牌呵臉笑得你心發寒！ | 新聞資訊 | udn遊戲角落",
+              "url": "https://game.udn.com/game/story/122089/6287689",
+              "reference": "turn20search0"
+            },
+            {
+              "rank": 2,
+              "title": "灾难女孩 | 梗的历史",
+              "url": "https://meemes.fun/zh-hans/memes/disaster-girl",
+              "reference": "turn20search1"
+            },
+            {
+              "rank": 3,
+              "title": "網路上流傳一個梗圖 一個小女孩背對著一間熊熊燃燒的房子走向攝影機前露出了得意的微笑 怎麼詮釋它",
+              "url": "https://vocus.cc/article/6832b42dfd89780001430941",
+              "reference": "turn20search2"
+            },
+            {
+              "rank": 4,
+              "title": "Discover a Meme (3): The Disaster Girl – A history of online virality",
+              "url": "https://hivi.uni.lu/2022/04/07/discover-a-meme-3-the-disaster-girl/",
+              "reference": "turn20search3"
+            },
+            {
+              "rank": 5,
+              "title": "繼「彩虹貓」迷因1500萬售出　「災難女孩」用1700萬台幣賣了！｜熱門話題｜網路溫度計 DailyView",
+              "url": "https://dailyview.tw/popular/detail/10324",
+              "reference": "turn20search4"
+            }
+          ]
+        },
+        "skill": {
+          "query": "Disaster Girl meme",
+          "elapsed_seconds": 2.753,
+          "captured_at_utc": "2026-10-30T06:51:19.775Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "Disaster Girl | Know Your Meme",
+              "url": "https://knowyourmeme.com/memes/disaster-girl",
+              "reference": "turn21search0"
+            },
+            {
+              "rank": 2,
+              "title": "Where Are They Now? Here's What 'Disaster Girl' Zoe Roth Has Been Up To Since He... | Know Your Meme",
+              "url": "https://knowyourmeme.com/editorials/guides/where-are-they-now-heres-what-disaster-girl-zoe-roth-has-been-up-to-since-her-childhood-photo-became-a-meme",
+              "reference": "turn21search1"
+            },
+            {
+              "rank": 3,
+              "title": "Discover a Meme (3): The Disaster Girl – A history of online virality",
+              "url": "https://hivi.uni.lu/2022/04/07/discover-a-meme-3-the-disaster-girl/",
+              "reference": "turn21search2"
+            },
+            {
+              "rank": 4,
+              "title": "Disaster Girl Meme: Original Photo, Meaning, and History | MemePulse",
+              "url": "https://memepulse.net/meme/disaster-girl",
+              "reference": "turn21search3"
+            },
+            {
+              "rank": 5,
+              "title": "Disaster Girl, Meme Origin, Zoe Roth & Meaning | Meme Wiki",
+              "url": "https://meme.com/memes/disaster-girl",
+              "reference": "turn21search4"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c05",
+      "category": "chinese_static_family",
+      "input": "想找熊猫头表情包，黑白身体配真人脸，最好是没写字的底图。",
+      "arms": {
+        "literal": {
+          "query": "想找熊猫头表情包，黑白身体配真人脸，最好是没写字的底图。",
+          "elapsed_seconds": 2.145,
+          "captured_at_utc": "2026-10-30T06:51:40.561Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "熊猫头疑惑表情包 梗图网 | AI梗图搜索引擎与百科",
+              "url": "https://gengtu.net/memes/confused-panda-face-meme/",
+              "reference": "turn22search0"
+            },
+            {
+              "rank": 2,
+              "title": "熊猫头是什么意思？熊猫头表情包的特点、使用场合和用法说明｜查新词",
+              "url": "https://chaxinci.com/ci/xiongmaotou",
+              "reference": "turn22search1"
+            },
+            {
+              "rank": 3,
+              "title": "熊猫头早上好表情包 梗图网 | AI梗图搜索引擎与百科",
+              "url": "https://gengtu.net/memes/panda-meme-good-morning-everyone/",
+              "reference": "turn22search2"
+            },
+            {
+              "rank": 4,
+              "title": "满脸问号的熊猫头表情包 梗图网 | AI梗图搜索引擎与百科",
+              "url": "https://gengtu.net/memes/confused-panda-with-question-marks/",
+              "reference": "turn22search3"
+            },
+            {
+              "rank": 5,
+              "title": "拒绝与二次元交流熊猫头表情包 梗图网 | AI梗图搜索引擎与百科",
+              "url": "https://gengtu.net/memes/refuse-2d-communication-panda-meme/",
+              "reference": "turn22search4"
+            }
+          ]
+        },
+        "rewrite": {
+          "query": "熊猫头 真人脸 表情包 无字底图",
+          "elapsed_seconds": 2.271,
+          "captured_at_utc": "2026-10-30T06:51:19.293Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "熊猫头是什么意思？熊猫头表情包的特点、使用场合和用法说明｜查新词",
+              "url": "https://chaxinci.com/ci/xiongmaotou",
+              "reference": "turn17search0"
+            },
+            {
+              "rank": 2,
+              "title": "人脸熊猫头表情包无文字版",
+              "url": "https://www.sohu.com/a/751573522_121124731",
+              "reference": "turn17search1"
+            },
+            {
+              "rank": 3,
+              "title": "熊猫头疑惑表情包 梗图网 | AI梗图搜索引擎与百科",
+              "url": "https://gengtu.net/memes/confused-panda-face-meme/",
+              "reference": "turn17search2"
+            },
+            {
+              "rank": 4,
+              "title": "熊猫头原图无字-千图网",
+              "url": "https://ecywang.com/pic/%E7%86%8A%E7%8C%AB%E5%A4%B4%E5%8E%9F%E5%9B%BE%E6%97%A0%E5%AD%97/",
+              "reference": "turn17search3"
+            },
+            {
+              "rank": 5,
+              "title": "熊猫头表情包无字（60张）",
+              "url": "https://www.sohu.com/a/907910924_121118784",
+              "reference": "turn17search4"
+            }
+          ]
+        },
+        "skill": {
+          "query": "熊猫头 真人脸 表情包 无字 原图",
+          "elapsed_seconds": 2.354,
+          "captured_at_utc": "2026-10-30T06:51:40.769Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "熊猫头原图无字-千图网",
+              "url": "https://ecywang.com/pic/%E7%86%8A%E7%8C%AB%E5%A4%B4%E5%8E%9F%E5%9B%BE%E6%97%A0%E5%AD%97/",
+              "reference": "turn25search0"
+            },
+            {
+              "rank": 2,
+              "title": "人脸熊猫头表情包无文字版",
+              "url": "https://www.sohu.com/a/751573522_121124731",
+              "reference": "turn25search1"
+            },
+            {
+              "rank": 3,
+              "title": "熊猫头疑惑表情包 梗图网 | AI梗图搜索引擎与百科",
+              "url": "https://gengtu.net/memes/confused-panda-face-meme/",
+              "reference": "turn25search2"
+            },
+            {
+              "rank": 4,
+              "title": "熊猫头表情包无字（60张）",
+              "url": "https://www.sohu.com/a/907910924_121118784",
+              "reference": "turn25search3"
+            },
+            {
+              "rank": 5,
+              "title": "熊猫头换脸表情包：开始龙吧,各位 梗图网 | AI梗图搜索引擎与百科",
+              "url": "https://gengtu.net/memes/panda-head-meme-start-long-ba/",
+              "reference": "turn25search4"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c06",
+      "category": "chinese_static_family",
+      "input": "张学友那张说吃屎啦你的表情，我想找没字幕的版本自己改字。",
+      "arms": {
+        "literal": {
+          "query": "张学友那张说吃屎啦你的表情，我想找没字幕的版本自己改字。",
+          "elapsed_seconds": 2.4,
+          "captured_at_utc": "2026-10-30T06:51:40.816Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "食屎啦你 | 香港網絡大典 | Fandom",
+              "url": "https://evchk.fandom.com/zh/wiki/%E9%A3%9F%E5%B1%8E%E5%95%A6%E4%BD%A0",
+              "reference": "turn23search0"
+            },
+            {
+              "rank": 2,
+              "title": "食屎啦你 | MeMe 梗圖・迷因收納庫",
+              "url": "https://tools.wingzero.tw/memes/187",
+              "reference": "turn23search1"
+            },
+            {
+              "rank": 3,
+              "title": "张学友食屎啦你GIF下载-张学友食屎啦你表情包下载__飞翔下载",
+              "url": "https://www.fxxz.com/soft/132064.html",
+              "reference": "turn23search2"
+            },
+            {
+              "rank": 4,
+              "title": "張學友「食屎啦你」出處？揭祕烏蠅哥經典表情包的誕生 - UpToGo",
+              "url": "https://uptogo.com.tw/%E5%A8%9B%E6%A8%82/%E5%90%8D%E4%BA%BA/%E9%A3%9F%E5%B1%8E%E5%95%A6%E4%BD%A0%E5%87%BA%E8%99%95%EF%BC%9F/",
+              "reference": "turn23search3"
+            },
+            {
+              "rank": 5,
+              "title": "张学友：食屎啦你表情包",
+              "url": "https://weilegetu.com/image/579.html",
+              "reference": "turn23search4"
+            }
+          ]
+        },
+        "rewrite": {
+          "query": "张学友 吃屎啦你 表情包 无字幕原图",
+          "elapsed_seconds": 2.803,
+          "captured_at_utc": "2026-10-30T06:51:41.219Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "张学友：食屎啦你表情包",
+              "url": "https://www.weilegetu.com/image/579.html",
+              "reference": "turn27search0"
+            },
+            {
+              "rank": 2,
+              "title": "食屎啦你 | 香港網絡大典 | Fandom",
+              "url": "https://evchk.fandom.com/zh/wiki/%E9%A3%9F%E5%B1%8E%E5%95%A6%E4%BD%A0",
+              "reference": "turn27search1"
+            },
+            {
+              "rank": 3,
+              "title": "食屎啦你 | MeMe 梗圖・迷因收納庫",
+              "url": "https://tools.wingzero.tw/memes/187",
+              "reference": "turn27search2"
+            },
+            {
+              "rank": 4,
+              "title": "张学友食屎啦你GIF下载-张学友食屎啦你表情包下载__飞翔下载",
+              "url": "https://www.fxxz.com/soft/132064.html",
+              "reference": "turn27search3"
+            },
+            {
+              "rank": 5,
+              "title": "张学友表情包“食屎啦你”GIF动图（欠揍全套） - 我想网",
+              "url": "https://m.wogif.com/biaoqing/12662.html",
+              "reference": "turn27search4"
+            }
+          ]
+        },
+        "skill": {
+          "query": "旺角卡门 张学友 食屎啦你 无字 原图",
+          "elapsed_seconds": 2.537,
+          "captured_at_utc": "2026-10-30T06:51:40.953Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "〖食屎啦你.jpg〗九大電影Cap圖　學友《旺角卡門》一句NG六十次",
+              "url": "https://www.hk01.com/%E9%9B%BB%E5%BD%B1/61401/%E9%A3%9F%E5%B1%8E%E5%95%A6%E4%BD%A0-jpg-%E4%B9%9D%E5%A4%A7%E9%9B%BB%E5%BD%B1cap%E5%9C%96-%E5%AD%B8%E5%8F%8B-%E6%97%BA%E8%A7%92%E5%8D%A1%E9%96%80-%E4%B8%80%E5%8F%A5ng%E5%85%AD%E5%8D%81%E6%AC%A1",
+              "reference": "turn24search0"
+            },
+            {
+              "rank": 2,
+              "title": "张学友：食屎啦你表情包",
+              "url": "https://weilegetu.com/image/579.html",
+              "reference": "turn24search1"
+            },
+            {
+              "rank": 3,
+              "title": "〖旺角卡門〗張學友經典「食屎啦你」　烏蠅哥背後的淒美故事",
+              "url": "https://www.hk01.com/%E7%86%B1%E7%88%86%E8%A9%B1%E9%A1%8C/307274/%E6%97%BA%E8%A7%92%E5%8D%A1%E9%96%80-%E5%BC%B5%E5%AD%B8%E5%8F%8B%E7%B6%93%E5%85%B8-%E9%A3%9F%E5%B1%8E%E5%95%A6%E4%BD%A0-%E7%83%8F%E8%A0%85%E5%93%A5%E8%83%8C%E5%BE%8C%E7%9A%84%E6%B7%92%E7%BE%8E%E6%95%85%E4%BA%8B",
+              "reference": "turn24search2"
+            },
+            {
+              "rank": 4,
+              "title": "张学友表情包“食屎啦你”GIF动图（欠揍全套） - 我想网",
+              "url": "https://www.wogif.com/biaoqing/12662.html",
+              "reference": "turn24search3"
+            },
+            {
+              "rank": 5,
+              "title": "香港估估吓：常用电影Cap图出处？｜即时新闻｜生活｜on.cc东网",
+              "url": "https://hk.on.cc/hk/bkn/cnt/lifestyle/20190221/bkn-20190221080032778-0221_00982_001_cn.html",
+              "reference": "turn24search4"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c07",
+      "category": "chinese_animation",
+      "input": "王境泽一开始说不吃，后来端着碗说真香的动图，要能保存会动的。",
+      "arms": {
+        "literal": {
+          "query": "王境泽一开始说不吃，后来端着碗说真香的动图，要能保存会动的。",
+          "elapsed_seconds": 2.722,
+          "captured_at_utc": "2026-10-30T06:51:41.138Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "手机厂商和消费者的“王境泽困境”|界面新闻 · JMedia",
+              "url": "https://www.jiemian.com/article/2339124.html",
+              "reference": "turn26search0"
+            },
+            {
+              "rank": 2,
+              "title": "王境泽靠“真香定律”年入百万：不想再做被打脸的人_凤凰网",
+              "url": "https://i.ifeng.com/c/8eqaqflh9Ds",
+              "reference": "turn26search1"
+            },
+            {
+              "rank": 3,
+              "title": "王境泽",
+              "url": "https://zh.wikipedia.org/wiki/%E7%8E%8B%E5%A2%83%E6%B3%BD",
+              "reference": "turn26search12"
+            },
+            {
+              "rank": 4,
+              "title": "还记得《变形计》里的“真香哥”吗？现在长这样了？_凤凰网",
+              "url": "https://ent.ifeng.com/c/8esm76y3Y0O",
+              "reference": "turn26search2"
+            },
+            {
+              "rank": 5,
+              "title": "还记得《变形计》里的“真香哥”吗？现在长这样了？|王境泽|节目|农村|父母|张家界_新浪新闻",
+              "url": "https://k.sina.com.cn/article_5291824241_13b6ad47101901bgyu.html",
+              "reference": "turn26search3"
+            }
+          ]
+        },
+        "rewrite": {
+          "query": "王境泽 真香 GIF 动图 下载",
+          "elapsed_seconds": 2.431,
+          "captured_at_utc": "2026-10-30T06:52:15.561Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "王境泽",
+              "url": "https://zh.wikipedia.org/wiki/%E7%8E%8B%E5%A2%83%E6%B3%BD",
+              "reference": "turn32search12"
+            },
+            {
+              "rank": 2,
+              "title": "真香表情包gif动态图-千图网",
+              "url": "https://ecywang.com/pic/%E7%9C%9F%E9%A6%99%E8%A1%A8%E6%83%85%E5%8C%85gif%E5%8A%A8%E6%80%81%E5%9B%BE/",
+              "reference": "turn32search0"
+            },
+            {
+              "rank": 3,
+              "title": "王境泽动图表情包-千图网",
+              "url": "https://ecywang.com/pic/%E7%8E%8B%E5%A2%83%E6%B3%BD%E5%8A%A8%E5%9B%BE%E8%A1%A8%E6%83%85%E5%8C%85/",
+              "reference": "turn32search1"
+            },
+            {
+              "rank": 4,
+              "title": "香gif - 动态图库网",
+              "url": "https://www.dttk.cc/dongtaitu/202101/69199/",
+              "reference": "turn32search2"
+            },
+            {
+              "rank": 5,
+              "title": "王境泽gif表情包改字幕在线制作教程_真香",
+              "url": "https://www.sohu.com/a/251457519_100197077",
+              "reference": "turn32search3"
+            }
+          ]
+        },
+        "skill": {
+          "query": "王境泽 真香 GIF 动图",
+          "elapsed_seconds": 1.779,
+          "captured_at_utc": "2026-10-30T06:52:14.909Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "真香王境泽王境泽真香真香警告gif动图_动态图_表情包下载_SOOGIF",
+              "url": "https://www.soogif.com/materialPage/odPPq3-CUPM",
+              "reference": "turn28search0"
+            },
+            {
+              "rank": 2,
+              "title": "王境泽",
+              "url": "https://zh.wikipedia.org/wiki/%E7%8E%8B%E5%A2%83%E6%B3%BD",
+              "reference": "turn28search12"
+            },
+            {
+              "rank": 3,
+              "title": "〖王境泽〗gif动态图片 - 王境泽动图表情包下载 - soogif动图",
+              "url": "https://www.soogif.com/theme/B5BlfIzHDOE",
+              "reference": "turn28search1"
+            },
+            {
+              "rank": 4,
+              "title": "王境泽动图表情包-千图网",
+              "url": "https://ecywang.com/pic/%E7%8E%8B%E5%A2%83%E6%B3%BD%E5%8A%A8%E5%9B%BE%E8%A1%A8%E6%83%85%E5%8C%85/",
+              "reference": "turn28search2"
+            },
+            {
+              "rank": 5,
+              "title": "王境泽真香真相警告生气搞怪网络红人空白表情DIY空白表情热门gif动图_动态图_表情包下载_SOOGIF",
+              "url": "https://www.soogif.com/materialPage/1FXV4WwZytA",
+              "reference": "turn28search3"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c08",
+      "category": "unknown_target",
+      "input": "找蓝色小水母戴黄色安全帽，坐在订书机上打哈欠的那张梗图。",
+      "arms": {
+        "literal": {
+          "query": "找蓝色小水母戴黄色安全帽，坐在订书机上打哈欠的那张梗图。",
+          "elapsed_seconds": 1.99,
+          "captured_at_utc": "2026-10-30T06:52:15.120Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "当我拿起电钻时大脑的警告被无视了 梗图网 | AI梗图搜索引擎与百科",
+              "url": "https://gengtu.net/memes/person-with-drill-ignore-brain-meme/",
+              "reference": "turn30search0"
+            },
+            {
+              "rank": 2,
+              "title": "戴安全帽吃瓜的疑惑小哥 梗图网 | AI梗图搜索引擎与百科",
+              "url": "https://gengtu.net/memes/construction-helmet-watermelon-oh-question/",
+              "reference": "turn30search1"
+            },
+            {
+              "rank": 3,
+              "title": "兒全副武裝寫作業！媽爆笑噴飯 網一看秒懂｜東森新聞",
+              "url": "https://news.ebc.net.tw/news/living/178758",
+              "reference": "turn30search2"
+            },
+            {
+              "rank": 4,
+              "title": "戴‘辩护人’帽的卡通人物怼人图 梗图网 | AI梗图搜索引擎与百科",
+              "url": "https://gengtu.net/memes/defender-hat-cartoon-insult-meme/",
+              "reference": "turn30search3"
+            },
+            {
+              "rank": 5,
+              "title": "梗图搜索器",
+              "url": "https://memesearch.app/",
+              "reference": "turn30search4"
+            }
+          ]
+        },
+        "rewrite": {
+          "query": "蓝色小水母 黄色安全帽 坐订书机 打哈欠 梗图",
+          "elapsed_seconds": 2.051,
+          "captured_at_utc": "2026-10-30T06:52:15.181Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "兒全副武裝寫作業！媽爆笑噴飯 網一看秒懂｜東森新聞",
+              "url": "https://news.ebc.net.tw/news/living/178758",
+              "reference": "turn31search0"
+            },
+            {
+              "rank": 2,
+              "title": "海綿寶寶梗圖搜尋",
+              "url": "https://sponge-bob-seven.vercel.app/",
+              "reference": "turn31search1"
+            },
+            {
+              "rank": 3,
+              "title": "地铁蓝帽大叔低头玩手机 梗图网 | AI梗图搜索引擎与百科",
+              "url": "https://gengtu.net/memes/man-bluecap-subway-smartphone-2024/",
+              "reference": "turn31search2"
+            },
+            {
+              "rank": 4,
+              "title": "把機車停在外面 開始下雨了 安全帽掛在置物箱旁邊 帽口朝上 by梗圖魔術師",
+              "url": "https://memes.tw/wtf/338795",
+              "reference": "turn31search3"
+            },
+            {
+              "rank": 5,
+              "title": "无聊图 - 蛋友贴图专版",
+              "url": "https://jandan.net/pic",
+              "reference": "turn31search4"
+            }
+          ]
+        },
+        "skill": {
+          "query": "蓝色小水母 黄色安全帽 坐在订书机上 打哈欠 梗图",
+          "elapsed_seconds": 1.928,
+          "captured_at_utc": "2026-10-30T06:52:15.058Z",
+          "results": [
+            {
+              "rank": 1,
+              "title": "兒全副武裝寫作業！媽爆笑噴飯 網一看秒懂｜東森新聞",
+              "url": "https://news.ebc.net.tw/news/living/178758",
+              "reference": "turn29search0"
+            },
+            {
+              "rank": 2,
+              "title": "地铁蓝帽大叔低头玩手机 梗图网 | AI梗图搜索引擎与百科",
+              "url": "https://gengtu.net/memes/man-bluecap-subway-smartphone-2024/",
+              "reference": "turn29search1"
+            },
+            {
+              "rank": 3,
+              "title": "梗图搜索器 - 摸鱼杂货店 梗图搜索器",
+              "url": "https://www.moyunews.com/memesearch/",
+              "reference": "turn29search2"
+            },
+            {
+              "rank": 4,
+              "title": "老年人看手机 - 萌娘百科",
+              "url": "https://moegirl.uk/index.php?title=%E8%80%81%E5%B9%B4%E4%BA%BA%E7%9C%8B%E6%89%8B%E6%9C%BA&variant=zh-sg",
+              "reference": "turn29search3"
+            },
+            {
+              "rank": 5,
+              "title": "海綿寶寶梗圖搜尋",
+              "url": "https://sponge-bob-seven.vercel.app/",
+              "reference": "turn29search4"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "capture_notes": {
+    "result_order": "first five returned web pages; no post-search deduplication",
+    "execution": "batches of up to 6 concurrent independent calls; rotated arm launch order",
+    "search_calls": 24,
+    "token_cost": null
+  }
+}

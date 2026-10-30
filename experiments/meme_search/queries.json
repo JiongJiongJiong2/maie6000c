@@ -1,0 +1,141 @@
+{
+  "protocol_version": 1,
+  "provider": "host_web_search",
+  "date_local": "2026-10-30",
+  "timezone": "Asia/Shanghai",
+  "query_planner": {
+    "model": "gpt-6.1-sol",
+    "reasoning": "medium",
+    "independent_contexts": true
+  },
+  "cases": [
+    {
+      "id": "c01",
+      "category": "international_template",
+      "input": "想找那个穿橙色衣服的男人，上半张摆手嫌弃，下半张指着表示喜欢的梗图，最好可以自己加字。",
+      "arms": {
+        "literal": {
+          "query": "想找那个穿橙色衣服的男人，上半张摆手嫌弃，下半张指着表示喜欢的梗图，最好可以自己加字。"
+        },
+        "rewrite": {
+          "query": "Drake 摆手 指着喜欢 梗图 空白模板"
+        },
+        "skill": {
+          "query": "Drake Hotline Bling blank template"
+        }
+      }
+    },
+    {
+      "id": "c02",
+      "category": "international_template",
+      "input": "一个男人面对两个红色按钮，满头大汗不知道选哪个的表情包。",
+      "arms": {
+        "literal": {
+          "query": "一个男人面对两个红色按钮，满头大汗不知道选哪个的表情包。"
+        },
+        "rewrite": {
+          "query": "两个红色按钮 满头大汗 男人 表情包"
+        },
+        "skill": {
+          "query": "Two Buttons sweating meme"
+        }
+      }
+    },
+    {
+      "id": "c03",
+      "category": "international_template",
+      "input": "男生牵着女朋友却回头看路过的女生，女朋友很生气的那张图。",
+      "arms": {
+        "literal": {
+          "query": "男生牵着女朋友却回头看路过的女生，女朋友很生气的那张图。"
+        },
+        "rewrite": {
+          "query": "分心男友 回头看女生 女朋友生气 梗图"
+        },
+        "skill": {
+          "query": "Distracted Boyfriend meme"
+        }
+      }
+    },
+    {
+      "id": "c04",
+      "category": "international_template",
+      "input": "小女孩站在着火的房子前，回头露出坏笑的那张梗图。",
+      "arms": {
+        "literal": {
+          "query": "小女孩站在着火的房子前，回头露出坏笑的那张梗图。"
+        },
+        "rewrite": {
+          "query": "灾难女孩 着火房子 坏笑 梗图"
+        },
+        "skill": {
+          "query": "Disaster Girl meme"
+        }
+      }
+    },
+    {
+      "id": "c05",
+      "category": "chinese_static_family",
+      "input": "想找熊猫头表情包，黑白身体配真人脸，最好是没写字的底图。",
+      "arms": {
+        "literal": {
+          "query": "想找熊猫头表情包，黑白身体配真人脸，最好是没写字的底图。"
+        },
+        "rewrite": {
+          "query": "熊猫头 真人脸 表情包 无字底图"
+        },
+        "skill": {
+          "query": "熊猫头 真人脸 表情包 无字 原图"
+        }
+      }
+    },
+    {
+      "id": "c06",
+      "category": "chinese_static_family",
+      "input": "张学友那张说吃屎啦你的表情，我想找没字幕的版本自己改字。",
+      "arms": {
+        "literal": {
+          "query": "张学友那张说吃屎啦你的表情，我想找没字幕的版本自己改字。"
+        },
+        "rewrite": {
+          "query": "张学友 吃屎啦你 表情包 无字幕原图"
+        },
+        "skill": {
+          "query": "旺角卡门 张学友 食屎啦你 无字 原图"
+        }
+      }
+    },
+    {
+      "id": "c07",
+      "category": "chinese_animation",
+      "input": "王境泽一开始说不吃，后来端着碗说真香的动图，要能保存会动的。",
+      "arms": {
+        "literal": {
+          "query": "王境泽一开始说不吃，后来端着碗说真香的动图，要能保存会动的。"
+        },
+        "rewrite": {
+          "query": "王境泽 真香 GIF 动图 下载"
+        },
+        "skill": {
+          "query": "王境泽 真香 GIF 动图"
+        }
+      }
+    },
+    {
+      "id": "c08",
+      "category": "unknown_target",
+      "input": "找蓝色小水母戴黄色安全帽，坐在订书机上打哈欠的那张梗图。",
+      "arms": {
+        "literal": {
+          "query": "找蓝色小水母戴黄色安全帽，坐在订书机上打哈欠的那张梗图。"
+        },
+        "rewrite": {
+          "query": "蓝色小水母 黄色安全帽 坐订书机 打哈欠 梗图"
+        },
+        "skill": {
+          "query": "蓝色小水母 黄色安全帽 坐在订书机上 打哈欠 梗图"
+        }
+      }
+    }
+  ]
+}

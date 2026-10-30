@@ -1,0 +1,10 @@
+{
+  "scope": "Controlled near-duplicate persistent storage smoke only. Queries resize each corpus asset to 75% in memory. First frame only; no temporal GIF model, unseen accuracy, cross-user isolation, or production retrieval claim. No external network or app DB.",
+  "model_version": "clip-vit-base-patch32@37000f5cdccec47a3f6f83142bff131370757470",
+  "dimension": 512,
+  "db_sha256": "82fb0b240f74aa2b0fdd32de20c07edb682892aa6a8470400509a205558d68a0",
+  "before_count": 0,
+  "after_count": 5,
+  "inserted_count": 5,
+  "excluded_failed_probes": 2
+}

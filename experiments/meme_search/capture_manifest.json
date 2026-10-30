@@ -1,0 +1,106 @@
+{
+  "date_local": "2026-10-30",
+  "timezone": "Asia/Shanghai",
+  "base_commit": "d3db809bdb74d60c0574dca8f70cb4fa1df0cac3",
+  "protocol_sha256": "c4be7f15c3915c35b06c77cdcedb415783d2f1c0259442d3627776b370464d4a",
+  "queries_sha256": "5058bf1f42ee4f453def60c46153acf5839c466a5ecb91aa7231e00825d358cb",
+  "raw_records": [
+    {
+      "file": "c01-literal.txt",
+      "sha256": "388aef1f45618d9a0aa6ad37080909d7b135b7e557da97abf8d4b084cf6bd3b5"
+    },
+    {
+      "file": "c01-rewrite.txt",
+      "sha256": "208f2e0977453c78df17bd41362a743cad1e653e47e63681df81708c4a517e2e"
+    },
+    {
+      "file": "c01-skill.txt",
+      "sha256": "dcf0c308a815b144f08302df3b371a089aeeb7c09f2a8a74df05a178b1b97ff3"
+    },
+    {
+      "file": "c02-literal.txt",
+      "sha256": "c21d35ece6ebb4d4dcbf2fdece52c5aede580dd993d98dd4900360d7f73940a9"
+    },
+    {
+      "file": "c02-rewrite.txt",
+      "sha256": "08ab3230be63f4698c95bfe5cb8484f7d77d9dc98d7839bd617a6afef5bde04b"
+    },
+    {
+      "file": "c02-skill.txt",
+      "sha256": "cc3dd0feb44b8b32c801a8487b8ed06569f4b064e3b9ebebe00e8e8f7d1da892"
+    },
+    {
+      "file": "c03-literal.txt",
+      "sha256": "aa866537ecdff1ca60f771c0fffacbe8889c9476ce97303e3d7c84baa81621cf"
+    },
+    {
+      "file": "c03-rewrite.txt",
+      "sha256": "db36b84782bea36149998961090cf5abafd2dee297053cb3f9172c65ed040d68"
+    },
+    {
+      "file": "c03-skill.txt",
+      "sha256": "9f493113fd3c79b1ab8ce4d0abea7d58655f1f6e9c63655fe9ade49635920516"
+    },
+    {
+      "file": "c04-literal.txt",
+      "sha256": "018e2b0417393d9634386516245910620cfb8006e68164a827eeffeeea222d83"
+    },
+    {
+      "file": "c04-rewrite.txt",
+      "sha256": "0f1de4782597aa23bc73a02524fca93595c9e4ae4f364ff550097ad730bb24e1"
+    },
+    {
+      "file": "c04-skill.txt",
+      "sha256": "c6bf4ccb52bca14f9f064ac687d686676f650f83134d2e1d2c9dfaac78ea0b6e"
+    },
+    {
+      "file": "c05-literal.txt",
+      "sha256": "1288bd3766ee7b39ab1c0fa25f19a0e6f34a8d1dfe34816341fae29fd902cdaf"
+    },
+    {
+      "file": "c05-rewrite.txt",
+      "sha256": "861c0e9265dc2e2b685243cf3d6061d257d60c575f032b3a0c511bd133cebdbd"
+    },
+    {
+      "file": "c05-skill.txt",
+      "sha256": "69513dc7e47fc8df88b395eefe3ae38cdcc985b1d0380a4f94890be914839b03"
+    },
+    {
+      "file": "c06-literal.txt",
+      "sha256": "ea640f6572cc701b1335d64f06c7986d62712d028d59956911f292be69e79a82"
+    },
+    {
+      "file": "c06-rewrite.txt",
+      "sha256": "d456e21e2570a88b693655d1290e6607380f0aa39553a451d85a1d8a6d8890e3"
+    },
+    {
+      "file": "c06-skill.txt",
+      "sha256": "940d6d7871c093a28e0ab075e74728be11c5ca3921debce3e77311efc7e3d8a6"
+    },
+    {
+      "file": "c07-literal.txt",
+      "sha256": "e8c094fcbb1668276b85227554c8ae56d1b24391ff0e09cf1f301ba3fb25159c"
+    },
+    {
+      "file": "c07-rewrite.txt",
+      "sha256": "415c0ced3c6ba32e4d79dcb78ac9da138313df23c7c120480077d3d0d184e5b2"
+    },
+    {
+      "file": "c07-skill.txt",
+      "sha256": "0e22805ca5ba6406c35b3aa8f0f9ed85e292dc17c18c5460183d76420a541c47"
+    },
+    {
+      "file": "c08-literal.txt",
+      "sha256": "9b96e38df284c572acfcccc6eefe7b2d68fb111dc49389d002b8f4a85b2f753d"
+    },
+    {
+      "file": "c08-rewrite.txt",
+      "sha256": "49ca7297a7a0d14f1e1dcc3f19b2ba21d336662e68e535ad9c66f6ce2c4c90d5"
+    },
+    {
+      "file": "c08-skill.txt",
+      "sha256": "52fc60af9c29a5dd74ba2ca6a5571b8e6fc6935ff103920ebaf2991d8b28336a"
+    }
+  ],
+  "note": "Protocol and queries written before first search. Raw third-party tool text remains local and ignored; hashes are integrity evidence, not independent timestamp attestation."
+}

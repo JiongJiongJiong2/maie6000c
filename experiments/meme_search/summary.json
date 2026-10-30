@@ -1,0 +1,508 @@
+{
+  "protocol_version": 1,
+  "provider": "host_web_search",
+  "metric_scope": "Assessor-labeled search-result PAGE discovery, not verified image/media retrieval. MRR@5 assigns zero when no relevant page occurs within the first five ranks.",
+  "latency_scope": "Descriptive only; p95 uses linear interpolation; no inferential claims.",
+  "cost": {
+    "measured": false,
+    "value": null
+  },
+  "missing_judgment_items": [],
+  "by_arm": {
+    "literal": {
+      "counted_cases": 8,
+      "missing_judgments": 0,
+      "top5_page_discovery": {
+        "successes": 7,
+        "judged_cases": 7,
+        "unknown_cases": 1,
+        "rate": 1.0
+      },
+      "top5_blank_page_discovery": {
+        "successes": 1,
+        "judged_cases": 7,
+        "unknown_cases": 1,
+        "rate": 0.14285714285714285
+      },
+      "top5_gif_page_discovery": {
+        "successes": 1,
+        "judged_cases": 7,
+        "unknown_cases": 1,
+        "rate": 0.14285714285714285
+      },
+      "mean_reciprocal_rank": {
+        "value": 1.0,
+        "judged_cases": 7,
+        "cutoff": 5
+      },
+      "latency_seconds": {
+        "n": 8,
+        "median": 2.2295,
+        "p95": 2.7129
+      }
+    },
+    "rewrite": {
+      "counted_cases": 8,
+      "missing_judgments": 0,
+      "top5_page_discovery": {
+        "successes": 7,
+        "judged_cases": 7,
+        "unknown_cases": 1,
+        "rate": 1.0
+      },
+      "top5_blank_page_discovery": {
+        "successes": 1,
+        "judged_cases": 7,
+        "unknown_cases": 1,
+        "rate": 0.14285714285714285
+      },
+      "top5_gif_page_discovery": {
+        "successes": 2,
+        "judged_cases": 7,
+        "unknown_cases": 1,
+        "rate": 0.2857142857142857
+      },
+      "mean_reciprocal_rank": {
+        "value": 1.0,
+        "judged_cases": 7,
+        "cutoff": 5
+      },
+      "latency_seconds": {
+        "n": 8,
+        "median": 2.339,
+        "p95": 2.7855
+      }
+    },
+    "skill": {
+      "counted_cases": 8,
+      "missing_judgments": 0,
+      "top5_page_discovery": {
+        "successes": 7,
+        "judged_cases": 7,
+        "unknown_cases": 1,
+        "rate": 1.0
+      },
+      "top5_blank_page_discovery": {
+        "successes": 3,
+        "judged_cases": 7,
+        "unknown_cases": 1,
+        "rate": 0.42857142857142855
+      },
+      "top5_gif_page_discovery": {
+        "successes": 2,
+        "judged_cases": 7,
+        "unknown_cases": 1,
+        "rate": 0.2857142857142857
+      },
+      "mean_reciprocal_rank": {
+        "value": 1.0,
+        "judged_cases": 7,
+        "cutoff": 5
+      },
+      "latency_seconds": {
+        "n": 8,
+        "median": 2.4455,
+        "p95": 2.7972
+      }
+    }
+  },
+  "by_category": {
+    "chinese_animation": {
+      "literal": {
+        "counted_cases": 1,
+        "missing_judgments": 0,
+        "top5_page_discovery": {
+          "successes": 1,
+          "judged_cases": 1,
+          "unknown_cases": 0,
+          "rate": 1.0
+        },
+        "top5_blank_page_discovery": {
+          "successes": 0,
+          "judged_cases": 1,
+          "unknown_cases": 0,
+          "rate": 0.0
+        },
+        "top5_gif_page_discovery": {
+          "successes": 0,
+          "judged_cases": 1,
+          "unknown_cases": 0,
+          "rate": 0.0
+        },
+        "mean_reciprocal_rank": {
+          "value": 1.0,
+          "judged_cases": 1,
+          "cutoff": 5
+        },
+        "latency_seconds": {
+          "n": 1,
+          "median": 2.722,
+          "p95": 2.722
+        }
+      },
+      "rewrite": {
+        "counted_cases": 1,
+        "missing_judgments": 0,
+        "top5_page_discovery": {
+          "successes": 1,
+          "judged_cases": 1,
+          "unknown_cases": 0,
+          "rate": 1.0
+        },
+        "top5_blank_page_discovery": {
+          "successes": 0,
+          "judged_cases": 1,
+          "unknown_cases": 0,
+          "rate": 0.0
+        },
+        "top5_gif_page_discovery": {
+          "successes": 1,
+          "judged_cases": 1,
+          "unknown_cases": 0,
+          "rate": 1.0
+        },
+        "mean_reciprocal_rank": {
+          "value": 1.0,
+          "judged_cases": 1,
+          "cutoff": 5
+        },
+        "latency_seconds": {
+          "n": 1,
+          "median": 2.431,
+          "p95": 2.431
+        }
+      },
+      "skill": {
+        "counted_cases": 1,
+        "missing_judgments": 0,
+        "top5_page_discovery": {
+          "successes": 1,
+          "judged_cases": 1,
+          "unknown_cases": 0,
+          "rate": 1.0
+        },
+        "top5_blank_page_discovery": {
+          "successes": 1,
+          "judged_cases": 1,
+          "unknown_cases": 0,
+          "rate": 1.0
+        },
+        "top5_gif_page_discovery": {
+          "successes": 1,
+          "judged_cases": 1,
+          "unknown_cases": 0,
+          "rate": 1.0
+        },
+        "mean_reciprocal_rank": {
+          "value": 1.0,
+          "judged_cases": 1,
+          "cutoff": 5
+        },
+        "latency_seconds": {
+          "n": 1,
+          "median": 1.779,
+          "p95": 1.779
+        }
+      }
+    },
+    "chinese_static_family": {
+      "literal": {
+        "counted_cases": 2,
+        "missing_judgments": 0,
+        "top5_page_discovery": {
+          "successes": 2,
+          "judged_cases": 2,
+          "unknown_cases": 0,
+          "rate": 1.0
+        },
+        "top5_blank_page_discovery": {
+          "successes": 0,
+          "judged_cases": 2,
+          "unknown_cases": 0,
+          "rate": 0.0
+        },
+        "top5_gif_page_discovery": {
+          "successes": 1,
+          "judged_cases": 2,
+          "unknown_cases": 0,
+          "rate": 0.5
+        },
+        "mean_reciprocal_rank": {
+          "value": 1.0,
+          "judged_cases": 2,
+          "cutoff": 5
+        },
+        "latency_seconds": {
+          "n": 2,
+          "median": 2.2725,
+          "p95": 2.38725
+        }
+      },
+      "rewrite": {
+        "counted_cases": 2,
+        "missing_judgments": 0,
+        "top5_page_discovery": {
+          "successes": 2,
+          "judged_cases": 2,
+          "unknown_cases": 0,
+          "rate": 1.0
+        },
+        "top5_blank_page_discovery": {
+          "successes": 1,
+          "judged_cases": 2,
+          "unknown_cases": 0,
+          "rate": 0.5
+        },
+        "top5_gif_page_discovery": {
+          "successes": 1,
+          "judged_cases": 2,
+          "unknown_cases": 0,
+          "rate": 0.5
+        },
+        "mean_reciprocal_rank": {
+          "value": 1.0,
+          "judged_cases": 2,
+          "cutoff": 5
+        },
+        "latency_seconds": {
+          "n": 2,
+          "median": 2.537,
+          "p95": 2.7763999999999998
+        }
+      },
+      "skill": {
+        "counted_cases": 2,
+        "missing_judgments": 0,
+        "top5_page_discovery": {
+          "successes": 2,
+          "judged_cases": 2,
+          "unknown_cases": 0,
+          "rate": 1.0
+        },
+        "top5_blank_page_discovery": {
+          "successes": 1,
+          "judged_cases": 2,
+          "unknown_cases": 0,
+          "rate": 0.5
+        },
+        "top5_gif_page_discovery": {
+          "successes": 1,
+          "judged_cases": 2,
+          "unknown_cases": 0,
+          "rate": 0.5
+        },
+        "mean_reciprocal_rank": {
+          "value": 1.0,
+          "judged_cases": 2,
+          "cutoff": 5
+        },
+        "latency_seconds": {
+          "n": 2,
+          "median": 2.4455,
+          "p95": 2.52785
+        }
+      }
+    },
+    "international_template": {
+      "literal": {
+        "counted_cases": 4,
+        "missing_judgments": 0,
+        "top5_page_discovery": {
+          "successes": 4,
+          "judged_cases": 4,
+          "unknown_cases": 0,
+          "rate": 1.0
+        },
+        "top5_blank_page_discovery": {
+          "successes": 1,
+          "judged_cases": 4,
+          "unknown_cases": 0,
+          "rate": 0.25
+        },
+        "top5_gif_page_discovery": {
+          "successes": 0,
+          "judged_cases": 4,
+          "unknown_cases": 0,
+          "rate": 0.0
+        },
+        "mean_reciprocal_rank": {
+          "value": 1.0,
+          "judged_cases": 4,
+          "cutoff": 5
+        },
+        "latency_seconds": {
+          "n": 4,
+          "median": 2.2295,
+          "p95": 2.63285
+        }
+      },
+      "rewrite": {
+        "counted_cases": 4,
+        "missing_judgments": 0,
+        "top5_page_discovery": {
+          "successes": 4,
+          "judged_cases": 4,
+          "unknown_cases": 0,
+          "rate": 1.0
+        },
+        "top5_blank_page_discovery": {
+          "successes": 0,
+          "judged_cases": 4,
+          "unknown_cases": 0,
+          "rate": 0.0
+        },
+        "top5_gif_page_discovery": {
+          "successes": 0,
+          "judged_cases": 4,
+          "unknown_cases": 0,
+          "rate": 0.0
+        },
+        "mean_reciprocal_rank": {
+          "value": 1.0,
+          "judged_cases": 4,
+          "cutoff": 5
+        },
+        "latency_seconds": {
+          "n": 4,
+          "median": 2.27,
+          "p95": 2.7011
+        }
+      },
+      "skill": {
+        "counted_cases": 4,
+        "missing_judgments": 0,
+        "top5_page_discovery": {
+          "successes": 4,
+          "judged_cases": 4,
+          "unknown_cases": 0,
+          "rate": 1.0
+        },
+        "top5_blank_page_discovery": {
+          "successes": 1,
+          "judged_cases": 4,
+          "unknown_cases": 0,
+          "rate": 0.25
+        },
+        "top5_gif_page_discovery": {
+          "successes": 0,
+          "judged_cases": 4,
+          "unknown_cases": 0,
+          "rate": 0.0
+        },
+        "mean_reciprocal_rank": {
+          "value": 1.0,
+          "judged_cases": 4,
+          "cutoff": 5
+        },
+        "latency_seconds": {
+          "n": 4,
+          "median": 2.648,
+          "p95": 2.8108
+        }
+      }
+    },
+    "unknown_target": {
+      "literal": {
+        "counted_cases": 1,
+        "missing_judgments": 0,
+        "top5_page_discovery": {
+          "successes": 0,
+          "judged_cases": 0,
+          "unknown_cases": 1,
+          "rate": null
+        },
+        "top5_blank_page_discovery": {
+          "successes": 0,
+          "judged_cases": 0,
+          "unknown_cases": 1,
+          "rate": null
+        },
+        "top5_gif_page_discovery": {
+          "successes": 0,
+          "judged_cases": 0,
+          "unknown_cases": 1,
+          "rate": null
+        },
+        "mean_reciprocal_rank": {
+          "value": null,
+          "judged_cases": 0,
+          "cutoff": 5
+        },
+        "latency_seconds": {
+          "n": 1,
+          "median": 1.99,
+          "p95": 1.99
+        }
+      },
+      "rewrite": {
+        "counted_cases": 1,
+        "missing_judgments": 0,
+        "top5_page_discovery": {
+          "successes": 0,
+          "judged_cases": 0,
+          "unknown_cases": 1,
+          "rate": null
+        },
+        "top5_blank_page_discovery": {
+          "successes": 0,
+          "judged_cases": 0,
+          "unknown_cases": 1,
+          "rate": null
+        },
+        "top5_gif_page_discovery": {
+          "successes": 0,
+          "judged_cases": 0,
+          "unknown_cases": 1,
+          "rate": null
+        },
+        "mean_reciprocal_rank": {
+          "value": null,
+          "judged_cases": 0,
+          "cutoff": 5
+        },
+        "latency_seconds": {
+          "n": 1,
+          "median": 2.051,
+          "p95": 2.051
+        }
+      },
+      "skill": {
+        "counted_cases": 1,
+        "missing_judgments": 0,
+        "top5_page_discovery": {
+          "successes": 0,
+          "judged_cases": 0,
+          "unknown_cases": 1,
+          "rate": null
+        },
+        "top5_blank_page_discovery": {
+          "successes": 0,
+          "judged_cases": 0,
+          "unknown_cases": 1,
+          "rate": null
+        },
+        "top5_gif_page_discovery": {
+          "successes": 0,
+          "judged_cases": 0,
+          "unknown_cases": 1,
+          "rate": null
+        },
+        "mean_reciprocal_rank": {
+          "value": null,
+          "judged_cases": 0,
+          "cutoff": 5
+        },
+        "latency_seconds": {
+          "n": 1,
+          "median": 1.928,
+          "p95": 1.928
+        }
+      }
+    }
+  },
+  "limitations": [
+    "Labels use only returned ranks 1–5 and captured page snippets/text; page evidence does not establish exact asset identity or downloadable media.",
+    "Blank/GIF labels require explicit matching page evidence; generic editor capabilities are not counted. All judgments are AI annotations, not human acceptance.",
+    "c05 has no unique target image; relevance means the panda-head/faces family. c08 ground truth is unknown."
+  ]
+}

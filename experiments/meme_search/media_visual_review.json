@@ -1,0 +1,12 @@
+{
+  "assessor": "root assistant visual inspection; not human user acceptance",
+  "scope": "Cached media first-frame inspection after all-frame decode; no inference of rights",
+  "items": [
+    {"id": "drake_blank", "visible_added_caption": false, "template_match": "Drake two-panel original-family image", "editable_static_candidate": true},
+    {"id": "two_buttons_redraw", "visible_added_caption": false, "template_match": "Same two-button layout, visibly different illustration; source calls it a recreation", "editable_static_candidate": true},
+    {"id": "wang_gif_preview", "visible_added_caption": true, "template_match": "Wang Jingze eating, captioned 真香", "editable_static_candidate": false, "animation_requirement_met": false},
+    {"id": "wang_blank_preview", "visible_added_caption": false, "template_match": "Wang Jingze pointing outdoors; different scene from eating request", "editable_static_candidate": true, "animation_requirement_met": false},
+    {"id": "jacky_preview", "visible_added_caption": true, "template_match": "Jacky Cheung scene, blurred low-resolution preview with subtitle", "editable_static_candidate": false, "requested_textless_requirement_met": false}
+  ],
+  "limitations": ["No edits were performed and no user accepted an output.", "A static editable candidate can still be the wrong scene or a recreation."]
+}
