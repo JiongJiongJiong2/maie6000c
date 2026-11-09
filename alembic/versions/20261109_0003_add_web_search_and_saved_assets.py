@@ -49,7 +49,7 @@ def upgrade() -> None:
         sqlite_where=sa.text("index_status = 'pending'"),
     )
 
-    with op.batch_alter_table("search_jobs", recreate="always") as batch:
+    with op.batch_alter_table("search_jobs") as batch:
         batch.add_column(
             sa.Column("job_kind", sa.String(length=20), server_default="local", nullable=False)
         )
@@ -66,7 +66,7 @@ def upgrade() -> None:
             "uq_search_jobs_client_search_key", ["client_search_key"]
         )
 
-    with op.batch_alter_table("candidates", recreate="always") as batch:
+    with op.batch_alter_table("candidates") as batch:
         batch.alter_column(
             "reference_asset_id",
             existing_type=sa.String(length=36),
@@ -120,7 +120,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table("candidate_saves")
     op.drop_table("search_executions")
-    with op.batch_alter_table("candidates", recreate="always") as batch:
+    with op.batch_alter_table("candidates") as batch:
         batch.drop_constraint("ck_candidate_origin", type_="check")
         batch.drop_constraint("fk_candidates_saved_asset_id", type_="foreignkey")
         batch.drop_column("provider")
@@ -133,7 +133,7 @@ def downgrade() -> None:
             existing_type=sa.String(length=36),
             nullable=False,
         )
-    with op.batch_alter_table("search_jobs", recreate="always") as batch:
+    with op.batch_alter_table("search_jobs") as batch:
         batch.drop_constraint("uq_search_jobs_client_search_key", type_="unique")
         batch.drop_constraint("fk_search_jobs_retry_of_job_id", type_="foreignkey")
         batch.drop_column("retry_of_job_id")

@@ -15,6 +15,12 @@ execution traces, provenance-bearing temporary candidates, idempotent collection
 into a separate saved-asset table, and a durable saved-index queue. A saved GIF
 is never inserted into `reference_assets` merely because it was collected.
 
+Migration `20261109_0003` alters existing PostgreSQL tables in place to preserve
+inbound foreign keys; Alembic uses batch table recreation only where SQLite
+requires it. PostgreSQL CI validates migration upgrade, downgrade, and ORM
+metadata consistency. Local SQLite tests and generated PostgreSQL SQL alone
+do not replace that live-database validation.
+
 The worker calls `services.retrieval.search(image_path, top_k=3)` and the
 `services.search_agent` runner in bounded subprocesses. Two YuanJian-owned
 adapters remain required for a real end-to-end web flow:
