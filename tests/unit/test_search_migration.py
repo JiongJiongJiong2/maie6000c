@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import logging
 from pathlib import Path
 
 import pytest
@@ -40,9 +41,12 @@ def test_sqlite_web_search_migration_round_trip(monkeypatch, tmp_path):
     config.set_main_option("script_location", str(root / "alembic"))
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'migration.db'}")
     get_settings.cache_clear()
+    application_logger = logging.getLogger("services.common.storage")
+    assert not application_logger.disabled
 
     command.upgrade(config, "head")
     command.check(config)
     command.downgrade(config, "20261027_0002")
     command.upgrade(config, "head")
     command.check(config)
+    assert not application_logger.disabled
