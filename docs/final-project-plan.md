@@ -39,7 +39,7 @@ Zirui 首先在现有截图页面中完成从本地结果进入联网补搜的�
 | 范围 | 主负责人 | 约定 |
 | --- | --- | --- |
 | `services/api/`、`services/common/`、`services/worker/`、`alembic/`、启动与部署配置 | Haoxuan | 统一 API、共享类型、任务与数据迁移；负责 worker 调用及落库 |
-| `services/search_agent/`（待新增），原型中的 `providers.py` | Jiongle | 查询规划、搜索来源适配、工具调用、补搜与停止、预算和执行记录；以可被 worker 调用的模块交付 |
+| `services/search_agent/`，原型中的 `providers.py` | Jiongle | 查询规划、搜索来源适配、工具调用、补搜与停止、预算和执行记录；首版入口及交接见[开发说明](web-search-agent.md) |
 | `services/retrieval/`，原型中的 `media.py` | YuanJian | 安全下载、动画验证、去重、视觉排名、多帧索引与评估；向 agent 提供候选处理函数 |
 | `web/` | Zirui | 维护一个正式截图检索入口；统一状态、结果、收藏与错误交互 |
 | 本计划、验收材料、最终文档汇总 | Jiongle | 固定范围与验收；模块运行说明由对应实现者提供并更新 |
