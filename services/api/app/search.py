@@ -3,11 +3,12 @@ from __future__ import annotations
 import logging
 import secrets
 from datetime import timezone
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -15,15 +16,25 @@ from sqlalchemy.orm import Session
 from services.common.config import get_settings
 from services.common.db import get_db
 from services.common.models import utcnow
-from services.common.search_models import Candidate, ReviewDecision, SearchJob, SearchRequest
+from services.common.search_models import (
+    Candidate,
+    CandidateSave,
+    ReviewDecision,
+    SavedAsset,
+    SearchJob,
+    SearchRequest,
+)
 from services.common.search_schemas import (
     AcceptedSearch,
     CandidateRead,
     RetryCreate,
     ReviewCreate,
     ReviewRead,
+    SaveCreate,
+    SavedAssetRead,
     SearchError,
     SearchRead,
+    WebSearchCreate,
 )
 from services.common.storage import (
     MediaError,
@@ -36,6 +47,11 @@ from services.common.storage import (
 )
 
 logger = logging.getLogger("services.api.search")
+MEDIA_RESPONSE_HEADERS = {
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+}
 
 
 def fail(status: int, code: str, message: str) -> HTTPException:
@@ -74,6 +90,18 @@ def latest_job(db: Session, request_id: str) -> SearchJob:
     )
     if job is None:
         raise RuntimeError("Persisted search request has no job")
+    return job
+
+
+def latest_local_job(db: Session, request_id: str) -> SearchJob:
+    job = db.scalar(
+        select(SearchJob)
+        .where(SearchJob.request_id == request_id, SearchJob.job_kind == "local")
+        .order_by(SearchJob.attempt_no.desc())
+        .limit(1)
+    )
+    if job is None:
+        raise RuntimeError("Persisted search request has no local job")
     return job
 
 
@@ -172,32 +200,202 @@ def candidates_for_job(db: Session, job_id: str) -> list[CandidateRead]:
     candidates = db.scalars(
         select(Candidate).where(Candidate.job_id == job_id).order_by(Candidate.rank)
     )
-    return [
-        CandidateRead(
-            candidate_id=UUID(candidate.id),
-            rank=candidate.rank,
-            score=candidate.similarity_score,
-            media_url=f"/candidates/{candidate.id}/media",
+    results = []
+    for candidate in candidates:
+        saved = db.get(SavedAsset, candidate.saved_asset_id) if candidate.saved_asset_id else None
+        results.append(
+            CandidateRead.model_validate(
+                {
+                    "candidate_id": candidate.id,
+                    "rank": candidate.rank,
+                    "score": candidate.similarity_score,
+                    "media_url": f"/candidates/{candidate.id}/media",
+                    "source_url": candidate.source_url or (saved.source_url if saved else None),
+                    "image_url": candidate.image_url or (saved.image_url if saved else None),
+                    "provider": candidate.provider or (saved.provider if saved else None),
+                    "save_status": "saved" if saved else "not_saved",
+                    "asset_id": saved.id if saved else None,
+                    "index_status": saved.index_status if saved else None,
+                }
+            )
         )
-        for candidate in candidates
-    ]
+    return results
+
+
+def read_verified_gif(
+    relative_path: str,
+    *,
+    expected_sha256: str | None,
+    expected_frame_count: int,
+) -> bytes:
+    path = contained_path(get_settings().media_root, relative_path)
+    with path.open("rb") as source:
+        data = source.read(get_settings().max_candidate_bytes + 1)
+    if len(data) > get_settings().max_candidate_bytes:
+        raise MediaError("GIF exceeds the configured size limit")
+    if expected_sha256 is not None and sha256(data) != expected_sha256:
+        raise MediaError("GIF checksum does not match")
+    frames = validate_image(data, animated_gif=True)
+    if frames != expected_frame_count:
+        raise MediaError("GIF frame count does not match")
+    return data
+
+
+def verify_saved_asset_media(asset: SavedAsset) -> bytes:
+    try:
+        return read_verified_gif(
+            asset.gif_path,
+            expected_sha256=asset.sha256,
+            expected_frame_count=asset.frame_count,
+        )
+    except FileNotFoundError as exc:
+        logger.error("saved_asset_media_missing", extra={"asset_id": asset.id})
+        raise fail(503, "saved_asset_unavailable", "Saved GIF is missing from storage") from exc
+    except OSError as exc:
+        logger.exception("saved_asset_media_read_failed", extra={"asset_id": asset.id})
+        raise fail(503, "saved_asset_unavailable", "Saved GIF could not be read") from exc
+    except MediaError as exc:
+        logger.error(
+            "saved_asset_media_invalid",
+            extra={"asset_id": asset.id, "reason": str(exc)},
+        )
+        raise fail(503, "saved_asset_corrupted", "Saved GIF failed integrity validation") from exc
+
+
+def remove_unreferenced_saved_file(
+    db: Session,
+    stored_path: Path | None,
+    digest: str,
+) -> None:
+    if stored_path is None:
+        return
+    try:
+        referenced = db.scalar(select(SavedAsset.id).where(SavedAsset.sha256 == digest))
+    except SQLAlchemyError:
+        logger.exception("saved_asset_reference_check_failed")
+        return
+    if referenced is None:
+        remove_file_after_failure(stored_path, storage_class="saved_asset")
 
 
 @router.get("/search-requests/{request_id}", response_model=SearchRead)
 def read_search(request_id: UUID, db: Database) -> SearchRead:
     require_request(db, str(request_id))
     job = latest_job(db, str(request_id))
+    local_job = latest_local_job(db, str(request_id))
+    web_jobs = db.scalars(
+        select(SearchJob)
+        .where(SearchJob.request_id == str(request_id), SearchJob.job_kind == "web")
+        .order_by(SearchJob.attempt_no)
+    )
     error = None
     if job.error_code is not None:
         error = SearchError(code=job.error_code, message=job.error_detail or job.error_code)
     if job.result_kind not in (None, "candidates", "no_candidates"):
         raise RuntimeError(f"Persisted search job has invalid result kind: {job.result_kind}")
-    return SearchRead(
-        **accepted(job).model_dump(),
-        result_kind=job.result_kind,
-        candidates=candidates_for_job(db, job.id),
-        error=error,
+    return SearchRead.model_validate(
+        {
+            "request_id": job.request_id,
+            "job_id": job.id,
+            "status": job.status,
+            "job_kind": job.job_kind,
+            "stage": job.stage,
+            "local_job_id": local_job.id,
+            "web_searches": [
+                {
+                    "job_id": web_job.id,
+                    "job_kind": web_job.job_kind,
+                    "status": web_job.status,
+                    "stage": web_job.stage,
+                    "description": web_job.description,
+                    "result_kind": web_job.result_kind,
+                    "error": (
+                        {
+                            "code": web_job.error_code,
+                            "message": web_job.error_detail or web_job.error_code,
+                        }
+                        if web_job.error_code
+                        else None
+                    ),
+                }
+                for web_job in web_jobs
+            ],
+            "result_kind": job.result_kind,
+            "candidates": candidates_for_job(db, job.id),
+            "error": (
+                {"code": error.code, "message": error.message} if error is not None else None
+            ),
+        }
     )
+
+
+@router.post(
+    "/search-requests/{request_id}/web-search",
+    response_model=AcceptedSearch,
+    status_code=202,
+)
+def create_web_search(
+    request_id: UUID,
+    payload: WebSearchCreate,
+    db: Database,
+) -> AcceptedSearch:
+    request = require_request(db, str(request_id), lock=True)
+    existing = db.scalar(
+        select(SearchJob).where(SearchJob.client_search_key == payload.client_search_key)
+    )
+    if existing is not None:
+        if (
+            existing.request_id != request.id
+            or existing.description != payload.description.strip()
+            or existing.job_kind != "web"
+        ):
+            raise fail(409, "search_key_conflict", "Search key has different content")
+        return accepted(existing)
+    input_path = contained_path(get_settings().media_root, request.input_path)
+    if not input_path.is_file():
+        raise fail(410, "input_expired", "Search input is unavailable")
+    active = db.scalar(
+        select(SearchJob).where(
+            SearchJob.request_id == request.id,
+            SearchJob.status.in_(["pending", "running"]),
+        )
+    )
+    if active is not None:
+        raise fail(409, "search_already_active", "Wait for the active job to finish")
+    last_attempt = db.scalar(
+        select(SearchJob.attempt_no)
+        .where(SearchJob.request_id == request.id)
+        .order_by(SearchJob.attempt_no.desc())
+        .limit(1)
+    )
+    job = SearchJob(
+        request_id=request.id,
+        attempt_no=(last_attempt or 0) + 1,
+        job_kind="web",
+        stage="pending",
+        description=payload.description.strip(),
+        client_search_key=payload.client_search_key,
+    )
+    db.add(job)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing = db.scalar(
+            select(SearchJob).where(SearchJob.client_search_key == payload.client_search_key)
+        )
+        if existing is not None and (
+            existing.request_id == request.id
+            and existing.description == payload.description.strip()
+            and existing.job_kind == "web"
+        ):
+            return accepted(existing)
+        raise fail(409, "search_conflict", "Another search is already active")
+    logger.info(
+        "web_search_accepted",
+        extra={"request_id": request.id, "job_id": job.id},
+    )
+    return accepted(job)
 
 
 @router.get("/search-jobs/{job_id}/candidates", response_model=list[CandidateRead])
@@ -208,22 +406,45 @@ def read_candidates(job_id: UUID, db: Database) -> list[CandidateRead]:
 
 
 @router.get("/candidates/{candidate_id}/media")
-def read_media(candidate_id: UUID, db: Database) -> FileResponse:
+def read_media(candidate_id: UUID, db: Database) -> Response:
     candidate = db.get(Candidate, str(candidate_id))
     if candidate is None:
         raise fail(404, "candidate_not_found", "Candidate not found")
-    expiry = candidate.cache_expires_at.replace(tzinfo=timezone.utc)
-    if expiry <= utcnow():
-        raise fail(410, "media_expired", "Candidate media has expired; submit a new search")
-    path = contained_path(get_settings().media_root, candidate.local_cache_path)
-    if not path.is_file():
-        logger.error("candidate_media_missing", extra={"candidate_id": candidate.id})
-        raise fail(503, "media_unavailable", "Candidate media is missing from storage")
-    return FileResponse(
-        path,
+    if candidate.saved_asset_id is not None:
+        asset = db.get(SavedAsset, candidate.saved_asset_id)
+        if asset is None:
+            logger.error("candidate_saved_asset_missing", extra={"candidate_id": candidate.id})
+            raise fail(503, "saved_asset_unavailable", "Saved GIF is unavailable")
+        data = verify_saved_asset_media(asset)
+    else:
+        expiry = candidate.cache_expires_at.replace(tzinfo=timezone.utc)
+        if expiry <= utcnow():
+            raise fail(410, "media_expired", "Candidate media has expired; submit a new search")
+        try:
+            data = read_verified_gif(
+                candidate.local_cache_path,
+                expected_sha256=candidate.media_sha256,
+                expected_frame_count=candidate.frame_count,
+            )
+        except FileNotFoundError as exc:
+            logger.error("candidate_media_missing", extra={"candidate_id": candidate.id})
+            raise fail(503, "media_unavailable", "Candidate media is missing from storage") from exc
+        except OSError as exc:
+            logger.exception("candidate_media_read_failed", extra={"candidate_id": candidate.id})
+            raise fail(503, "media_unavailable", "Candidate media could not be read") from exc
+        except MediaError as exc:
+            logger.error(
+                "candidate_media_invalid",
+                extra={"candidate_id": candidate.id, "reason": str(exc)},
+            )
+            raise fail(503, "media_corrupted", "Candidate GIF failed integrity validation") from exc
+    return Response(
+        content=data,
         media_type="image/gif",
-        filename=f"{candidate.id}.gif",
-        content_disposition_type="inline",
+        headers={
+            **MEDIA_RESPONSE_HEADERS,
+            "Content-Disposition": f'inline; filename="{candidate.id}.gif"',
+        },
     )
 
 
@@ -278,8 +499,230 @@ def create_review(job_id: UUID, payload: ReviewCreate, db: Database) -> ReviewRe
     return ReviewRead(review_id=UUID(review.id))
 
 
-def replay_retry(existing: SearchJob, request_id: str) -> AcceptedSearch:
-    if existing.request_id != request_id:
+def saved_asset_read(asset: SavedAsset) -> SavedAssetRead:
+    return SavedAssetRead.model_validate(
+        {
+            "asset_id": asset.id,
+            "save_status": "saved",
+            "media_url": f"/saved-assets/{asset.id}/media",
+            "index_status": asset.index_status,
+            "index_error": asset.index_error,
+        }
+    )
+
+
+@router.post(
+    "/candidates/{candidate_id}/save",
+    response_model=SavedAssetRead,
+    status_code=202,
+)
+def save_candidate(
+    candidate_id: UUID,
+    payload: SaveCreate,
+    db: Database,
+) -> SavedAssetRead:
+    existing_save = db.scalar(
+        select(CandidateSave).where(CandidateSave.client_save_key == payload.client_save_key)
+    )
+    if existing_save is not None:
+        if existing_save.candidate_id != str(candidate_id):
+            raise fail(409, "save_key_conflict", "Save key belongs to a different candidate")
+        asset = db.get(SavedAsset, existing_save.saved_asset_id)
+        if asset is None:
+            raise RuntimeError("Persisted candidate save has no saved asset")
+        return saved_asset_read(asset)
+
+    candidate = db.scalar(
+        select(Candidate).where(Candidate.id == str(candidate_id)).with_for_update()
+    )
+    if candidate is None:
+        raise fail(404, "candidate_not_found", "Candidate not found")
+    existing_save = db.scalar(
+        select(CandidateSave).where(CandidateSave.client_save_key == payload.client_save_key)
+    )
+    if existing_save is not None:
+        if existing_save.candidate_id != candidate.id:
+            raise fail(409, "save_key_conflict", "Save key belongs to a different candidate")
+        asset = db.get(SavedAsset, existing_save.saved_asset_id)
+        if asset is None:
+            raise RuntimeError("Persisted candidate save has no saved asset")
+        return saved_asset_read(asset)
+    job = db.get(SearchJob, candidate.job_id)
+    if job is None or job.job_kind != "web" or job.status != "completed":
+        raise fail(409, "candidate_not_savable", "Only completed web candidates can be saved")
+    accepted_review = db.scalar(
+        select(ReviewDecision).where(
+            ReviewDecision.job_id == job.id,
+            ReviewDecision.candidate_id == candidate.id,
+            ReviewDecision.decision == "accept",
+        )
+    )
+    if accepted_review is None:
+        raise fail(409, "candidate_not_accepted", "Accept the candidate before saving it")
+    stored_path = None
+    if candidate.saved_asset_id is not None:
+        asset = db.get(SavedAsset, candidate.saved_asset_id)
+        if asset is None:
+            raise RuntimeError("Candidate references a missing saved asset")
+        verify_saved_asset_media(asset)
+        digest = asset.sha256
+    else:
+        expiry = candidate.cache_expires_at.replace(tzinfo=timezone.utc)
+        if expiry <= utcnow():
+            raise fail(410, "media_expired", "Candidate media has expired and cannot be saved")
+        try:
+            data = read_verified_gif(
+                candidate.local_cache_path,
+                expected_sha256=candidate.media_sha256,
+                expected_frame_count=candidate.frame_count,
+            )
+        except FileNotFoundError as exc:
+            logger.error("candidate_media_missing", extra={"candidate_id": candidate.id})
+            raise fail(503, "media_unavailable", "Candidate media is missing from storage") from exc
+        except OSError as exc:
+            logger.exception("candidate_media_read_failed", extra={"candidate_id": candidate.id})
+            raise fail(503, "media_unavailable", "Candidate media could not be read") from exc
+        except MediaError as exc:
+            logger.exception(
+                "candidate_save_validation_failed",
+                extra={"candidate_id": candidate.id},
+            )
+            raise fail(503, "media_corrupted", "Candidate GIF failed integrity validation") from exc
+        digest = sha256(data)
+
+        asset = db.scalar(select(SavedAsset).where(SavedAsset.sha256 == digest))
+        if asset is None:
+            relative = f"saved/{digest}.gif"
+            try:
+                stored_path = atomic_write(get_settings().media_root, relative, data)
+            except OSError as exc:
+                logger.exception("saved_asset_storage_failed")
+                raise fail(503, "storage_unavailable", "GIF could not be saved") from exc
+            asset = SavedAsset(
+                id=str(uuid4()),
+                sha256=digest,
+                title=f"{candidate.provider or 'Recovered'} GIF",
+                source_url=candidate.source_url or "",
+                image_url=candidate.image_url or "",
+                provider=candidate.provider or "unknown",
+                gif_path=relative,
+                frame_count=candidate.frame_count,
+                index_status="pending",
+            )
+            db.add(asset)
+        else:
+            verify_saved_asset_media(asset)
+
+    candidate.saved_asset_id = asset.id
+    db.add(
+        CandidateSave(
+            candidate_id=candidate.id,
+            saved_asset_id=asset.id,
+            client_save_key=payload.client_save_key,
+        )
+    )
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing_save = db.scalar(
+            select(CandidateSave).where(
+                CandidateSave.client_save_key == payload.client_save_key
+            )
+        )
+        if existing_save is not None:
+            if existing_save.candidate_id != str(candidate_id):
+                raise fail(409, "save_key_conflict", "Save key belongs to a different candidate")
+            existing_asset = db.get(SavedAsset, existing_save.saved_asset_id)
+            if existing_asset is None:
+                raise RuntimeError("Persisted candidate save has no saved asset")
+            return saved_asset_read(existing_asset)
+        existing_asset = db.scalar(select(SavedAsset).where(SavedAsset.sha256 == digest))
+        existing_candidate = db.get(Candidate, str(candidate_id))
+        if existing_asset is not None and existing_candidate is not None:
+            existing_candidate.saved_asset_id = existing_asset.id
+            db.add(
+                CandidateSave(
+                    candidate_id=existing_candidate.id,
+                    saved_asset_id=existing_asset.id,
+                    client_save_key=payload.client_save_key,
+                )
+            )
+            try:
+                db.commit()
+            except SQLAlchemyError as exc:
+                db.rollback()
+                remove_unreferenced_saved_file(db, stored_path, digest)
+                logger.exception("saved_asset_recovery_commit_failed")
+                raise fail(
+                    503,
+                    "database_unavailable",
+                    "Save recovery could not be committed",
+                ) from exc
+            return saved_asset_read(existing_asset)
+        remove_unreferenced_saved_file(db, stored_path, digest)
+        raise fail(409, "save_conflict", "Candidate was saved concurrently")
+    except SQLAlchemyError as exc:
+        db.rollback()
+        remove_unreferenced_saved_file(db, stored_path, digest)
+        logger.exception("saved_asset_commit_failed")
+        raise fail(503, "database_unavailable", "Save could not be committed") from exc
+    logger.info(
+        "candidate_saved",
+        extra={
+            "candidate_id": candidate.id,
+            "asset_id": asset.id,
+            "index_status": asset.index_status,
+        },
+    )
+    return saved_asset_read(asset)
+
+
+@router.get("/saved-assets/{asset_id}", response_model=SavedAssetRead)
+def read_saved_asset(asset_id: UUID, db: Database) -> SavedAssetRead:
+    asset = db.get(SavedAsset, str(asset_id))
+    if asset is None:
+        raise fail(404, "saved_asset_not_found", "Saved asset not found")
+    return saved_asset_read(asset)
+
+
+@router.get("/saved-assets/{asset_id}/media")
+def read_saved_asset_media(asset_id: UUID, db: Database) -> Response:
+    asset = db.get(SavedAsset, str(asset_id))
+    if asset is None:
+        raise fail(404, "saved_asset_not_found", "Saved asset not found")
+    data = verify_saved_asset_media(asset)
+    return Response(
+        content=data,
+        media_type="image/gif",
+        headers={
+            **MEDIA_RESPONSE_HEADERS,
+            "Content-Disposition": f'inline; filename="{asset.id}.gif"',
+        },
+    )
+
+
+@router.post("/saved-assets/{asset_id}/index-retry", response_model=SavedAssetRead, status_code=202)
+def retry_saved_asset_index(asset_id: UUID, db: Database) -> SavedAssetRead:
+    asset = db.scalar(select(SavedAsset).where(SavedAsset.id == str(asset_id)).with_for_update())
+    if asset is None:
+        raise fail(404, "saved_asset_not_found", "Saved asset not found")
+    if asset.index_status == "failed":
+        asset.index_status = "pending"
+        asset.index_error = None
+        db.commit()
+        logger.info("saved_asset_index_retried", extra={"asset_id": asset.id})
+    return saved_asset_read(asset)
+
+
+def replay_retry(
+    existing: SearchJob,
+    request_id: str,
+    previous_job_id: str | None = None,
+) -> AcceptedSearch:
+    if existing.request_id != request_id or (
+        previous_job_id is not None and existing.retry_of_job_id != previous_job_id
+    ):
         raise fail(409, "retry_key_conflict", "Retry key belongs to a different request")
     return accepted(existing)
 
@@ -287,19 +730,65 @@ def replay_retry(existing: SearchJob, request_id: str) -> AcceptedSearch:
 @router.post("/search-requests/{request_id}/retry", response_model=AcceptedSearch, status_code=202)
 def retry_search(request_id: UUID, payload: RetryCreate, db: Database) -> AcceptedSearch:
     request = require_request(db, str(request_id), lock=True)
+    previous = latest_local_job(db, request.id)
     existing = db.scalar(
         select(SearchJob).where(SearchJob.client_retry_key == payload.client_retry_key)
     )
     if existing is not None:
+        if existing.job_kind != "local":
+            raise fail(409, "retry_key_conflict", "Retry key belongs to a different job")
         return replay_retry(existing, request.id)
-    previous = latest_job(db, request.id)
+    return create_retry(db, request, previous, payload)
+
+
+@router.post("/search-jobs/{job_id}/retry", response_model=AcceptedSearch, status_code=202)
+def retry_specific_search(job_id: UUID, payload: RetryCreate, db: Database) -> AcceptedSearch:
+    previous = db.scalar(select(SearchJob).where(SearchJob.id == str(job_id)).with_for_update())
+    if previous is None:
+        raise fail(404, "job_not_found", "Search job not found")
+    request = require_request(db, previous.request_id, lock=True)
+    existing = db.scalar(
+        select(SearchJob).where(SearchJob.client_retry_key == payload.client_retry_key)
+    )
+    if existing is not None:
+        return replay_retry(existing, request.id, previous.id)
+    return create_retry(db, request, previous, payload)
+
+
+def create_retry(
+    db: Session,
+    request: SearchRequest,
+    previous: SearchJob,
+    payload: RetryCreate,
+) -> AcceptedSearch:
     if previous.status != "failed":
         raise fail(409, "retry_not_allowed", "Only a failed request can be retried")
+    active = db.scalar(
+        select(SearchJob).where(
+            SearchJob.request_id == request.id,
+            SearchJob.status.in_(["pending", "running"]),
+        )
+    )
+    if active is not None:
+        raise fail(409, "retry_already_active", "Another job is already active for this request")
     if not contained_path(get_settings().media_root, request.input_path).is_file():
         raise fail(410, "input_expired", "Input is unavailable; submit a new search")
     job = SearchJob(
         request_id=request.id,
-        attempt_no=previous.attempt_no + 1,
+        attempt_no=(
+            db.scalar(
+                select(SearchJob.attempt_no)
+                .where(SearchJob.request_id == request.id)
+                .order_by(SearchJob.attempt_no.desc())
+                .limit(1)
+            )
+            or 0
+        )
+        + 1,
+        job_kind=previous.job_kind,
+        stage="pending",
+        description=previous.description,
+        retry_of_job_id=previous.id,
         client_retry_key=payload.client_retry_key,
     )
     db.add(job)
@@ -311,7 +800,7 @@ def retry_search(request_id: UUID, payload: RetryCreate, db: Database) -> Accept
             select(SearchJob).where(SearchJob.client_retry_key == payload.client_retry_key)
         )
         if existing is not None:
-            return replay_retry(existing, str(request_id))
+            return replay_retry(existing, request.id, previous.id)
         raise fail(409, "retry_conflict", "Another retry is already active")
     logger.info("search_retried", extra={"request_id": request.id, "job_id": job.id})
     return accepted(job)

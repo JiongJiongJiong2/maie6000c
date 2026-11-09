@@ -1,4 +1,4 @@
-# W07 backend: contracts, persistence, and deployment
+# Backend guide: W07 and post-midterm integration
 
 Owner: Haoxuan Jiang (21313230). This implements the backend portion of
 [the team plan](week07-plan.md), not the web client or pretrained retrieval.
@@ -10,13 +10,32 @@ Implemented: multipart submissions, PostgreSQL migrations, persistent jobs,
 atomic claims, retry/review idempotency, GIF catalog import and validation,
 shared storage, media expiry, and Docker API/worker separation.
 
-The worker calls `services.retrieval.search(image_path, top_k=3)` in a bounded
-subprocess. YuanJian supplies that package, its inference dependencies, permitted
-corpus, and preparation procedure. No dummy retrieval implementation is shipped.
-Until that package is integrated, submissions become `failed` with
-`retrieval_unavailable`. Tests inject deterministic results only to verify backend
-behavior; they are not evidence of real inference or retrieval quality.
-Zirui supplies the web client; no upload page is provided by this branch.
+Post-midterm backend additions include linked web-search jobs, persisted agent
+execution traces, provenance-bearing temporary candidates, idempotent collection
+into a separate saved-asset table, and a durable saved-index queue. A saved GIF
+is never inserted into `reference_assets` merely because it was collected.
+
+The worker calls `services.retrieval.search(image_path, top_k=3)` and the
+`services.search_agent` runner in bounded subprocesses. Two YuanJian-owned
+adapters remain required for a real end-to-end web flow:
+
+- `services.retrieval.prepare_candidates(image_path, sources, work_dir, budget)`
+  must return validated, multi-frame GIF candidates. If absent, the web job
+  fails as `candidate_processor_unavailable`; discovered pages are never counted
+  as recovered GIFs.
+- `services.retrieval.index_saved_asset(asset_id)` must update the shared
+  multi-frame index and return an index version (a string or
+  `{"index_version": "..."}`). It must build and validate a replacement before
+  atomically switching the active index, so a failed update leaves the prior
+  index usable. If absent, saved files remain durable with `index_status=failed`
+  and can be retried; they are not reported as searchable.
+
+The local retrieval implementation must return ready saved-asset IDs as well as
+curated reference IDs after an index update. The worker resolves either ID type
+to its separate data model and verifies the media checksum and frame count.
+Automated tests inject deterministic results to verify backend behavior; they
+are not evidence of real external GIF retrieval, index rebuilding, or retrieval
+quality. The client remains Zirui's responsibility.
 
 ## Run (PowerShell, from the repository root)
 
@@ -43,9 +62,10 @@ uses the configured `WORKER_REQUEST_TIMEOUT_SECONDS` value. The default
 timeout, also increase the stop grace period to exceed it with enough margin
 for database updates.
 The search worker also finishes its current bounded retrieval operation after
-SIGTERM. Its default `SEARCH_WORKER_STOP_GRACE_PERIOD` is 150 seconds for the
-120-second retrieval timeout; if increasing `RETRIEVAL_TIMEOUT_SECONDS`, raise
-the stop grace period by enough time for result validation and database writes.
+SIGTERM. Its default `SEARCH_WORKER_STOP_GRACE_PERIOD` is 330 seconds, covering
+the 300-second maximum saved-index operation and bounded web/local operations.
+Keep this grace period above the largest configured web-search, index, or local
+retrieval timeout with enough margin for validation and database writes.
 All Compose services use `unless-stopped` restart behavior; a manually stopped
 service remains stopped, while a container process failure is restarted.
 Docker `json-file` logs rotate at 10 MiB per file and retain at most three
@@ -186,9 +206,15 @@ All IDs below are UUID strings; JSON field names are snake_case.
 | `POST /search-requests` | Multipart `image`, `client_submission_key`; optional `user_keywords`, `client_item_id`; `202` with `request_id`, `job_id`, `status` |
 | `GET /search-requests/{request_id}` | Latest attempt with `request_id`, `job_id`, `status`, `result_kind`, `candidates`, `error` |
 | `GET /search-jobs/{job_id}/candidates` | Candidates from that particular attempt |
-| `GET /candidates/{candidate_id}/media` | `image/gif`, usable for preview or download; no server filesystem path |
+| `GET /candidates/{candidate_id}/media` | Validated `image/gif` for preview or download; after save, serves durable asset media beyond temporary expiry |
 | `POST /search-jobs/{job_id}/reviews` | JSON `decision`, `candidate_id`, `client_review_key`; `201` with `review_id` |
 | `POST /search-requests/{request_id}/retry` | JSON `client_retry_key`; only after failure; `202` with accepted attempt |
+| `POST /search-requests/{request_id}/web-search` | JSON `description`, `client_search_key`; creates a distinct linked web job; `202` |
+| `POST /search-jobs/{job_id}/retry` | JSON `client_retry_key`; retries the specified failed local or web job; `202` |
+| `POST /candidates/{candidate_id}/save` | JSON `client_save_key`; requires an accepted web candidate; `202` with asset/save/index status |
+| `GET /saved-assets/{asset_id}` | Durable saved-file and indexing status |
+| `GET /saved-assets/{asset_id}/media` | Validated `image/gif` from persistent storage, independent of temporary candidate expiry |
+| `POST /saved-assets/{asset_id}/index-retry` | Re-queues a failed saved-asset index update |
 
 Initial response:
 
@@ -214,6 +240,26 @@ Polling response:
 }
 ```
 
+The polling response also includes `job_kind`, `stage`, `local_job_id`, and
+`web_searches` so a client can restore each linked task after refresh. Each
+candidate includes `source_url`, `image_url`, `provider`, `save_status`,
+`asset_id`, and `index_status` where applicable. Temporary web candidates and
+saved files are distinct: a review records acceptance, the save endpoint
+persists the file and returns its durable `media_url`, and the worker later
+updates its index status. The saved-media endpoint checks the stored checksum
+and animation frame count before serving the file. A saved candidate's existing
+candidate media URL also serves that durable asset after temporary cleanup;
+unsaved candidate media still expires normally.
+
+Submission and web-search keys replay only identical input/description; using
+the same key with changed content returns `409`. A request may have only one
+active local-or-web task. Web retries target a specific failed job so original
+results and execution traces remain available. A save key replays the same
+candidate/asset mapping; content SHA-256 deduplicates saved assets. Search
+execution records retain bounded calls, downloads, stage trace, warnings,
+duration, stop reason, agent version, and model version, never provider
+credentials.
+
 States are `pending -> running -> completed / failed`. `result_kind` is null
 until completed; failed jobs expose `error: {"code": "...", "message": "..."}`.
 HTTP domain errors use FastAPI's `detail: {"code": "...", "message": "..."}`;
@@ -226,6 +272,16 @@ Reviews are append-only: `accept` requires a candidate belonging to the
 completed job; `reject_all` requires a null candidate. Replay of a review/retry
 key returns the original record; changed content or request/job means `409`.
 A review is **not** evidence that the client saved or played a GIF.
+
+The worker reads `WEB_SEARCH_TIMEOUT_SECONDS` (default 60, maximum 300),
+`WEB_SEARCH_CALL_TIMEOUT_SECONDS` (default 12, maximum 60),
+`WEB_SEARCH_MAX_DOWNLOADS` (default/maximum 6), and
+`SAVED_INDEX_TIMEOUT_SECONDS` (default 300, maximum 600). The first two web
+limits are also passed to the agent's shared `SearchBudget`; the agent itself
+caps rounds at two and results at three. Search-provider credentials and
+selection (`SEARCH_AGENT_PROVIDER`, `SEARCH_AGENT_MODE`, and provider-specific
+keys) are passed only to the worker in Compose. Avoid logging or returning those
+values.
 
 ## Verification
 
@@ -252,7 +308,8 @@ CI supplies that connection and verifies migration upgrade/downgrade,
 metadata agreement, eight concurrent duplicate submissions, retries, and
 reviews, row-lock claims, active-job uniqueness, and cross-job review constraints.
 
-For the deployed backend before retrieval integration:
+For the deployed backend before local retrieval or candidate processing has
+been integrated:
 
 ```powershell
 $env:SMOKE_BASE_URL="http://localhost:8000"

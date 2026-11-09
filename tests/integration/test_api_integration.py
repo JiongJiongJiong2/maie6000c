@@ -52,5 +52,7 @@ def test_health_ready_only_writes_to_mutable_storage(client, monkeypatch):
     assert set(checked_directories) == {
         settings.media_root / "inputs",
         settings.media_root / "candidates",
+        settings.media_root / "saved",
+        settings.media_root / "web-search",
         settings.model_cache_root,
     }

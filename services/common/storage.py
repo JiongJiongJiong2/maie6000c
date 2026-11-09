@@ -37,6 +37,8 @@ def prepare_storage() -> None:
     for path in (
         settings.media_root / "inputs",
         settings.media_root / "candidates",
+        settings.media_root / "web-search",
+        settings.media_root / "saved",
         settings.reference_root,
         settings.model_cache_root,
     ):

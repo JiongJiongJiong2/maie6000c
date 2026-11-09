@@ -111,7 +111,16 @@ def test_submission_contract_idempotency_and_conflict(client, db_session):
     assert db_session.scalar(select(func.count()).select_from(SearchJob)) == 1
     assert len(list((get_settings().media_root / "inputs").iterdir())) == 1
     state = client.get(f"/search-requests/{first.json()['request_id']}").json()
-    assert state == {**first.json(), "result_kind": None, "candidates": [], "error": None}
+    assert state == {
+        **first.json(),
+        "job_kind": "local",
+        "stage": "pending",
+        "local_job_id": first.json()["job_id"],
+        "web_searches": [],
+        "result_kind": None,
+        "candidates": [],
+        "error": None,
+    }
 
 
 @pytest.mark.parametrize("data", [b"", b"not an image", image_bytes()[:30], image_bytes(gif=True)])
@@ -173,7 +182,18 @@ def test_completed_candidates_media_and_review(client, db_session, worker_factor
     assert state["error"] is None
     assert len(state["candidates"]) == 1
     candidate = state["candidates"][0]
-    assert set(candidate) == {"candidate_id", "rank", "score", "media_url"}
+    assert set(candidate) == {
+        "candidate_id",
+        "rank",
+        "score",
+        "media_url",
+        "source_url",
+        "image_url",
+        "provider",
+        "save_status",
+        "asset_id",
+        "index_status",
+    }
     media = client.get(candidate["media_url"])
     assert media.status_code == 200
     assert media.headers["content-type"] == "image/gif"

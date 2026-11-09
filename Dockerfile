@@ -13,7 +13,7 @@ COPY scripts /app/scripts
 COPY alembic /app/alembic
 COPY alembic.ini /app/alembic.ini
 
-RUN pip install --upgrade pip && pip install -e .
+RUN pip install --upgrade pip && pip install -e ".[search]"
 
 RUN groupadd --gid 10001 app \
     && useradd --uid 10001 --gid app --home-dir /app --no-create-home --shell /usr/sbin/nologin app \

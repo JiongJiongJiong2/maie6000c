@@ -139,6 +139,8 @@ def health_ready(db: Session = Depends(get_db)) -> HealthResponse:
         for directory in (
             settings.media_root / "inputs",
             settings.media_root / "candidates",
+            settings.media_root / "saved",
+            settings.media_root / "web-search",
             settings.model_cache_root,
         ):
             with tempfile.TemporaryFile(dir=directory):
