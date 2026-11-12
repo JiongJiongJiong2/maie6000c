@@ -1,0 +1,267 @@
+{
+  "kind": "real_media_dedup_regression",
+  "reviewer_type": "user-delegated Codex agent; not human attestation",
+  "dedup_version": "meme50-temporal-local-v8",
+  "positive_pairs": 9,
+  "negative_pairs": 1,
+  "all_passed": true,
+  "pairs": [
+    {
+      "case_id": "resource-homer",
+      "job_id": "2b513365-a21d-407e-acee-ec2efa055c7c",
+      "revision": "0a20378842ce4abf829db4e5d3620b23",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "af6a8db3-4170-447d-bb06-c55116c52999",
+          "rank": 2,
+          "sha256": "d16664af37f8dbc1b9688a34c62715a9ab72ef532710ea291056abab2f826d5d",
+          "source_url": "https://tenor.com/view/grrr-gif-18348448",
+          "image_url": "https://media.tenor.com/RrqS3IoQ94cAAAAx/grrr.webp"
+        },
+        {
+          "candidate_id": "067a10f0-394e-479c-a730-c34e81046696",
+          "rank": 13,
+          "sha256": "4ac0bc3783b657cc2264b93d4770c7b666833a61e358e4c710d0167b1f1bb312",
+          "source_url": "https://tenor.com/zh-CN/view/homer-simpson-yelling-shout-gurgi-gif-45647186631198232",
+          "image_url": "https://media.tenor.com/AKIr39gmBhgAAAAx/homer-simpson-yelling.webp"
+        }
+      ]
+    },
+    {
+      "case_id": "resource-pepe",
+      "job_id": "c870b0a8-f2c9-4a77-9bf8-b37fd17a57ce",
+      "revision": "c3858a7dd27340a8ada6a7eabe3ee0aa",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "84e1f0d0-2457-4d47-be6c-bed705c78637",
+          "rank": 2,
+          "sha256": "c8e6ae23500df1a7da4390998d959e6214baff0b4b0adcf1f767a9a2a802fb28",
+          "source_url": "https://tenor.com/view/uh-huh-yeah-yes-nod-pepe-the-frog-gif-16391170",
+          "image_url": "https://media.tenor.com/noNJGfVkHQUAAAAx/uh-huh-yeah.webp"
+        },
+        {
+          "candidate_id": "1af6ce7f-2c33-43b1-8193-c2fedceaf388",
+          "rank": 3,
+          "sha256": "62ec1983023d576dc8b34ceb02b4a95186aff4c4b79b53916eb8e6b4343dcfda",
+          "source_url": "https://gifdb.com/gif/pepe-frog-nodding-pyc0hmhxoxf3a6ul.html",
+          "image_url": "https://gifdb.com/images/thumbnail/pepe-frog-nodding-pyc0hmhxoxf3a6ul.gif"
+        }
+      ]
+    },
+    {
+      "case_id": "resource-tom-jerry",
+      "job_id": "ba8a6638-bd4d-4308-8509-3140929b82c2",
+      "revision": "bfc1aac33f7b4461b8d6c1bf83df4066",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "fd28dba6-bead-4d63-ac8d-e3d815fa075a",
+          "rank": 15,
+          "sha256": "c273a1dfb21fc0546a323f991ff70ed69b503629e882c9fd6c3483663e8a7709",
+          "source_url": "https://imgbin.com/png/uFXs9ngS/tom-cat-jerry-mouse-tom-and-jerry-png",
+          "image_url": "https://thumbnail.imgbin.com/1/8/21/tom-and-jerry-tom-and-jerry-playful-cartoon-moment-fY7HqTS9_t.jpg"
+        },
+        {
+          "candidate_id": "5b117444-b7ea-41f2-b739-ddc39bdbcbd7",
+          "rank": 17,
+          "sha256": "997cd0b62b922a041aab1660da85f5992196e1672631fcbef914a1b919bad79e",
+          "source_url": "https://imgbin.com/png/uFXs9ngS/tom-cat-jerry-mouse-tom-and-jerry-png",
+          "image_url": "https://thumbnail.imgbin.com/21/13/6/tom-and-jerry-cartoon-of-tom-and-jerry-in-mischievous-action-jEiz61HR_t.jpg"
+        }
+      ]
+    },
+    {
+      "case_id": "heldout-v2-02",
+      "job_id": "fce70cea-4ce9-4bbe-b571-1bdcdf8a4b4c",
+      "revision": "3f3056b4f15a4afca06b40136230383d",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "af14f9d7-001f-4288-a26f-257ec9f000df",
+          "rank": 1,
+          "sha256": "1f72b88171dd00af45ced1b33b0f9b904f91146306ca4dce79e7fdd5a24622ec",
+          "source_url": "https://tenor.com/view/obama-what-seriously-what-the-president-gif-16881768",
+          "image_url": "https://media.tenor.com/LI5thcJfcg4AAAAx/obama-what.webp"
+        },
+        {
+          "candidate_id": "acbe18a3-abe6-4622-ab34-be1ebae83aeb",
+          "rank": 2,
+          "sha256": "c1591bba10d4fefddbf528c319266a067cc3eb9cb9c4a0045adbe5f1898e4775",
+          "source_url": "https://tenor.com/zh-CN/view/really-so-what-potus-barack-gif-5772734",
+          "image_url": "https://c.tenor.com/-jbl-dLK38sAAAAC/tenor.gif"
+        }
+      ]
+    },
+    {
+      "case_id": "resource-homer",
+      "job_id": "3b329969-ea01-42cb-9b68-f0575fda5f60",
+      "revision": "be25b18e35ef485f89b49ea151244805",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "a722247a-c0e7-4d53-ab7f-40fc60bc2e42",
+          "rank": 5,
+          "sha256": "1254b7833ab77cbb1efa7906ad48cf2779bd7f1ba7a90a1f7144c0ee110d2df6",
+          "source_url": "https://tenor.com/view/the-simpsons-homer-simpson-bush-hide-bye-gif-16150806",
+          "image_url": "https://media.tenor.com/hRiPtsp-m0IAAAAx/the-simpsons-homer-simpson.webp"
+        },
+        {
+          "candidate_id": "331a9b8e-7e04-47ba-a591-9a24f3f2f4e4",
+          "rank": 8,
+          "sha256": "f1208eb98b89024a6f71ca7f55a159a52e06f0c1b23d02acd1576aa9765e7c6e",
+          "source_url": "https://tenor.com/view/simpsons-homer-simpson-gif-13518564799186478937",
+          "image_url": "https://media.tenor.com/u5uXD3icJ1kAAAAx/simpsons-homer-simpson.webp"
+        }
+      ]
+    },
+    {
+      "case_id": "resource-homer",
+      "job_id": "3b329969-ea01-42cb-9b68-f0575fda5f60",
+      "revision": "be25b18e35ef485f89b49ea151244805",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "a9a2ee92-4885-4fea-a6d4-fd116e1ddd8a",
+          "rank": 18,
+          "sha256": "31bc75b2d9ac0530eea89ca8319d65b6b10c5133f3e17351474450962278b627",
+          "source_url": "https://vectorseek.com/vector_logo/nelson-muntzlos-simpsons-logo-vector/",
+          "image_url": "https://vectorseek.com/wp-content/uploads/2023/08/Nelson-MuntzLos-Simpsons-Logo-Vector.svg-.png"
+        },
+        {
+          "candidate_id": "120601c2-8b92-4aa6-8aed-23618ebab01a",
+          "rank": 21,
+          "sha256": "039b0a332f725f149b976ec40caa4c89ca5c3e389eccb0b8e246a35d3d27a50c",
+          "source_url": "https://vectorseek.com/vector_logo/nelson-muntzlos-simpsons-logo-vector/",
+          "image_url": "https://vectorseek.com/wp-content/uploads/2023/08/Nelson-MuntzLos-Simpsons-Logo-Vector.svg--300x233.png"
+        }
+      ]
+    },
+    {
+      "case_id": "resource-homer",
+      "job_id": "3b329969-ea01-42cb-9b68-f0575fda5f60",
+      "revision": "be25b18e35ef485f89b49ea151244805",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "cd1f4e92-6c34-4887-bbdd-25413fb48e52",
+          "rank": 23,
+          "sha256": "645945e9e7a1094eff3cb135705db07786ab1735d4225ecf1264d6e6ec65f2f6",
+          "source_url": "https://gifdb.com/gif/homer-simpson-gif-7rt6x5cizxeawu1z.html",
+          "image_url": "https://gifdb.com/images/thumbnail/homer-simpson-gif-7rt6x5cizxeawu1z.gif"
+        },
+        {
+          "candidate_id": "ef29265e-b266-4819-a209-9bebbcb0c24c",
+          "rank": 24,
+          "sha256": "6d7c812fd64427ffe886d48c81614c4c4511871a57c015184297444ec4e55e4b",
+          "source_url": "https://gifdb.com/gif/homer-simpson-gif-7rt6x5cizxeawu1z.html",
+          "image_url": "https://gifdb.com/images/branded/high/homer-simpson-gif-7rt6x5cizxeawu1z.gif"
+        }
+      ]
+    },
+    {
+      "case_id": "resource-pepe",
+      "job_id": "a22c62be-4480-428a-9cec-54b250dda874",
+      "revision": "27c31ac6e455404db141e392427c0102",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "b479e410-a11d-4a5b-98f8-30a150f28efb",
+          "rank": 9,
+          "sha256": "757a8226e8047c29f0e5432a0ecac4750f439bc832229a361004c850a4540622",
+          "source_url": "https://meme.com/memes/pepe-the-frog",
+          "image_url": "https://cdn-v2.meme.com//memes/pepe-the-frog/2026-05-16/1778922530239.webp"
+        },
+        {
+          "candidate_id": "cd544c5d-656d-4468-8927-2e2ebc47d870",
+          "rank": 12,
+          "sha256": "5e60a38f5b40f1f1e18622479018aa9295c88e14ed09bea00451a41a82a87313",
+          "source_url": "https://meme.com/memes/pepe-the-frog",
+          "image_url": "https://cdn-v2.meme.com/memes/pepe-the-frog/og-card/2026-10-03/1791002673122.webp"
+        }
+      ]
+    },
+    {
+      "case_id": "resource-pepe",
+      "job_id": "a22c62be-4480-428a-9cec-54b250dda874",
+      "revision": "27c31ac6e455404db141e392427c0102",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "7f794c50-ebf4-4f6e-8c8d-053e137ca776",
+          "rank": 18,
+          "sha256": "d13319a76376616e5fb673159232d4952954eeccc81504d7b67a76bf1a6a98c8",
+          "source_url": "https://gifdb.com/gif/pepe-the-frog-nodding-g4imo3cuvvkf5hvn.html",
+          "image_url": "https://gifdb.com/images/branded/high/pepe-the-frog-nodding-g4imo3cuvvkf5hvn.gif"
+        },
+        {
+          "candidate_id": "bcd9e74b-be9f-4fe9-aca0-221ab09abf87",
+          "rank": 19,
+          "sha256": "d5920a8329577fd8dae741f6b8cb4d10f92d96049a47bb841dc17c1915789bf0",
+          "source_url": "https://gifdb.com/gif/pepe-the-frog-nodding-g4imo3cuvvkf5hvn.html",
+          "image_url": "https://gifdb.com/images/thumbnail/pepe-the-frog-nodding-g4imo3cuvvkf5hvn.gif"
+        }
+      ]
+    },
+    {
+      "case_id": "resource-pepe",
+      "job_id": "a22c62be-4480-428a-9cec-54b250dda874",
+      "revision": "27c31ac6e455404db141e392427c0102",
+      "expected_same_content": false,
+      "merged": false,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "7f794c50-ebf4-4f6e-8c8d-053e137ca776",
+          "rank": 18,
+          "sha256": "d13319a76376616e5fb673159232d4952954eeccc81504d7b67a76bf1a6a98c8",
+          "source_url": "https://gifdb.com/gif/pepe-the-frog-nodding-g4imo3cuvvkf5hvn.html",
+          "image_url": "https://gifdb.com/images/branded/high/pepe-the-frog-nodding-g4imo3cuvvkf5hvn.gif"
+        },
+        {
+          "candidate_id": "598308aa-74a9-4269-84ee-740423c9f067",
+          "rank": 30,
+          "sha256": "aef41834bcdbc95a3a34d20381adfe13288beea71afcdc36419e4ddb094c6700",
+          "source_url": "https://gifdb.com/gif/pepe-the-frog-nodding-g4imo3cuvvkf5hvn.html",
+          "image_url": "https://gifdb.com/images/thumbnail/pepe-the-frog-on-fire-dzz9oii7fe0ni0um.gif"
+        }
+      ]
+    }
+  ],
+  "recorded_at": "2026-11-13T02:34:06.313999+08:00",
+  "verification": {
+    "python_postgres": {
+      "passed": 351,
+      "deselected": 2,
+      "scope": "full non-smoke non-live suite, real isolated PostgreSQL databases"
+    },
+    "frontend": "18 passed on unchanged frontend; hosted rerun pending runner fix",
+    "browser": "running_final_v8",
+    "full_human_quality": "pending",
+    "independent_member_reproduction": "pending"
+  },
+  "source_sha256": {
+    "services/retrieval/dedup.py": "bebaa85992525d5f74982e3f82788b7d3c10d691199ad6a68f126eaf7558f56a",
+    "services/search_agent/meme_pipeline.py": "ba007cd0275f1f2e61d4ff7cecc66b2d35c4db51ab559b94260ab10109005d94",
+    "services/search_agent/meme_types.py": "33a6dcc197037c51423767148b17d358c151c56b5883685427e240d7a2f49e9a"
+  }
+}

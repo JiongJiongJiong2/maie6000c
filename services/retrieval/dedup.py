@@ -4,12 +4,13 @@ import re
 from urllib.parse import unquote, urlsplit
 
 import numpy as np
+from PIL import Image, ImageDraw
 
 from services.common.media import representative_frames, inspect_media
 from services.common.storage import sha256
 
 
-def source_identity(url):
+def source_identity(url, media_url=None):
     p = urlsplit(url)
     path = unquote(p.path)
     if p.hostname == "tenor.com" and "/view/" in path:
@@ -24,21 +25,108 @@ def source_identity(url):
             return "reactionstash:" + match[1].lower()
     if p.hostname == "commons.wikimedia.org" and path.casefold().startswith("/wiki/file:"):
         return "commons:" + path.casefold()
-    if p.hostname in {"imgbin.com", "www.imgbin.com"}:
-        match = re.fullmatch(r"/png/([A-Za-z0-9]{6,40})/[^/]+/?", path)
-        if match:
-            return "imgbin:" + match[1]
+    if p.hostname in {"gifdb.com", "www.gifdb.com"} and media_url:
+        media = urlsplit(media_url)
+        match = re.fullmatch(
+            r"/images/(?:branded/high|thumbnail|high)/[^/]+-([a-z0-9]{12,20})\.gif", media.path
+        )
+        if match and media.hostname in {"gifdb.com", "www.gifdb.com"}:
+            return "gifdb:" + match[1]
+    if p.hostname in {"vectorseek.com", "www.vectorseek.com"} and media_url:
+        media = urlsplit(media_url)
+        if media.hostname in {"vectorseek.com", "www.vectorseek.com"} and media.path.startswith(
+            "/wp-content/uploads/"
+        ):
+            return "vectorseek:" + re.sub(r"-\d+x\d+(?=\.[a-z]+$)", "", media.path)
+    if p.hostname in {"meme.com", "www.meme.com"} and media_url:
+        page = re.fullmatch(r"/memes/([a-z0-9-]+)/?", path)
+        media = urlsplit(media_url)
+        media_path = re.sub(r"/+", "/", media.path)
+        if (
+            page
+            and media.hostname == "cdn-v2.meme.com"
+            and re.fullmatch(
+                rf"/memes/{re.escape(page[1])}/(?:og-card/)?\d{{4}}-\d{{2}}-\d{{2}}/\d+\.(?:webp|png|jpe?g)",
+                media_path,
+            )
+        ):
+            return "meme-hero:" + page[1]
     return None
 
 
-def fingerprint(data, metadata=None):
+def remove_checkerboard(frame):
+    """Normalize a regular white/gray matte connected to the image boundary.
+
+    Keep enclosed gray artwork and black caption ink. A random gray photo or
+    a two-tone illustration does not satisfy the alternating-border check.
+    """
+    pixels = np.asarray(frame, dtype=np.float32) / 255
+    border = np.concatenate([pixels[0], pixels[-1], pixels[:, 0], pixels[:, -1]])
+    neutral = border[np.ptp(border, axis=1) < 0.03].mean(axis=1)
+    if len(neutral) < len(border) / 2:
+        return frame
+    low, high = [float(v) for v in np.quantile(neutral, [0.2, 0.8])]
+    if low < 0.65 or high - low < 0.08:
+        return frame
+
+    def regular(edge):
+        gray = edge.mean(axis=1)
+        if float((np.minimum(abs(gray - low), abs(gray - high)) < 0.04).mean()) < 0.85:
+            return False
+        labels = abs(gray - high) < abs(gray - low)
+        transitions = np.flatnonzero(labels[1:] != labels[:-1])
+        widths = np.diff(transitions)
+        return len(widths) >= 5 and float(widths.std() / max(1, widths.mean())) < 0.35
+
+    if not any(regular(edge) for edge in [pixels[0], pixels[-1], pixels[:, 0], pixels[:, -1]]):
+        return frame
+    gray = pixels.mean(axis=2)
+    eligible = (np.ptp(pixels, axis=2) < 0.03) & (gray >= low - 0.06) & (gray <= high + 0.05)
+    mask = Image.fromarray(eligible.astype(np.uint8) * 255).copy()
+    for point in [
+        (0, 0),
+        (frame.width - 1, 0),
+        (0, frame.height - 1),
+        (frame.width - 1, frame.height - 1),
+    ]:
+        if mask.getpixel(point) == 255:
+            ImageDraw.floodfill(mask, point, 128)
+    result = pixels.copy()
+    result[np.asarray(mask) == 128] = 1
+    return Image.fromarray((result * 255).round().astype(np.uint8))
+
+
+def fingerprint(data, metadata=None, *, include_aspect=False):
     metadata = metadata or inspect_media(data)
     frames, _ = representative_frames(
-        data, count=16 if metadata.frame_count > 1 else 1, max_side=128, preserve_timeline=True
+        data, count=16 if metadata.frame_count > 1 else 1, max_side=256, preserve_timeline=True
     )
-    return np.stack(
+    if len(frames) == 1:
+        frames = [remove_checkerboard(frames[0])]
+    # Remove only flat outer padding; every foreground pixel, including text,
+    # participates in the union crop across all sampled frames.
+    for _ in range(3):
+        pixels = np.stack([np.asarray(frame, dtype=np.float32) / 255 for frame in frames])
+        corners = pixels[:, [0, 0, -1, -1], [0, -1, 0, -1]]
+        if float(np.ptp(corners, axis=(0, 1)).max()) > 0.04:
+            break
+        background = np.median(corners.reshape(-1, 3), axis=0)
+        mask = (np.abs(pixels - background).max(axis=-1) > 0.08).any(axis=0)
+        ys, xs = np.where(mask)
+        if not len(xs):
+            break
+        box = (int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1)
+        if (
+            box == (0, 0, frames[0].width, frames[0].height)
+            or min(box[2] - box[0], box[3] - box[1]) < 8
+        ):
+            break
+        frames = [frame.crop(box) for frame in frames]
+    aspect = frames[0].width / frames[0].height
+    value = np.stack(
         [np.asarray(frame.resize((64, 64)), dtype=np.float32) / 255 for frame in frames]
     )
+    return (value, aspect) if include_aspect else value
 
 
 def same_animation(a, b, *, strict=False):
@@ -58,6 +146,14 @@ def same_animation(a, b, *, strict=False):
         and float(frame_errors.max()) < (0.012 if strict else 0.035)
         and float(tile_errors.max()) < (0.025 if strict else 0.05)
     )
+
+
+def same_static(a, b):
+    """Full-foreground codec tolerance after explicit matte normalization."""
+    difference = np.abs(a - b)
+    size = difference.shape[1]
+    tiles = difference.reshape(len(a), 8, size // 8, 8, size // 8, 3).mean(axis=(2, 4, 5))
+    return bool(float(difference.mean()) < 0.02 and float(tiles.max()) < 0.12)
 
 
 def same_motion(a, b):
@@ -120,7 +216,7 @@ def same_timeline(a, b):
     ]
     lower = np.abs(coarse[0][:, None] - coarse[1][None, :]).mean(axis=(2, 3, 4))
     if any(
-        float(distances.min(axis=1).mean()) > 0.022 or float(distances.min(axis=1).max()) > 0.05
+        float(distances.min(axis=1).mean()) > 0.035 or float(distances.min(axis=1).max()) > 0.065
         for distances in (lower, lower.T)
     ):
         return False
@@ -149,17 +245,73 @@ def same_timeline(a, b):
         value = float(np.mean([errors[i, j] for i, j in pairs]))
         if value < best:
             best, best_path = value, pairs
-    if best > 0.022 or best_path is None:
+    if best > 0.035 or best_path is None:
         return False
     difference = np.stack([np.abs(a[i] - b[j]) for i, j in best_path])
-    if float(difference.mean(axis=(1, 2, 3)).max()) > 0.05:
+    if float(difference.mean(axis=(1, 2, 3)).max()) > 0.065:
         return False
     size = difference.shape[1]
     tiles = difference.reshape(len(best_path), 8, size // 8, 8, size // 8, 3).mean(axis=(2, 4, 5))
     return bool(
         float(np.quantile(tiles, 0.15, axis=0).max()) < 0.05
-        and float(np.quantile(tiles.max(axis=(1, 2)), 0.95)) < 0.10
+        and float(np.quantile(tiles.max(axis=(1, 2)), 0.95)) < 0.15
     )
+
+
+def same_registered(a, b):
+    """Verify small spatial crops using registered full temporal pixel evidence.
+
+    At most 8% of each border may be cropped. Registration is proposed from
+    the temporal median, then validated against every sampled frame and local
+    tiles; a similar background or matching CLIP vector alone cannot merge.
+    """
+    size = a.shape[1]
+    margins = (0, round(size * 0.03), round(size * 0.05), round(size * 0.08))
+    edges = [(0, 0)] + [(m, m) for m in margins[1:]]
+    edges += [(0, m) for m in margins[1:]] + [(m, 0) for m in margins[1:]]
+    candidates = []
+    for left, right in ((a, b), (b, a)):
+        coarse = [
+            frames.reshape(len(frames), 8, 8, 8, 8, 3).mean(axis=(2, 4)) for frames in (left, right)
+        ]
+        distances = np.abs(coarse[0][:, None] - coarse[1][None, :]).mean(axis=(2, 3, 4))
+        i, j = np.unravel_index(distances.argmin(), distances.shape)
+        references = [(np.median(left, axis=0), np.median(right, axis=0)), (left[i], right[j])]
+        for reference, target in references:
+            image = Image.fromarray((reference * 255).round().astype(np.uint8))
+            target = (
+                np.asarray(
+                    Image.fromarray((target * 255).round().astype(np.uint8)).resize((32, 32)),
+                    dtype=np.float32,
+                )
+                / 255
+            )
+            for top, bottom in edges:
+                for x, end in edges:
+                    box = (x, top, size - end, size - bottom)
+                    sample = np.asarray(image.crop(box).resize((32, 32)), dtype=np.float32) / 255
+                    bias = np.clip(np.median(sample - target, axis=(0, 1)), -0.06, 0.06)
+                    error = float(np.abs(np.clip(sample - bias, 0, 1) - target).mean())
+                    candidates.append((error, box, bias, left, right))
+    for error, box, bias, left, right in sorted(candidates, key=lambda item: item[0])[:4]:
+        if error > 0.035:
+            break
+        warped = np.stack(
+            [
+                np.asarray(
+                    Image.fromarray((frame * 255).round().astype(np.uint8))
+                    .crop(box)
+                    .resize((size, size)),
+                    dtype=np.float32,
+                )
+                / 255
+                for frame in left
+            ]
+        )
+        warped = np.clip(warped - bias, 0, 1)
+        if same_animation(warped, right, strict=True) or same_timeline(warped, right):
+            return True
+    return False
 
 
 class ContentGroups:
@@ -167,17 +319,16 @@ class ContentGroups:
         self.groups = []
         self.shas = set()
 
-    def add(self, metadata, data, embedding, source_url):
+    def add(self, metadata, data, embedding, source_url, media_url=None):
         if metadata.sha256 in self.shas:
             return None, False
         self.shas.add(metadata.sha256)
         embedding = np.asarray(embedding, dtype=np.float32)
         embedding = embedding / max(float(np.linalg.norm(embedding)), 1e-12)
-        identity = source_identity(source_url)
-        fp = fingerprint(data, metadata)
+        identity = source_identity(source_url, media_url)
+        fp, aspect = fingerprint(data, metadata, include_aspect=True)
         for group in self.groups:
             same_source = identity and identity == group["source_identity"]
-            aspect = metadata.width / metadata.height
             duration_close = (
                 (metadata.media_kind == "static" and group["kind"] == "static")
                 or (not metadata.duration_ms and not group["duration_ms"])
@@ -188,24 +339,36 @@ class ContentGroups:
                 )
             )
             if same_source or (
-                abs(aspect - group["aspect"]) < 0.025
-                and metadata.media_kind == group["kind"]
+                metadata.media_kind == group["kind"]
                 and (
                     (
-                        duration_close
-                        and float(embedding @ group["embedding"]) > 0.94
-                        and same_animation(fp, group["fingerprint"])
+                        metadata.media_kind == "static"
+                        and float(embedding @ group["embedding"]) > 0.97
+                        and same_static(fp, group["fingerprint"])
                     )
                     or (
-                        metadata.media_kind == "animated"
+                        abs(aspect - group["aspect"]) / max(aspect, group["aspect"]) < 0.04
                         and (
                             (
-                                float(embedding @ group["embedding"]) > 0.94
-                                and same_motion(fp, group["fingerprint"])
+                                duration_close
+                                and float(embedding @ group["embedding"]) > 0.94
+                                and same_animation(fp, group["fingerprint"])
                             )
                             or (
-                                float(embedding @ group["embedding"]) > 0.88
-                                and same_timeline(fp, group["fingerprint"])
+                                metadata.media_kind == "animated"
+                                and (
+                                    (
+                                        float(embedding @ group["embedding"]) > 0.94
+                                        and same_motion(fp, group["fingerprint"])
+                                    )
+                                    or (
+                                        float(embedding @ group["embedding"]) > 0.88
+                                        and (
+                                            same_timeline(fp, group["fingerprint"])
+                                            or same_registered(fp, group["fingerprint"])
+                                        )
+                                    )
+                                )
                             )
                         )
                     )
@@ -217,7 +380,7 @@ class ContentGroups:
             dict(
                 id=key,
                 source_identity=identity,
-                aspect=metadata.width / metadata.height,
+                aspect=aspect,
                 duration_ms=metadata.duration_ms,
                 kind=metadata.media_kind,
                 embedding=embedding,

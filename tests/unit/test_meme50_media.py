@@ -331,17 +331,156 @@ def test_short_motion_resampling_keeps_order_and_caption_changes():
     ]
 
 
-def test_imgbin_asset_identity_groups_crops_without_merging_generic_pages():
+def test_gallery_page_does_not_merge_different_artwork():
     from services.retrieval.dedup import source_identity
 
-    assert source_identity("https://imgbin.com/png/uFXs9ngS/tom-cat-jerry-png") == "imgbin:uFXs9ngS"
-    assert source_identity("https://imgbin.com/png/uFXs9ngS/another-slug") == "imgbin:uFXs9ngS"
+    assert source_identity("https://imgbin.com/png/uFXs9ngS/tom-cat-jerry-png") is None
+    assert source_identity("https://imgbin.com/png/uFXs9ngS/another-slug") is None
     assert source_identity("https://imgbin.com/search/cat") is None
     assert source_identity("https://other.example/png/uFXs9ngS/tom-cat-jerry-png") is None
     a = image_bytes("PNG", size=(64, 64))
-    b = image_bytes("PNG", size=(96, 64))
+    b = image_bytes("PNG", colors=("blue",), size=(96, 64))
     groups = ContentGroups()
-    key, _ = groups.add(inspect_media(a), a, np.array([1, 0]), "https://imgbin.com/png/uFXs9ngS/a")
-    assert groups.add(
-        inspect_media(b), b, np.array([1, 0]), "https://imgbin.com/png/uFXs9ngS/b"
-    ) == (key, False)
+    groups.add(inspect_media(a), a, np.array([1, 0]), "https://imgbin.com/png/uFXs9ngS/a")
+    assert groups.add(inspect_media(b), b, np.array([1, 0]), "https://imgbin.com/png/uFXs9ngS/a")[1]
+
+
+def test_padding_removal_preserves_added_caption():
+    from PIL import ImageDraw, ImageFont
+
+    def png(text, padded=False):
+        image = Image.new("RGB", (80, 80), "white")
+        draw = ImageDraw.Draw(image)
+        draw.ellipse((20, 25, 60, 65), fill="orange", outline="black", width=2)
+        draw.text((12, 2), text, font=ImageFont.load_default(size=17), fill="black")
+        if padded:
+            canvas = Image.new("RGB", (140, 110), "black")
+            canvas.paste(image, (30, 15))
+            image = canvas
+        out = io.BytesIO()
+        image.save(out, "PNG")
+        return out.getvalue()
+
+    a, padded, changed = png("YES"), png("YES", True), png("NO", True)
+    groups = ContentGroups()
+    key, _ = groups.add(inspect_media(a), a, np.array([1, 0]), "https://example.org/a")
+    assert groups.add(inspect_media(padded), padded, np.array([1, 0]), "https://example.org/b") == (
+        key,
+        False,
+    )
+    assert groups.add(inspect_media(changed), changed, np.array([1, 0]), "https://example.org/c")[1]
+
+
+def test_registered_crop_does_not_merge_reverse_motion_or_changed_text():
+    from PIL import ImageDraw, ImageFont
+    from services.retrieval.dedup import same_registered
+
+    def clip(caption):
+        frames = []
+        for i in range(12):
+            frame = Image.new("RGB", (64, 64), "white")
+            draw = ImageDraw.Draw(frame)
+            draw.rectangle((i * 3, 31, i * 3 + 14, 51), fill="red")
+            draw.text((2, 2), caption, font=ImageFont.load_default(size=17), fill="black")
+            frames.append(frame)
+        return np.stack([np.asarray(frame, dtype=np.float32) / 255 for frame in frames])
+
+    def crop(frames):
+        return np.stack(
+            [
+                np.asarray(
+                    Image.fromarray((frame * 255).astype(np.uint8))
+                    .crop((2, 2, 62, 62))
+                    .resize((64, 64)),
+                    dtype=np.float32,
+                )
+                / 255
+                for frame in frames
+            ]
+        )
+
+    original = clip("YES")
+    assert same_registered(original, np.roll(crop(original), 3, axis=0))
+    assert not same_registered(original, crop(original[::-1]))
+    assert not same_registered(original, crop(clip("NO")))
+
+
+def test_known_single_asset_pages_and_explicit_meme_hero_relationship():
+    from services.retrieval.dedup import source_identity
+
+    page_gif = "https://gifdb.com/gif/title-7rt6x5cizxeawu1z.html"
+    main_gif = "https://gifdb.com/images/branded/high/title-7rt6x5cizxeawu1z.gif"
+    related_gif = "https://gifdb.com/images/thumbnail/other-dzz9oii7fe0ni0um.gif"
+    assert source_identity(page_gif) is None
+    assert source_identity(page_gif, main_gif) == "gifdb:7rt6x5cizxeawu1z"
+    assert source_identity(page_gif, related_gif) == "gifdb:dzz9oii7fe0ni0um"
+    assert source_identity("https://gifdb.com/search/pepe") is None
+    vector_page = "https://vectorseek.com/vector_logo/example-logo/"
+    primary = "https://vectorseek.com/wp-content/uploads/2023/08/logo.svg-.png"
+    thumb = "https://vectorseek.com/wp-content/uploads/2023/08/logo.svg--300x233.png"
+    assert source_identity(vector_page) is None
+    assert source_identity(vector_page, primary) == source_identity(vector_page, thumb)
+    page = "https://meme.com/memes/example-template"
+    original = "https://cdn-v2.meme.com//memes/example-template/2026-05-16/1778922530239.webp"
+    card = "https://cdn-v2.meme.com/memes/example-template/og-card/2026-10-03/1791002673122.webp"
+    assert (
+        source_identity(page, original)
+        == source_identity(page, card)
+        == "meme-hero:example-template"
+    )
+    assert source_identity(page) is None
+    assert source_identity(page, original.replace("example-template", "different-template")) is None
+
+
+def test_checkerboard_matte_keeps_artwork_and_caption_identity():
+    from PIL import ImageDraw, ImageFont
+    from services.retrieval.dedup import remove_checkerboard
+
+    def image(size, caption="YES"):
+        canvas = Image.new("RGB", size)
+        draw = ImageDraw.Draw(canvas)
+        for y in range(0, size[1], 8):
+            for x in range(0, size[0], 8):
+                value = 204 if (x // 8 + y // 8) % 2 else 255
+                draw.rectangle((x, y, x + 7, y + 7), fill=(value,) * 3)
+        x, y = (size[0] - 80) // 2, (size[1] - 80) // 2
+        draw.ellipse((x + 10, y + 25, x + 70, y + 75), fill=(204,) * 3, outline="black", width=3)
+        draw.ellipse((x + 30, y + 40, x + 40, y + 50), fill="yellow", outline="black")
+        draw.text((x + 20, y + 2), caption, fill="black", font=ImageFont.load_default(size=17))
+        out = io.BytesIO()
+        canvas.save(out, "PNG")
+        return out.getvalue(), canvas, (x + 50, y + 50)
+
+    a, original, center = image((128, 128))
+    b, _, _ = image((160, 120))
+    changed, _, _ = image((160, 120), "NO")
+    assert remove_checkerboard(original).getpixel(center) == (204, 204, 204)
+    groups = ContentGroups()
+    key, _ = groups.add(inspect_media(a), a, np.array([1, 0]), "https://example.org/a")
+    assert groups.add(inspect_media(b), b, np.array([1, 0]), "https://example.org/b") == (
+        key,
+        False,
+    )
+    assert groups.add(inspect_media(changed), changed, np.array([1, 0]), "https://example.org/c")[1]
+
+
+def test_gifdb_related_clip_is_not_the_primary_clip_identity():
+    page = "https://gifdb.com/gif/title-7rt6x5cizxeawu1z.html"
+    a = image_bytes("GIF", ("red", "blue"))
+    b = image_bytes("GIF", ("red", "green"))
+    groups = ContentGroups()
+    key, _ = groups.add(
+        inspect_media(a),
+        a,
+        np.array([1, 0]),
+        page,
+        "https://gifdb.com/images/thumbnail/title-7rt6x5cizxeawu1z.gif",
+    )
+    other, new = groups.add(
+        inspect_media(b),
+        b,
+        np.array([1, 0]),
+        page,
+        "https://gifdb.com/images/thumbnail/other-dzz9oii7fe0ni0um.gif",
+    )
+    assert new and other != key

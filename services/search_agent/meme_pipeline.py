@@ -302,7 +302,11 @@ def search_memes(
                         counts["low_score"] += 1
                         continue
                     group, is_new = groups.add(
-                        metadata, content, sample_vectors.mean(axis=0), source.source_url
+                        metadata,
+                        content,
+                        sample_vectors.mean(axis=0),
+                        source.source_url,
+                        source.media_url,
                     )
                     if not group:
                         counts["sha_duplicates"] += 1

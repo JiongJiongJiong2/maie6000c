@@ -1,8 +1,10 @@
 # 图片主导检索 meme50-v2
 
+最新已确认重复失败的修复、回归和交付见 [2026-11-13 去重修复](meme50-dedup-fix-20261113.md)。当前去重为 `meme50-temporal-local-v8`；原 v8 评测产物和真人 pending 状态作为历史记录保留。
+
 最新数量、网页、回归及 pending 项见 [v8 结果](meme50-v8-results.md)，修复历史见 [实测记录](meme50-live-20261112.md)，真人操作见 [审阅与复现](meme50-human-review.md)。历史完整验收工具、真实源站修复、新留出及状态见 [2026-11-12 执行报告](meme50-acceptance-20261112.md)。`meme50_acceptance` 提供 probe/run-suite/review/score/finalize；不会将未知标签、零候选或未复现自动判为产品通过。
 
-本轮基线是 `codex/real-gif-acquisition` / `c34d9f6`，保留此前全部未提交 GIF 获取实现。本轮修改未推送、未合并。正式入口仍为 `/web/`，默认图片必填、描述可选、目标 50；旧 API 默认 `legacy` 三候选不变。
+实现和修复交付分支是 `codex/real-gif-acquisition`，见 [PR #9](https://github.com/JiongJiongJiong2/maie6000c/pull/9)。历史 v8 运行基线为 `c34d9f6` 加对应源文件快照。正式入口仍为 `/web/`，默认图片必填、描述可选、最多 50 条；旧 API 默认 `legacy` 三候选不变。
 
 **当前供应商策略为 `hkust-deepseek-v1`：只使用学校 HKUST API 和 DeepSeek，DeepSeek 默认 `deepseek-flash`。** 两项凭据已配置，真实识图、Flash 查询规划、网页召回和核验自检已通过；三个预筛案例各单次返回50个机检媒体，真人相关性、视觉重复与成员复现仍待完成。Google Vision/Brave 不再必需，当前执行与验收范围以 [最新执行说明](hkust-deepseek-execution.md) 为准。旧失败记录保留于 [历史验收记录](meme50-verification.md)，不改写为成功。
 

@@ -79,7 +79,7 @@ class MemeSettings(BaseSettings):
     dns_mode: Literal["system", "doh"] = "system"
     minimum_score: float = Field(default=0.55, ge=-1, le=1, allow_inf_nan=False)
     scoring_version: str = "meme50-rank-dev-v1-unvalidated"
-    dedup_version: str = "meme50-temporal-local-v6"
+    dedup_version: str = "meme50-temporal-local-v8"
 
     @property
     def effective_vision_model(self):
