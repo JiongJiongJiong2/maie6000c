@@ -339,3 +339,115 @@ def test_bad_planner_response_does_not_expose_body():
         with pytest.raises(PlannerError) as exc:
             QueryPlanner(config, client).next_query("a", 1, {}, [], 1)
     assert "secret" not in str(exc.value)
+
+
+def test_page_resolver_before_filter_and_media_dedup_across_rounds(tmp_path):
+    from services.search_agent.resolvers import ResolvedBatch
+    image = tmp_path / "input.png"
+    image.touch()
+    calls, page_budgets = [], []
+    def resolve(sources, **kwargs):
+        page_budgets.append(kwargs["remaining_pages"])
+        assert all(s.image_url is None for s in sources)
+        return ResolvedBatch(page_requests=1, sources=[
+            s.model_copy(update={"image_url": "https://example.org/one.gif#frame"})
+            for s in sources])
+    def prepare(image, sources, work, budget):
+        calls.extend(sources)
+        return PreparedBatch(downloads_used=1, failures=["static_image"])
+    pages = [hit("a"), hit("b")]
+    for page in pages:
+        page["image_url"] = None
+    result = search_web(description="test", provider=Provider([[pages[0]], [pages[1]]]),
+                        settings=settings(search_agent_mode="images"), image_path=image,
+                        work_dir=tmp_path / "job", prepare_candidates=prepare, resolver=resolve)
+    assert page_budgets == [6, 5] and len(calls) == 1
+    assert result.downloads_used == 1 and result.status == "completed"
+
+
+def test_supported_page_failure_without_processor_call_is_failed(tmp_path):
+    from services.search_agent.resolvers import ResolvedBatch
+    image = tmp_path / "input.png"
+    image.touch()
+    def prepare(*args):
+        pytest.fail("Processor must not be called")
+    result = run(Provider([[hit("a")], [hit("b")]]), image_path=image,
+                 work_dir=tmp_path / "job", prepare_candidates=prepare,
+                 resolver=lambda *a, **k: ResolvedBatch(
+                     page_requests=1, failures=["source_unavailable"]))
+    assert result.status == "failed" and "resolve_source_unavailable" in result.warnings
+
+
+def test_resolver_unknown_sources_are_normal_no_results(tmp_path):
+    from services.search_agent.resolvers import ResolvedBatch
+    image = tmp_path / "input.png"
+    image.touch()
+    result = run(Provider([[hit("a")], [hit("b")]]), image_path=image,
+                 work_dir=tmp_path / "job", prepare_candidates=lambda *a: None,
+                 resolver=lambda *a, **k: ResolvedBatch(failures=["unsupported_source"]))
+    assert result.status == "completed" and result.result_kind == "no_results"
+
+
+def test_resolver_exception_is_safe_failure(tmp_path):
+    image = tmp_path / "input.png"
+    image.touch()
+    def broken(*a, **k):
+        raise RuntimeError("secret page content")
+    result = run(Provider([[hit("a")], [hit("b")]]), image_path=image,
+                 work_dir=tmp_path / "job", prepare_candidates=lambda *a: None, resolver=broken)
+    assert result.status == "failed" and "secret page" not in result.model_dump_json()
+
+
+def test_same_content_from_different_rounds_merges_by_sha(tmp_path):
+    image = tmp_path / "input.png"
+    image.touch()
+    calls = []
+    def prepare(image, sources, work, budget):
+        calls.append(budget.remaining_downloads)
+        return PreparedBatch(downloads_used=1,
+                             candidates=[make_candidate(work, sources[0])],
+                             model_version="fixture")
+    result = run(Provider([[hit("a")], [hit("b")]]), image_path=image,
+                 work_dir=tmp_path / "job", prepare_candidates=prepare,
+                 budget=SearchBudget(desired_candidates=2))
+    assert calls == [6, 5] and len(result.candidates) == 1
+    assert result.status == "completed" and result.downloads_used == 2
+
+
+def test_round_directory_symlink_cannot_escape(tmp_path):
+    image = tmp_path / "input.png"
+    image.touch()
+    job = tmp_path / "job"
+    job.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (job / "round-1").symlink_to(outside, target_is_directory=True)
+    def forbidden(*args):
+        pytest.fail("Processor must not write outside job")
+    result = run(Provider([[hit()]]), image_path=image, work_dir=job,
+                 prepare_candidates=forbidden)
+    assert result.status == "failed" and not list(outside.iterdir())
+
+
+def test_registered_media_reserved_dns_is_failed_not_no_match(tmp_path, monkeypatch):
+    import socket
+    from services.retrieval import prepare_candidates
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("198.18.0.9", 443))])
+    image = tmp_path / "input.png"
+    Image.new("RGB", (2, 2)).save(image)
+    media = hit()
+    media["image_url"] = "https://upload.wikimedia.org/known.gif"
+    result = run(Provider([[media], []]), image_path=image, work_dir=tmp_path/"job",
+                 prepare_candidates=prepare_candidates)
+    assert result.status == "failed" and result.downloads_used == 0 and not result.candidates
+    event = next(e for e in result.trace if e.step == "prepare_candidates")
+    assert event.details["diagnostics"][0]["reason"] == "dns_non_public"
+
+
+def test_fixed_domain_scope_does_not_include_target_information():
+    provider = Provider([[], []])
+    search_web(description="green bird dancing", provider=provider,
+        settings=settings(search_agent_domains=["cultofthepartyparrot.com"]))
+    assert all(q.endswith("site:cultofthepartyparrot.com") for q, _, _ in provider.calls)
+    assert "originalparrot" not in provider.calls[0][0]

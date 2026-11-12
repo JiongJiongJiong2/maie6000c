@@ -6,7 +6,7 @@ from pathlib import Path, PurePosixPath
 from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class SearchBudget(BaseModel):
@@ -106,6 +106,9 @@ class PreparedBatch(BaseModel):
             "storage_failed",
         ]
     ] = Field(default_factory=list)
+    diagnostics: list[dict] = Field(default_factory=list)
+    redirects: int = Field(default=0, ge=0)
+    rejected_low_score: int = Field(default=0, ge=0)
     downloads_used: int = Field(ge=0)
     model_version: str = Field(default="unspecified", min_length=1, max_length=100)
 
@@ -130,3 +133,11 @@ class SearchResult(BaseModel):
     downloads_used: int = 0
     model_version: str | None = None
     agent_version: str = "web-search-v1"
+
+    @model_validator(mode="after")
+    def result_contract(self):
+        if self.status == "failed" and self.candidates:
+            raise ValueError("Failed result cannot contain candidates")
+        if bool(self.candidates) != (self.result_kind == "candidates"):
+            raise ValueError("Candidate result kind must match candidates")
+        return self

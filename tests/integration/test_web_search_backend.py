@@ -523,3 +523,45 @@ def test_saved_index_failure_is_persisted_and_can_be_retried(
 
 def failing_indexer(_asset_id: str) -> str:
     raise search_worker.IndexingError("index_failed", "test failure")
+
+
+def test_real_processor_agent_conversion_worker_and_media(
+    client, db_session, worker_factory, monkeypatch,
+):
+    """Offline transport/embeddings; actual preparation, serialization, worker and API."""
+    import numpy as np
+    from services.retrieval import candidates as preparation
+    from services.retrieval import prepare_candidates
+    from services.search_agent import SearchBudget, search_web
+    from services.search_agent.resolvers import resolve_sources
+    from services.search_agent.settings import SearchAgentSettings
+    from services.worker.app.web_search_runner import to_worker_result
+
+    data = image_bytes(gif=True)
+    monkeypatch.setattr(preparation, "fetch", lambda *a, **k: (data, a[0], 0))
+    monkeypatch.setattr(preparation.encoder, "load_model", lambda: None)
+    monkeypatch.setattr(preparation.encoder, "encode_image", lambda _: np.array([1., 0.]))
+    monkeypatch.setattr(preparation.encoder, "encode_images",
+                        lambda images: np.array([[1., 0.]] * len(images)))
+    class Provider:
+        name = "fixture"
+        def search(self, *args, **kwargs):
+            return [dict(source_url="https://upload.wikimedia.org/example.gif", provider=self.name)]
+    def searcher(image_path, description, work_dir):
+        result = search_web(image_path, description, work_dir,
+                            budget=SearchBudget(max_rounds=1), provider=Provider(),
+                            settings=SearchAgentSettings(
+                                _env_file=None, search_agent_use_model=False),
+                            prepare_candidates=prepare_candidates, resolver=resolve_sources)
+        return WebSearchResult.model_validate_json(to_worker_result(result).model_dump_json())
+    request = finish_local_job(client, db_session, worker_factory)
+    accepted = create_web_job(client, request["request_id"])
+    run_web_job(client, worker_factory, accepted["job_id"], searcher)
+    state = client.get(f"/search-requests/{request['request_id']}").json()
+    assert state["status"] == "completed"
+    candidate = state["candidates"][0]
+    response = client.get(candidate["media_url"])
+    assert response.status_code == 200 and response.headers["content-type"] == "image/gif"
+    assert sha256(response.content) == sha256(data)
+    from services.common.storage import validate_image
+    assert validate_image(response.content, animated_gif=True) == 2

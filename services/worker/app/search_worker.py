@@ -305,9 +305,7 @@ def process_search_job(job_id: str, retriever: Retriever = invoke_retrieval) -> 
                 saved_asset = (
                     None if asset is not None else db.get(SavedAsset, str(match.reference_asset_id))
                 )
-                if asset is None and (
-                    saved_asset is None or saved_asset.index_status != "ready"
-                ):
+                if asset is None and (saved_asset is None or saved_asset.index_status != "ready"):
                     raise RetrievalError(
                         "corpus_mismatch", "Retrieved asset is absent from the active index"
                     )
@@ -409,8 +407,10 @@ def _execution_row(job_id: str, result: WebSearchResult, duration_ms: int) -> Se
 
 def _safe_web_error_code(reason: str) -> str:
     normalized = reason.lower()
-    if normalized and len(normalized) <= 45 and all(
-        character.isalnum() or character == "_" for character in normalized
+    if (
+        normalized
+        and len(normalized) <= 45
+        and all(character.isalnum() or character == "_" for character in normalized)
     ):
         return f"web_{normalized}"[:50]
     return "web_search_failed"
@@ -628,9 +628,7 @@ def process_web_search_job(
             if result is not None:
                 code = exc.code if isinstance(exc, RetrievalError) else "invalid_candidate_media"
                 message = (
-                    str(exc)
-                    if isinstance(exc, RetrievalError)
-                    else "Candidate media is invalid"
+                    str(exc) if isinstance(exc, RetrievalError) else "Candidate media is invalid"
                 )
                 with factory() as db:
                     job = db.get(SearchJob, job_id)
@@ -784,7 +782,23 @@ def cleanup_media(db: Session) -> None:
             path, orphan_cutoff, storage_class="orphan_input"
         ):
             remove_file_after_failure(path, storage_class="orphan_input")
+    from services.common.search_models import MemeCandidateDraft
+
+    active_jobs = set(
+        db.scalars(select(SearchJob.id).where(SearchJob.status.in_(["pending", "running"])))
+    )
+    for draft in db.scalars(select(MemeCandidateDraft).where(MemeCandidateDraft.expires_at <= now)):
+        if draft.job_id not in active_jobs:
+            for relative in [draft.local_path, draft.preview_path]:
+                remove_file_after_failure(
+                    contained_path(settings.media_root, relative), storage_class="expired_draft"
+                )
+            db.delete(draft)
+    db.commit()
     referenced_candidates = set(db.scalars(select(Candidate.local_cache_path)))
+    referenced_candidates.update(
+        db.scalars(select(Candidate.preview_path).where(Candidate.preview_path.is_not(None)))
+    )
     for path in (settings.media_root / "candidates").glob("*/*"):
         relative = path.relative_to(settings.media_root).as_posix()
         if relative not in referenced_candidates and _is_stale_regular_file(
@@ -841,7 +855,11 @@ def run_worker(stop_event: threading.Event | None = None) -> None:
                         break
                 if job is not None:
                     try:
-                        if job.job_kind == "web":
+                        if job.search_profile == "meme50-v2":
+                            from .meme_worker import process_meme_job
+
+                            process_meme_job(job.id, factory=factory)
+                        elif job.job_kind == "web":
                             process_web_search_job(job.id)
                         else:
                             process_search_job(job.id)

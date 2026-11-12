@@ -27,7 +27,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run format:check
-      - run: npm test -- client.spec.js design.spec.js
+      - run: npm test -- client.spec.js design.spec.js meme50.spec.js
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

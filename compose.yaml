@@ -77,7 +77,9 @@ services:
       retries: 10
 
   worker:
-    build: .
+    build:
+      context: .
+      target: worker
     command: python -m services.worker.app.search_worker
     environment:
       APP_ENV: ${APP_ENV:-development}
@@ -90,17 +92,47 @@ services:
       WEB_SEARCH_MAX_DOWNLOADS: ${WEB_SEARCH_MAX_DOWNLOADS:-6}
       SAVED_INDEX_TIMEOUT_SECONDS: ${SAVED_INDEX_TIMEOUT_SECONDS:-300}
       SEARCH_AGENT_PROVIDER: ${SEARCH_AGENT_PROVIDER:-auto}
-      SEARCH_AGENT_MODE: ${SEARCH_AGENT_MODE:-images}
+      SEARCH_AGENT_DDGS_BACKEND: ${SEARCH_AGENT_DDGS_BACKEND:-bing}
+      SEARCH_AGENT_DOMAINS: ${SEARCH_AGENT_DOMAINS:-[]}
+      SEARCH_AGENT_MODE: ${SEARCH_AGENT_MODE:-web}
       SEARCH_AGENT_USE_MODEL: ${SEARCH_AGENT_USE_MODEL:-true}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-flash}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      RETRIEVAL_MIN_SIMILARITY: ${RETRIEVAL_MIN_SIMILARITY:-0.82}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       BRAVE_API_KEY: ${BRAVE_API_KEY:-}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
       SEARXNG_URL: ${SEARXNG_URL:-}
+      MEME50_PROVIDER_POLICY: hkust-deepseek-v1
+      MEME50_VISION_PROVIDER: hkust
+      MEME50_HKUST_MODEL: ${MEME50_HKUST_MODEL:-gemini-2.5-flash-lite}
+      MEME50_HKUST_API_KEY: ${MEME50_HKUST_API_KEY:-${HKUST_API_KEY:-}}
+      MEME50_DEEPSEEK_MODEL: ${MEME50_DEEPSEEK_MODEL:-deepseek-flash}
+      MEME50_KEYWORD_PROVIDER: deepseek
+      MEME50_REVERSE_IMAGE_PROVIDER: disabled
+      MEME50_VERIFY_ENTITIES: ${MEME50_VERIFY_ENTITIES:-true}
+      MEME50_TIMEOUT_SECONDS: ${MEME50_TIMEOUT_SECONDS:-180}
+      MEME50_CALL_TIMEOUT_SECONDS: ${MEME50_CALL_TIMEOUT_SECONDS:-18}
+      MEME50_MAX_SEARCH_CALLS: ${MEME50_MAX_SEARCH_CALLS:-16}
+      MEME50_MAX_MODEL_CALLS: ${MEME50_MAX_MODEL_CALLS:-3}
+      MEME50_MAX_QUERIES: ${MEME50_MAX_QUERIES:-6}
+      MEME50_MAX_SOURCES: ${MEME50_MAX_SOURCES:-500}
+      MEME50_MAX_PREVIEWS: ${MEME50_MAX_PREVIEWS:-250}
+      MEME50_MAX_ORIGINALS: ${MEME50_MAX_ORIGINALS:-120}
+      MEME50_MAX_PAGES: ${MEME50_MAX_PAGES:-40}
+      MEME50_MAX_BYTES: ${MEME50_MAX_BYTES:-536870912}
+      MEME50_MAX_DISK_BYTES: ${MEME50_MAX_DISK_BYTES:-536870912}
+      MEME50_MAX_REDIRECTS: ${MEME50_MAX_REDIRECTS:-120}
+      MEME50_FETCH_URL: http://media-fetch:8120
+      MEME50_DNS_MODE: ${MEME50_DNS_MODE:-system}
+      MEME50_CONCURRENCY: ${MEME50_CONCURRENCY:-6}
+      MEME50_MINIMUM_SCORE: ${MEME50_MINIMUM_SCORE:-0.55}
       MAX_CANDIDATE_BYTES: ${MAX_CANDIDATE_BYTES:-26214400}
       MEDIA_RETENTION_DAYS: ${MEDIA_RETENTION_DAYS:-7}
       MEDIA_ROOT: /data/media
       REFERENCE_ROOT: /data/reference
       MODEL_CACHE_ROOT: /data/models
+    networks: [default, media_egress]
     volumes:
       - task_media:/data/media
       - "${REFERENCE_HOST_PATH:-./data/reference}:/data/reference:ro"
@@ -117,6 +149,27 @@ services:
         condition: service_healthy
       api:
         condition: service_healthy
+      media-fetch:
+        condition: service_healthy
+
+  media-fetch:
+    build:
+      context: .
+      target: media-fetch
+    networks: [media_egress]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 512m
+    logging: *default-logging
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8120/health/live')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   starter-worker:
     profiles: ["starter"]
@@ -174,3 +227,7 @@ volumes:
   task_media:
   model_cache:
   prometheus_data:
+
+networks:
+  media_egress:
+    driver: bridge

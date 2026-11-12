@@ -227,7 +227,7 @@
                 <input
                   id="file-input"
                   type="file"
-                  accept="image/png,image/jpeg,image/webp"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
                   aria-label="Choose screenshot"
                 />
                 <span id="upload-placeholder"
@@ -257,7 +257,7 @@
                   ><strong>Drop it like it's a screenshot.</strong
                   ><span class="upload-link">or click to choose a file ↗</span
                   ><span class="file-types"
-                    >PNG / JPG / WEBP · MAX 10 MiB</span
+                    >PNG / JPG / WEBP / GIF · MAX 10 MiB</span
                   ></span
                 >
                 <img
@@ -273,6 +273,20 @@
                 <span id="file-name">No image selected</span
                 ><span id="file-size"></span>
               </div>
+              <label for="description" class="optional-description"
+                >Description or preference (optional)</label
+              >
+              <textarea
+                id="description"
+                maxlength="500"
+                rows="3"
+                placeholder="For example: a happy reaction, or the same character looking angry"
+              ></textarea>
+              <p class="muted image-disclosure">
+                Resized images or representative frames are sent to external
+                visual and image-search services to understand and find related
+                memes.
+              </p>
               <button id="submit" class="primary full" disabled>
                 Find my GIF ↗
               </button>
@@ -304,8 +318,9 @@
                 </p>
               </details>
               <p class="privacy-note">
-                <span aria-hidden="true">▣</span> Your current search stays in
-                this browser.<br />Refresh happens. We get it.
+                <span aria-hidden="true">▣</span> This browser remembers your
+                search.<br />
+                Processing also uses the server and configured image providers.
               </p>
             </div>
           </section>
@@ -364,6 +379,21 @@
               <button id="refresh" class="secondary" hidden>
                 Refresh status
               </button>
+              <div id="meme-controls" class="meme-controls" hidden>
+                <label for="media-filter">Show</label>
+                <select id="media-filter">
+                  <option value="all">All images</option>
+                  <option value="static">Static</option>
+                  <option value="animated">Animated</option>
+                </select>
+                <button id="previous-page" class="secondary">Previous</button>
+                <button id="next-page" class="secondary">Next</button>
+                <span id="page-summary"></span>
+              </div>
+              <button id="meme-retry" class="secondary" hidden>
+                Retry search
+              </button>
+              <p id="meme-analysis" class="muted" hidden></p>
               <div id="candidates" class="candidates"></div>
               <div id="review-panel" class="review-panel" hidden>
                 <p class="muted">

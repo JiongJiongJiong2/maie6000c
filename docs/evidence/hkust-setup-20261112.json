@@ -1,0 +1,73 @@
+{
+  "date": "2026-11-12 Asia/Hong_Kong",
+  "status": "pending_external_accounts",
+  "vision_provider": "hkust",
+  "model": "gemini-2.5-flash-lite",
+  "hkust": {
+    "models_endpoint": "passed",
+    "visual_probe": {
+      "name": "visual",
+      "provider": "hkust",
+      "endpoint_type": "chat/completions",
+      "configuration_fingerprint": "00e6c853a00f3ce81ac21706cf2c9d7c3475dd5c257dd06c83a4d2dc54f580e8",
+      "status": "passed",
+      "output_count": 4,
+      "elapsed_seconds": 3.939,
+      "ledger_delta": {
+        "search_calls": 0,
+        "model_calls": 1,
+        "queries": 0,
+        "preview_attempts": 0,
+        "media_attempts": 0,
+        "page_attempts": 0,
+        "response_bytes": 1549,
+        "redirects": 0,
+        "disk_bytes": 0,
+        "dns_queries": 0,
+        "connections": 0,
+        "rerank_model_calls": 0
+      },
+      "model": "gemini-2.5-flash-lite"
+    },
+    "input_sha256": "1e1d4e37b9830e605722411072aa5d80f37c4cfc5f4b9bb1f7328025b6ce3efd",
+    "code_fingerprint": "45812840f15700ae6d59db099cdf14a8f9d16a28b2d6461942a92148edaae44e",
+    "configuration_fingerprint": "00e6c853a00f3ce81ac21706cf2c9d7c3475dd5c257dd06c83a4d2dc54f580e8"
+  },
+  "google_vision": {
+    "project": "fast-audio-514504-c0",
+    "project_name": "maie6000c-meme50",
+    "api_enabled": true,
+    "key_name": "maie6000c-meme50-vision-local",
+    "api_restrictions": [
+      "vision.googleapis.com"
+    ],
+    "key_present": true,
+    "actual_probe_status": "failed",
+    "diagnostic": {
+      "http_status": 403,
+      "classification": "billing_not_enabled",
+      "reasons": [
+        "BILLING_DISABLED"
+      ],
+      "service_status": "PERMISSION_DENIED"
+    },
+    "billing_changed": false
+  },
+  "brave": {
+    "key_present": false,
+    "images_verified": false,
+    "web_verified": false
+  },
+  "regression": {
+    "passed": 310,
+    "postgres_skipped": 5,
+    "smoke_deselected": 2,
+    "log": ".cache/meme50/hkust-setup-tests-final-20261112.txt"
+  },
+  "full_acceptance": "not_passed",
+  "remaining": [
+    "Google Cloud billing prerequisite",
+    "Brave account and Images/Web authorization",
+    "A0-A8 remaining real product acceptance"
+  ]
+}

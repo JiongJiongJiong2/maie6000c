@@ -1,5 +1,9 @@
 # MemeRetrieve architecture
 
+## meme50-v2 implementation
+
+The formal web client now defaults to an image-first, optional-description web job with no local-job placeholder. [The current architecture and data-flow contract](meme50.md) documents cloud frame processing, explicit entity verification, reverse image search, shared budgets, credential-free pinned public egress, verified drafts, generic media and revision-bound results. Historical W07/W04 limits below remain attached to those profiles. The v2 implementation is not yet live-search or quality accepted: provider credentials are absent; see [the verification record](meme50-verification.md).
+
 ## W07 implementation
 
 The [current W07 data-flow diagram](../submissions/week07/assets/10-w07-system-flow.png) has an [editable Mermaid source](../submissions/week07/assets/w07-system-flow.mmd). The captured Windows profile runs native PostgreSQL 16.15 in place of the Docker database described below; the API, database schema, independent worker and retrieval path are the same. See [fresh evidence](../submissions/week07/README.md).

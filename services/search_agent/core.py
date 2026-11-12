@@ -3,8 +3,11 @@
 import hashlib
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import ValidationError
+
+from services.retrieval.download import canonical_url
 
 from .models import (
     CandidateBudget,
@@ -42,7 +45,7 @@ def build_provider(settings):
         return TavilyProvider(settings.tavily_api_key.get_secret_value(), mode=mode)
     if settings.search_agent_provider == "searxng":
         return SearxngProvider(settings.searxng_url, mode=mode)
-    return DDGSProvider(mode=mode)
+    return DDGSProvider(mode=mode, backend=settings.search_agent_ddgs_backend)
 
 
 def search_web(
@@ -55,6 +58,7 @@ def search_web(
     provider=None,
     planner=None,
     prepare_candidates=None,
+    resolver=None,
 ):
     """Run bounded discovery; injected providers and processors remain caller-owned."""
     settings = settings or SearchAgentSettings()
@@ -70,6 +74,7 @@ def search_web(
             provider=provider,
             planner=planner,
             prepare_candidates=prepare_candidates,
+            resolver=resolver,
         )
     finally:
         if owned:
@@ -86,6 +91,7 @@ def _run_search(
     provider=None,
     planner=None,
     prepare_candidates=None,
+    resolver=None,
 ):
     """Discover sources or call an injected GIF processor to produce verified candidates.
 
@@ -111,6 +117,8 @@ def _run_search(
     deadline = started + budget.timeout_seconds
     trace, warnings, sources, candidates = [], [], [], []
     seen, queries = set(), []
+    seen_media_urls = set()
+    pages_used = 0
     downloads = search_calls = planner_calls = successful_calls = 0
     model_version = None
     feedback = {"new_sources": 0, "valid_candidates": 0, "rejected": 0}
@@ -155,6 +163,9 @@ def _run_search(
         query = " ".join(query.split()[:50])[:query_limit]
         if query in queries:
             query = (description[: query_limit - 25] + " GIF 动态表情 原图")[:query_limit]
+        if settings.search_agent_domains:
+            scope = " " + " OR ".join("site:" + d for d in settings.search_agent_domains)
+            query = " ".join(query.split()[:40])[:query_limit - len(scope)] + scope
         if query in queries:
             stop_reason = "repeated_query"
             break
@@ -178,13 +189,14 @@ def _run_search(
         for raw in raw_hits[:6]:
             try:
                 source = Source.model_validate(raw)
-                if settings.search_agent_mode == "images" and source.image_url is None:
+                if (settings.search_agent_mode == "images" and source.image_url is None
+                        and resolver is None):
                     rejected += 1
                     continue
             except (ValidationError, ValueError, TypeError):
                 rejected += 1
                 continue
-            key = source.image_url or source.source_url
+            key = canonical_url(source.image_url or source.source_url)
             if key not in seen:
                 seen.add(key)
                 new_sources.append(source)
@@ -193,6 +205,7 @@ def _run_search(
             round_no,
             "search",
             provider=provider.name,
+            backend=getattr(provider, "backend", None),
             new_sources=len(new_sources),
             rejected=rejected,
         )
@@ -211,10 +224,47 @@ def _run_search(
             continue
 
         available = budget.max_downloads - downloads
-        to_process = [s for s in new_sources if s.image_url is not None][:available]
+        if resolver is not None:
+            from .resolvers import ResolvedBatch
+            source_hosts = sorted({urlsplit(s.source_url).hostname for s in new_sources})
+            try:
+                resolved = ResolvedBatch.model_validate(resolver(
+                    new_sources, deadline=deadline, remaining_pages=6 - pages_used,
+                    remaining_downloads=available))
+                if resolved.page_requests > 6 - pages_used:
+                    raise ValueError("Resolver exceeded page budget")
+                pages_used += resolved.page_requests
+                new_sources = resolved.sources
+                for failure in resolved.failures:
+                    warnings.append("resolve_" + failure)
+                    if failure != "unsupported_source":
+                        operational_failure = True
+                event(round_no, "resolve_sources", page_requests=resolved.page_requests,
+                      pages_used=pages_used, media_count=len(new_sources),
+                      reasons=resolved.reasons, redirects=resolved.redirects,
+                      diagnostics=resolved.diagnostics,
+                      hosts=source_hosts)
+            except Exception:
+                pages_used = 6
+                operational_failure = True
+                warnings.append("resolver_failed")
+                event(round_no, "resolve_sources", code="resolver_failed")
+                new_sources = []
+        to_process = []
+        for source in new_sources:
+            if source.image_url is None or len(to_process) >= available:
+                continue
+            key = canonical_url(source.image_url)
+            if key in seen_media_urls:
+                continue
+            seen_media_urls.add(key)
+            to_process.append(source)
         if to_process:
             try:
                 round_dir = work_dir / f"round-{round_no}"
+                if (round_dir.is_symlink()
+                        or not round_dir.resolve().is_relative_to(work_dir.resolve())):
+                    raise ValueError("Round directory is outside job")
                 round_dir.mkdir(parents=True, exist_ok=True)
                 batch = PreparedBatch.model_validate(
                     prepare_candidates(
@@ -273,7 +323,7 @@ def _run_search(
                     operational_failure = True
             candidates.extend(batch.candidates)
             by_hash = {}
-            for candidate in sorted(candidates, key=lambda item: item.score, reverse=True):
+            for candidate in sorted(candidates, key=lambda item: (-item.score, item.sha256)):
                 by_hash.setdefault(candidate.sha256, candidate)
             candidates = list(by_hash.values())[: budget.max_results]
             rejected += len(batch.failures)
@@ -283,6 +333,9 @@ def _run_search(
                 candidates=len(candidates),
                 downloads_used=batch.downloads_used,
                 rejected=len(batch.failures),
+                rejected_low_score=batch.rejected_low_score,
+                redirects=batch.redirects,
+                diagnostics=batch.diagnostics,
                 failure_codes=list(dict.fromkeys(batch.failures)),
             )
         feedback = {
@@ -311,6 +364,8 @@ def _run_search(
     )
     if failed and stop_reason == "round_limit":
         stop_reason = "media_processing_failed" if is_verified else "search_failed"
+    if failed:
+        candidates = []
     event(
         0,
         "stop",

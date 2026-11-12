@@ -1,5 +1,7 @@
 # Web searching agent 开发与交接
 
+本页以下描述 legacy 文字规划、三 GIF 候选流程。新正式网页默认使用 [meme50-v2](meme50.md)：图片必填、文字可选，代表帧实际外发至配置的视觉及反搜 provider。旧流程“截图不发送给模型”的描述不适用于 v2。新实现与真实验收状态见 [记录](meme50-verification.md)。
+
 负责人：Jiongle He。实现日期：2026-11-09。入口为 `services.search_agent.search_web`，可以独立运行，也可由 Haoxuan 的 worker 调用。它支持真正的网页搜索和图片搜索、查询规划、最多一次补搜、共享预算、来源去重及执行记录。
 
 默认输出是网页或图片来源，`result_kind=sources`。只有接入 YuanJian 的动画验证与视觉排序函数后，才会输出 `result_kind=candidates`。搜索到 GIF 页面不等于已经获取原 GIF。截图不会发送给查询模型；当前联网查询使用用户补充的描述。
@@ -81,3 +83,64 @@ record = result.model_dump(mode="json")
 ```
 
 Jiongle 交付查询、来源适配、编排和 trace；YuanJian 接入处理器与多帧索引；Haoxuan 接入 worker、状态、硬超时与记录持久化；Zirui 将状态和结果接到统一页面。
+
+## Recover original multi-frame GIFs
+
+The recovery path uses the same `resolve_sources` and lazy-exported
+`services.retrieval.prepare_candidates` in the CLI and formal worker runner.
+Discovery remains the default. Supported sources and network limitations are in
+[gif-source-support.md](gif-source-support.md); current acceptance evidence is in
+[gif-acquisition-verification.md](gif-acquisition-verification.md).
+
+Install Python 3.11 dependencies with `python -m pip install -e '.[dev,search,retrieval]'`.
+Prepare weights explicitly with `python scripts/download_model.py`. Inference
+uses local files only. Set the process's actual `MODEL_CACHE_ROOT`; a host
+`data/models` directory does not populate the Compose named volume automatically.
+
+```bash
+python -m services.search_agent "用户对目标表情的自然描述" \
+  --provider ddgs --mode web --no-model \
+  --recover --image /path/to/authorized-screenshot.png \
+  --work-dir .cache/gif-acquisition/case01-attempt01 \
+  --out .cache/gif-acquisition/case01-result.json
+```
+
+Use a fresh work directory for each attempt. For the preferred DeepSeek path,
+configure `DEEPSEEK_API_KEY` and pass `--provider deepseek --mode web` explicitly.
+No paid provider is silently substituted. For an isolated direct-source check:
+
+```bash
+python -m scripts.verify_gif_acquisition \
+  --source 'https://commons.wikimedia.org/wiki/File:Rotating_earth_(large).gif' \
+  --image /path/to/authorized-screenshot.png \
+  --out .cache/gif-acquisition/direct-attempt01
+```
+
+For real provider recovery, replace `--source URL` with `--description TEXT
+--provider ddgs`. The verification tool exits nonzero unless verified candidates
+are present. Its new output directory contains resolution/agent data, strictly
+converted worker JSON, file hashes, elapsed time, and an implementation fingerprint.
+`--use-model` explicitly enables the existing planner; it requires its configured
+provider key and otherwise records the existing safe fallback warning.
+
+Compose defaults now agree with local `web` mode. Set provider, mode, planner flag,
+and threshold explicitly in the worker environment for reproducibility. Compose
+passes `DEEPSEEK_MODEL`, `DEEPSEEK_BASE_URL`, and `RETRIEVAL_MIN_SIMILARITY`.
+The base URL/model settings govern the existing planner; DeepSeek Search retains
+its existing official search endpoint. No new provider implementation is introduced.
+The Docker `worker` target installs retrieval dependencies; API uses the lightweight
+`api` final target. Container build and weight-volume availability must be verified
+on a running Docker host.
+
+Trace `resolve_sources` reports source hosts, logical page reads, redirects,
+resolved media count, and controlled rejection reasons. `prepare_candidates`
+reports logical media attempts, redirects, low-score rejections and failure codes.
+The page ledger and media ledger persist across rounds. The formal runner removes
+agent-only `sources` and validates `WebSearchResult` before writing one JSON object
+to stdout; strict backend extra-field rejection remains enabled.
+
+CI now runs `python -m pytest -q -m 'not smoke'`, including root-level agent tests.
+Live network checks are explicit scripts, never part of ordinary CI. On macOS,
+the unrelated caption-rendering regression requires `MEME_FONT_PATH` to an existing
+font (for example `/System/Library/Fonts/Supplemental/Arial.ttf` for its English
+fixture); deployment should retain a Chinese-capable font for Chinese captions.

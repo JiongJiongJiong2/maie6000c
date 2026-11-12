@@ -288,3 +288,79 @@ def test_database_constraints_reject_invalid_states_and_cross_job_review(postgre
         with pytest.raises(IntegrityError):
             db.commit()
         db.rollback()
+
+
+def test_meme50_upgrade_preserves_old_review_fk_and_accepts_fifty_static(postgres_backend):
+    engine, factory, config = postgres_backend
+    # Seed real legacy candidate and composite review FK before the new upgrade.
+    with factory() as db:
+        request = new_request(db)
+        job = SearchJob(
+            request_id=request.id,
+            status="completed",
+            result_kind="candidates",
+            started_at=utcnow(),
+            finished_at=utcnow(),
+        )
+        db.add(job)
+        db.flush()
+        candidate = Candidate(
+            job_id=job.id,
+            rank=1,
+            similarity_score=0.8,
+            source_url="https://example.org/legacy",
+            local_cache_path="legacy.gif",
+            frame_count=2,
+            media_sha256="a" * 64,
+            cache_expires_at=utcnow() + timedelta(days=1),
+        )
+        db.add(candidate)
+        db.flush()
+        review = ReviewDecision(
+            job_id=job.id,
+            candidate_id=candidate.id,
+            decision="accept",
+            client_review_key=str(uuid4()),
+        )
+        db.add(review)
+        db.commit()
+        job_id, candidate_id, review_id = job.id, candidate.id, review.id
+    command.downgrade(config, "20261109_0003")
+    command.upgrade(config, "head")
+    with factory() as db:
+        assert db.get(Candidate, candidate_id).media_sha256 == "a" * 64
+        assert db.get(Candidate, candidate_id).media_kind == "animated"
+        assert db.get(ReviewDecision, review_id).candidate_id == candidate_id
+        assert db.get(SearchJob, job_id).result_count == 1
+        request = new_request(db)
+        request.search_profile = "meme50-v2"
+        job = SearchJob(
+            request_id=request.id, search_profile="meme50-v2", job_kind="web", target_count=50
+        )
+        db.add(job)
+        db.flush()
+        for rank in range(1, 51):
+            db.add(
+                Candidate(
+                    job_id=job.id,
+                    rank=rank,
+                    similarity_score=0.7,
+                    source_url=f"https://example.org/{rank}",
+                    local_cache_path=f"{rank}.png",
+                    frame_count=1,
+                    media_format="PNG",
+                    mime_type="image/png",
+                    media_kind="static",
+                    content_group_id=str(rank),
+                    cache_expires_at=utcnow() + timedelta(days=1),
+                )
+            )
+        db.commit()
+        assert (
+            db.scalar(select(func.count()).select_from(Candidate).where(Candidate.job_id == job.id))
+            == 50
+        )
+    with pytest.raises(RuntimeError, match="Cannot downgrade"):
+        command.downgrade(config, "20261109_0003")
+    assert "meme_candidate_drafts" in inspect(engine).get_table_names()
+    command.check(config)

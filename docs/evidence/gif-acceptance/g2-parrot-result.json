@@ -1,0 +1,89 @@
+{
+  "status": "completed",
+  "result_kind": "candidates",
+  "stop_reason": "candidates_found",
+  "candidates": [
+    {
+      "relative_path": "round-1/ecfacdf40753e363e4022f79ee48ddf55d6b3d537b6a6fa80929718b653b7022.gif",
+      "sha256": "ecfacdf40753e363e4022f79ee48ddf55d6b3d537b6a6fa80929718b653b7022",
+      "source_url": "https://cultofthepartyparrot.com/",
+      "image_url": "https://cultofthepartyparrot.com/parrots/hd/originalparrot.gif",
+      "provider": "ddgs",
+      "format": "GIF",
+      "frame_count": 10,
+      "score": 0.9509462118148804
+    }
+  ],
+  "trace": [
+    {
+      "round": 1,
+      "step": "plan",
+      "elapsed_ms": 0,
+      "details": {
+        "query": "green dancing parrot bobbing its head animated emoji site:cultofthepartyparrot.com"
+      }
+    },
+    {
+      "round": 1,
+      "step": "search",
+      "elapsed_ms": 8184,
+      "details": {
+        "provider": "ddgs",
+        "backend": "bing",
+        "new_sources": 2,
+        "rejected": 0
+      }
+    },
+    {
+      "round": 1,
+      "step": "resolve_sources",
+      "elapsed_ms": 9034,
+      "details": {
+        "page_requests": 1,
+        "pages_used": 1,
+        "media_count": 1,
+        "reasons": {
+          "unsupported_source": 1
+        },
+        "redirects": 0,
+        "diagnostics": [],
+        "hosts": [
+          "cultofthepartyparrot.com"
+        ]
+      }
+    },
+    {
+      "round": 1,
+      "step": "prepare_candidates",
+      "elapsed_ms": 11554,
+      "details": {
+        "candidates": 1,
+        "downloads_used": 1,
+        "rejected": 0,
+        "rejected_low_score": 0,
+        "redirects": 0,
+        "diagnostics": [],
+        "failure_codes": []
+      }
+    },
+    {
+      "round": 0,
+      "step": "stop",
+      "elapsed_ms": 11554,
+      "details": {
+        "reason": "candidates_found",
+        "search_calls": 1,
+        "planner_calls": 0,
+        "downloads_used": 1
+      }
+    }
+  ],
+  "warnings": [
+    "resolve_unsupported_source"
+  ],
+  "search_calls": 1,
+  "planner_calls": 0,
+  "downloads_used": 1,
+  "model_version": "clip-vit-base-patch32@37000f5cdccec47a3f6f83142bff131370757470",
+  "agent_version": "web-search-v1"
+}

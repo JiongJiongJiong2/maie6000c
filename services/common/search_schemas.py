@@ -4,16 +4,35 @@ import math
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+    model_serializer,
+)
 
 
 class AcceptedSearch(BaseModel):
     request_id: UUID
     job_id: UUID
     status: Literal["pending", "running", "completed", "failed"]
+    search_profile: Literal["legacy", "meme50-v2"] = "legacy"
+    contract_version: int = 1
+    target_count: int = 3
+
+    @model_serializer(mode="wrap")
+    def compatible_json(self, handler):
+        data = handler(self)
+        if self.search_profile == "legacy":
+            for key in ["search_profile", "contract_version", "target_count"]:
+                data.pop(key, None)
+        return data
 
 
 class CandidateRead(BaseModel):
+    contract_version: int = Field(default=1, exclude=True)
     candidate_id: UUID
     rank: int
     score: float
@@ -21,9 +40,40 @@ class CandidateRead(BaseModel):
     source_url: str | None = None
     image_url: str | None = None
     provider: str | None = None
+    media_format: str = "GIF"
+    mime_type: str = "image/gif"
+    media_kind: Literal["static", "animated"] = "animated"
+    frame_count: int = 2
+    width: int | None = None
+    height: int | None = None
+    content_group_id: str | None = None
+    preview_url: str | None = None
+    sha256: str | None = None
+    byte_size: int | None = None
+    duration_ms: int | None = None
     save_status: Literal["not_saved", "saved"] = "not_saved"
     asset_id: UUID | None = None
     index_status: Literal["pending", "running", "ready", "failed"] | None = None
+
+    @model_serializer(mode="wrap")
+    def compatible_json(self, handler):
+        data = handler(self)
+        if self.contract_version == 1:
+            for key in [
+                "media_format",
+                "mime_type",
+                "media_kind",
+                "frame_count",
+                "width",
+                "height",
+                "content_group_id",
+                "preview_url",
+                "sha256",
+                "byte_size",
+                "duration_ms",
+            ]:
+                data.pop(key, None)
+        return data
 
 
 class SearchError(BaseModel):
@@ -47,22 +97,46 @@ class SearchRead(BaseModel):
     status: Literal["pending", "running", "completed", "failed"]
     job_kind: Literal["local", "web"]
     stage: str
-    local_job_id: UUID
+    local_job_id: UUID | None
+    search_profile: Literal["legacy", "meme50-v2"] = "legacy"
+    contract_version: int = 1
+    target_count: int = 3
+    result_revision: str | None = None
+    progress: dict = Field(default_factory=dict)
+    partial: bool = False
     web_searches: list[SearchJobRead]
     result_kind: Literal["candidates", "no_candidates"] | None
     candidates: list[CandidateRead]
     error: SearchError | None
 
+    @model_serializer(mode="wrap")
+    def compatible_json(self, handler):
+        data = handler(self)
+        if self.search_profile == "legacy":
+            for key in [
+                "search_profile",
+                "contract_version",
+                "target_count",
+                "result_revision",
+                "progress",
+                "partial",
+            ]:
+                data.pop(key, None)
+        return data
+
 
 class WebSearchCreate(BaseModel):
-    description: str = Field(min_length=1, max_length=500)
+    description: str = Field(default="", max_length=500)
     client_search_key: str = Field(min_length=1, max_length=128, pattern=r"^\S+$")
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def optional_description(cls, value):
+        return "" if value is None else value
 
     @model_validator(mode="after")
     def normalize_description(self) -> WebSearchCreate:
         self.description = self.description.strip()
-        if not self.description:
-            raise ValueError("description must not be blank")
         return self
 
 

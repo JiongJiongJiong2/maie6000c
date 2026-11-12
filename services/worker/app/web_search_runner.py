@@ -7,7 +7,14 @@ import json
 import sys
 from pathlib import Path
 
+from services.common.search_schemas import WebSearchResult
+from services.search_agent.resolvers import resolve_sources
+
 from services.search_agent import SearchBudget, search_web
+
+
+def to_worker_result(result):
+    return WebSearchResult.model_validate(result.model_dump(mode="json", exclude={"sources"}))
 
 
 def main() -> int:
@@ -30,8 +37,9 @@ def main() -> int:
             call_timeout_seconds=payload["call_timeout_seconds"],
         ),
         prepare_candidates=processor,
+        resolver=resolve_sources,
     )
-    print(result.model_dump_json())
+    print(to_worker_result(result).model_dump_json())
     return 0
 
 

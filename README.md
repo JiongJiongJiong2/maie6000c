@@ -1,5 +1,7 @@
 # MemeRetrieve
 
+The formal `/web/` entry defaults to [image-first meme50-v2](docs/meme50.md), with optional text, generic media, isolated public fetching and up to 50 verified result groups. The active [HKUST + DeepSeek policy](docs/hkust-deepseek-execution.md) uses school vision and `deepseek-flash` query planning with DeepSeek web search; its real provider smoke check passes. Quantity, human relevance and full product acceptance remain pending. Google Vision and Brave are not required. Legacy three-GIF APIs remain available.
+
 **Recover an existing animated meme from a screenshot, review candidates, and save the selected GIF locally.**
 
 MemeRetrieve is a proposed MAIE 6000C semester project motivated by an iPhone user who sees an animated meme in Douyin comments but cannot obtain its media file. It separates quick screenshot collection from later search and review. The first retrieval baseline searches a curated GIF corpus; recovery of arbitrary internet screenshots is a later feasibility question.

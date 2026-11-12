@@ -1,0 +1,35 @@
+{
+  "request_id": "eb43024a-61ee-459f-8e83-57b9009cbc7e",
+  "interrupted_job_id": "d49c770e-d6ea-4cf7-9374-5a4097b37b80",
+  "worker_pid": 12828,
+  "launcher_pid": 12816,
+  "previous_candidate": {
+    "candidate_id": "dea6fad2-f325-483a-8ec2-0fad16397e0b",
+    "sha256": "ecfacdf40753e363e4022f79ee48ddf55d6b3d537b6a6fa80929718b653b7022",
+    "byte_size": 13485,
+    "frame_count": 10,
+    "size": [
+      128,
+      128
+    ],
+    "score": 0.9509462118148804,
+    "source_url": "https://cultofthepartyparrot.com/",
+    "image_url": "https://cultofthepartyparrot.com/parrots/hd/originalparrot.gif",
+    "provider": "ddgs",
+    "relative_path": "dea6fad2-f325-483a-8ec2-0fad16397e0b.gif",
+    "media_url": "/candidates/dea6fad2-f325-483a-8ec2-0fad16397e0b/media",
+    "db_sha_matches": true
+  },
+  "runner_pids": [
+    13287
+  ],
+  "before_status": {
+    "job_id": "d49c770e-d6ea-4cf7-9374-5a4097b37b80",
+    "job_kind": "web",
+    "status": "running",
+    "stage": "web_search",
+    "description": "green dancing parrot bobbing its head animated emoji",
+    "result_kind": null,
+    "error": null
+  }
+}

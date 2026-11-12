@@ -4,7 +4,7 @@ import logging
 import secrets
 from datetime import timezone
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -107,7 +107,14 @@ def latest_local_job(db: Session, request_id: str) -> SearchJob:
 
 def accepted(job: SearchJob) -> AcceptedSearch:
     return AcceptedSearch.model_validate(
-        {"request_id": job.request_id, "job_id": job.id, "status": job.status}
+        {
+            "request_id": job.request_id,
+            "job_id": job.id,
+            "status": job.status,
+            "search_profile": job.search_profile,
+            "target_count": job.target_count,
+            "contract_version": 2 if job.search_profile == "meme50-v2" else 1,
+        }
     )
 
 
@@ -117,12 +124,16 @@ def replay_submission(
     digest: str,
     keywords: str | None,
     item_id: str | None,
+    profile="legacy",
+    target_count=3,
 ) -> AcceptedSearch:
-    if (existing.input_sha256, existing.user_keywords, existing.client_item_id) != (
-        digest,
-        keywords,
-        item_id,
-    ):
+    if (
+        existing.input_sha256,
+        existing.user_keywords,
+        existing.client_item_id,
+        existing.search_profile,
+        existing.target_count,
+    ) != (digest, keywords, item_id, profile, target_count):
         raise fail(409, "submission_key_conflict", "Submission key has different content")
     job = db.scalar(
         select(SearchJob).where(SearchJob.request_id == existing.id, SearchJob.attempt_no == 1)
@@ -139,12 +150,35 @@ def create_search(
     image: Annotated[UploadFile, File()],
     user_keywords: Annotated[str | None, Form(max_length=500)] = None,
     client_item_id: Annotated[str | None, Form(max_length=128)] = None,
+    description: Annotated[str | None, Form(max_length=500)] = None,
+    search_profile: Annotated[Literal["legacy", "meme50-v2"], Form()] = "legacy",
+    target_count: Annotated[int | None, Form(ge=1, le=50)] = None,
 ) -> AcceptedSearch:
     data = image.file.read(get_settings().max_upload_bytes + 1)
     if len(data) > get_settings().max_upload_bytes:
         raise fail(413, "upload_too_large", "Image exceeds the configured byte limit")
+    normalized_description = (description or "").strip() or None
+    normalized_keywords = (user_keywords or "").strip() or None
+    if (
+        description is not None
+        and user_keywords is not None
+        and normalized_description != normalized_keywords
+    ):
+        raise fail(422, "description_conflict", "description and user_keywords disagree")
+    user_keywords = normalized_description if description is not None else normalized_keywords
+    target_count = (
+        target_count if target_count is not None else (50 if search_profile == "meme50-v2" else 3)
+    )
+    if search_profile == "legacy" and target_count != 3:
+        raise fail(422, "legacy_target_count", "Legacy search returns at most three candidates")
+    input_metadata = None
     try:
-        validate_image(data)
+        if search_profile == "meme50-v2":
+            from services.common.media import inspect_media
+
+            input_metadata = inspect_media(data).model_dump()
+        else:
+            validate_image(data)
     except MediaError as exc:
         raise fail(422, "invalid_image", str(exc)) from exc
     digest = sha256(data)
@@ -152,7 +186,9 @@ def create_search(
         select(SearchRequest).where(SearchRequest.client_submission_key == client_submission_key)
     )
     if existing is not None:
-        return replay_submission(db, existing, digest, user_keywords, client_item_id)
+        return replay_submission(
+            db, existing, digest, user_keywords, client_item_id, search_profile, target_count
+        )
 
     relative = f"inputs/{uuid4()}.image"
     try:
@@ -168,11 +204,21 @@ def create_search(
         input_path=relative,
         input_sha256=digest,
         user_keywords=user_keywords,
+        search_profile=search_profile,
+        target_count=target_count,
+        input_metadata=input_metadata,
     )
     try:
         db.add(request)
         db.flush()
-        job = SearchJob(request_id=request.id)
+        job = SearchJob(
+            request_id=request.id,
+            search_profile=search_profile,
+            target_count=target_count,
+            job_kind="web" if search_profile == "meme50-v2" else "local",
+            description=user_keywords if search_profile == "meme50-v2" else None,
+            configuration={"profile": search_profile, "version": "meme50-dev-20261111"},
+        )
         db.add(job)
         db.commit()
     except IntegrityError:
@@ -186,7 +232,9 @@ def create_search(
         if existing is None:
             logger.exception("submission_integrity_failed")
             raise fail(503, "database_unavailable", "Submission could not be committed")
-        return replay_submission(db, existing, digest, user_keywords, client_item_id)
+        return replay_submission(
+            db, existing, digest, user_keywords, client_item_id, search_profile, target_count
+        )
     except SQLAlchemyError as exc:
         db.rollback()
         remove_file_after_failure(stored, storage_class="input")
@@ -208,6 +256,20 @@ def candidates_for_job(db: Session, job_id: str) -> list[CandidateRead]:
                 {
                     "candidate_id": candidate.id,
                     "rank": candidate.rank,
+                    "contract_version": 2
+                    if db.get(SearchJob, job_id).search_profile == "meme50-v2"
+                    else 1,
+                    "media_format": candidate.media_format,
+                    "mime_type": candidate.mime_type,
+                    "media_kind": candidate.media_kind,
+                    "frame_count": candidate.frame_count,
+                    "width": candidate.width,
+                    "height": candidate.height,
+                    "content_group_id": candidate.content_group_id,
+                    "sha256": candidate.media_sha256,
+                    "byte_size": candidate.byte_size,
+                    "duration_ms": candidate.duration_ms,
+                    "preview_url": f"/candidates/{candidate.id}/preview",
                     "score": candidate.similarity_score,
                     "media_url": f"/candidates/{candidate.id}/media",
                     "source_url": candidate.source_url or (saved.source_url if saved else None),
@@ -280,9 +342,16 @@ def remove_unreferenced_saved_file(
 
 @router.get("/search-requests/{request_id}", response_model=SearchRead)
 def read_search(request_id: UUID, db: Database) -> SearchRead:
-    require_request(db, str(request_id))
+    request = require_request(db, str(request_id))
     job = latest_job(db, str(request_id))
-    local_job = latest_local_job(db, str(request_id))
+    local_job = db.scalar(
+        select(SearchJob)
+        .where(SearchJob.request_id == str(request_id), SearchJob.job_kind == "local")
+        .order_by(SearchJob.attempt_no.desc())
+        .limit(1)
+    )
+    if local_job is None and request.search_profile == "legacy":
+        raise RuntimeError("Persisted legacy search request has no local job")
     web_jobs = db.scalars(
         select(SearchJob)
         .where(SearchJob.request_id == str(request_id), SearchJob.job_kind == "web")
@@ -300,7 +369,13 @@ def read_search(request_id: UUID, db: Database) -> SearchRead:
             "status": job.status,
             "job_kind": job.job_kind,
             "stage": job.stage,
-            "local_job_id": local_job.id,
+            "local_job_id": local_job.id if local_job else None,
+            "search_profile": job.search_profile,
+            "target_count": job.target_count,
+            "contract_version": 2 if job.search_profile == "meme50-v2" else 1,
+            "result_revision": job.result_revision,
+            "progress": job.progress,
+            "partial": job.partial,
             "web_searches": [
                 {
                     "job_id": web_job.id,
@@ -374,6 +449,10 @@ def create_web_search(
         job_kind="web",
         stage="pending",
         description=payload.description.strip(),
+        search_profile=request.search_profile if payload.description.strip() else "meme50-v2",
+        target_count=request.target_count
+        if request.search_profile == "meme50-v2"
+        else (50 if not payload.description.strip() else 3),
         client_search_key=payload.client_search_key,
     )
     db.add(job)
@@ -421,11 +500,10 @@ def read_media(candidate_id: UUID, db: Database) -> Response:
         if expiry <= utcnow():
             raise fail(410, "media_expired", "Candidate media has expired; submit a new search")
         try:
-            data = read_verified_gif(
-                candidate.local_cache_path,
-                expected_sha256=candidate.media_sha256,
-                expected_frame_count=candidate.frame_count,
-            )
+            from .meme_search import verified_candidate_bytes
+
+            data = verified_candidate_bytes(candidate)
+
         except FileNotFoundError as exc:
             logger.error("candidate_media_missing", extra={"candidate_id": candidate.id})
             raise fail(503, "media_unavailable", "Candidate media is missing from storage") from exc
@@ -438,12 +516,15 @@ def read_media(candidate_id: UUID, db: Database) -> Response:
                 extra={"candidate_id": candidate.id, "reason": str(exc)},
             )
             raise fail(503, "media_corrupted", "Candidate GIF failed integrity validation") from exc
+    from services.common.media import FORMATS
+
+    suffix = FORMATS[candidate.media_format][1]
     return Response(
         content=data,
-        media_type="image/gif",
+        media_type=candidate.mime_type,
         headers={
             **MEDIA_RESPONSE_HEADERS,
-            "Content-Disposition": f'inline; filename="{candidate.id}.gif"',
+            "Content-Disposition": f'inline; filename="{candidate.id}.{suffix}"',
         },
     )
 
@@ -537,6 +618,10 @@ def save_candidate(
     )
     if candidate is None:
         raise fail(404, "candidate_not_found", "Candidate not found")
+    if candidate.media_format != "GIF" or candidate.frame_count < 2:
+        raise fail(
+            409, "static_save_unavailable", "Only preview/download is available for this media"
+        )
     existing_save = db.scalar(
         select(CandidateSave).where(CandidateSave.client_save_key == payload.client_save_key)
     )
@@ -626,9 +711,7 @@ def save_candidate(
     except IntegrityError:
         db.rollback()
         existing_save = db.scalar(
-            select(CandidateSave).where(
-                CandidateSave.client_save_key == payload.client_save_key
-            )
+            select(CandidateSave).where(CandidateSave.client_save_key == payload.client_save_key)
         )
         if existing_save is not None:
             if existing_save.candidate_id != str(candidate_id):
@@ -788,6 +871,9 @@ def create_retry(
         job_kind=previous.job_kind,
         stage="pending",
         description=previous.description,
+        search_profile=previous.search_profile,
+        target_count=previous.target_count,
+        configuration=previous.configuration,
         retry_of_job_id=previous.id,
         client_retry_key=payload.client_retry_key,
     )

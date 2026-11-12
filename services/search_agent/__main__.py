@@ -18,7 +18,18 @@ def main():
     parser.add_argument("--no-model", action="store_true")
     parser.add_argument("--timeout", type=float, default=60)
     parser.add_argument("--out", type=Path)
+    parser.add_argument("--recover", action="store_true")
+    parser.add_argument("--image", type=Path)
+    parser.add_argument("--work-dir", type=Path)
     args = parser.parse_args()
+    recovery = {}
+    if args.recover:
+        if not args.image or not args.image.is_file() or not args.work_dir:
+            parser.error("--recover requires an existing --image and --work-dir")
+        from services.retrieval import prepare_candidates
+        from .resolvers import resolve_sources
+        recovery = dict(image_path=args.image, work_dir=args.work_dir,
+                        prepare_candidates=prepare_candidates, resolver=resolve_sources)
     settings = SearchAgentSettings()
     if args.provider:
         settings.search_agent_provider = args.provider
@@ -28,6 +39,7 @@ def main():
         settings.search_agent_use_model = False
     result = search_web(
         description=args.description,
+        **recovery,
         settings=settings,
         budget=SearchBudget(timeout_seconds=args.timeout),
     )

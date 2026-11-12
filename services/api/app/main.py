@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from services.api.app.demo import router as demo_router
 from services.api.app.search import router as search_router
+from services.api.app.meme_search import router as meme_router
 from services.common.config import configure_logging, get_settings
 from services.common.db import get_db
 from services.common.models import Case, CaseStatus, Job, JobStatus, JobType
@@ -200,3 +201,6 @@ def read_job(job_id: int, db: Session = Depends(get_db)) -> JobRead:
 
 app.include_router(web_router)
 app.include_router(demo_router)
+
+
+app.include_router(meme_router)

@@ -1939,3 +1939,63 @@ html[data-motion="off"] .progress-track > span {
   color: inherit;
   text-decoration: underline;
 }
+
+.optional-description {
+  display: block;
+  font-weight: 650;
+  margin: 16px 0 8px;
+}
+#description {
+  width: 100%;
+  resize: vertical;
+  min-height: 76px;
+  border: 2px solid var(--ink, #202024);
+  border-radius: 10px;
+  padding: 10px;
+  font: inherit;
+  box-sizing: border-box;
+}
+.image-disclosure {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.meme-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.meme-controls select {
+  padding: 8px;
+  max-width: 100%;
+  font: inherit;
+}
+.candidates.meme50-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.meme50-grid .candidate-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.meme50-grid .candidate-body p {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.meme50-grid .candidate-media img {
+  max-height: 220px;
+  object-fit: contain;
+  max-width: 100%;
+}
+.meme50-grid .candidate-media {
+  min-height: 180px;
+}
+@media (max-width: 600px) {
+  .candidates.meme50-grid {
+    grid-template-columns: 1fr;
+  }
+}
