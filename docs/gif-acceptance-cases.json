@@ -1,0 +1,84 @@
+{
+  "frozen_at": "2026-11-11 Asia/Hong_Kong",
+  "kind": "source_proposals_not_eligible_acceptance_inputs",
+  "eligible_case_count": 0,
+  "cases": [
+    {
+      "id": "review-01",
+      "title": "Original green parrot",
+      "page": "https://cultofthepartyparrot.com/",
+      "author": "Geiger Powell",
+      "permission": "Original green GIF: unlimited use/adaptation permission recorded in project LICENSE",
+      "license_url": "https://github.com/jmhobbs/cultofthepartyparrot.com/blob/main/LICENSE",
+      "description": "green dancing parrot bobbing its head animated emoji",
+      "status": "awaiting_real_screenshot_and_human_target_confirmation",
+      "eligible_g4": false,
+      "input_path": null,
+      "input_sha256": null,
+      "independent_reference_path": ".cache/gif-acceptance/container-review/review-samples/review-01/target.gif",
+      "human_confirmation": null,
+      "target_sha256": "ecfacdf40753e363e4022f79ee48ddf55d6b3d537b6a6fa80929718b653b7022",
+      "frame_count": 10,
+      "media_url": "https://cultofthepartyparrot.com/parrots/hd/originalparrot.gif",
+      "size": [
+        128,
+        128
+      ],
+      "description_origin": "agent source proposal; not a real user demand",
+      "review_status": "Awaiting real user screenshot/description and human original-target decision"
+    },
+    {
+      "id": "review-02",
+      "title": "ASCII dance",
+      "page": "https://commons.wikimedia.org/wiki/File:Dance.gif",
+      "author": "קקון",
+      "permission": "Public-domain dedication by author",
+      "license_url": "https://commons.wikimedia.org/wiki/File:Dance.gif",
+      "description": "tiny text characters waving arms and dancing in a looping animation",
+      "status": "awaiting_real_screenshot_and_human_target_confirmation",
+      "eligible_g4": false,
+      "input_path": null,
+      "input_sha256": null,
+      "independent_reference_path": ".cache/gif-acceptance/container-review/review-samples/review-02/target.gif",
+      "human_confirmation": null,
+      "target_sha256": "b15f97d4f6804e0e404f5cb83390a8f3cd0a666e37edccd644e2248565173b45",
+      "frame_count": 7,
+      "media_url": "https://upload.wikimedia.org/wikipedia/commons/0/0e/Dance.gif?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+      "size": [
+        52,
+        15
+      ],
+      "description_origin": "agent source proposal; not a real user demand",
+      "review_status": "Awaiting real user screenshot/description and human original-target decision"
+    },
+    {
+      "id": "review-03",
+      "title": "Walking cartoon cat",
+      "page": "https://commons.wikimedia.org/wiki/File:Walking_cat.gif",
+      "author": "Sheilagraber",
+      "permission": "CC BY-SA 3.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+      "description": "a hand drawn cat walking in place in a looping cartoon animation",
+      "status": "awaiting_real_screenshot_and_human_target_confirmation",
+      "eligible_g4": false,
+      "input_path": null,
+      "input_sha256": null,
+      "independent_reference_path": ".cache/gif-acceptance/container-review/review-samples/review-03/target.gif",
+      "human_confirmation": null,
+      "target_sha256": "b611c348e2406f883c6e0de80313896d2ead67b3b67e65392131096911e2ecfc",
+      "frame_count": 5,
+      "media_url": "https://upload.wikimedia.org/wikipedia/commons/4/4b/Walking_cat.gif?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+      "size": [
+        104,
+        150
+      ],
+      "description_origin": "agent source proposal; not a real user demand",
+      "review_status": "Awaiting real user screenshot/description and human original-target decision"
+    }
+  ],
+  "retired_legacy_cases": {
+    "c05": "No unique animated target or screenshot; permission absent",
+    "c06": "Only blurred preview; independent original/screenshot and permission absent",
+    "c07": "Historical preview is static; independent original/screenshot and permission absent"
+  }
+}

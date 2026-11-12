@@ -17,6 +17,6 @@ def web_index() -> FileResponse:
 @router.get("/web/{asset}")
 def web_asset(asset: str) -> FileResponse:
     # Expose only shipped browser assets, not tests, guides, or arbitrary paths.
-    if asset not in {"styles.css", "app.js", "api.js", "store.js"}:
+    if asset not in {"styles.css", "app.js", "api.js", "store.js", "meme50.js"}:
         raise HTTPException(status_code=404, detail="Asset not found")
     return FileResponse(WEB_ROOT / asset, headers={"Cache-Control": "no-cache"})

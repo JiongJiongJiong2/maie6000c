@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import argparse
 from pathlib import Path
 import secrets
 import signal
@@ -48,12 +49,21 @@ def local_environment() -> dict[str, str]:
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--reuse-fetch-image",
+        action="store_true",
+        help="Reuse an existing fetch image after confirming its source is unchanged",
+    )
+    args = parser.parse_args()
     os.chdir(ROOT)
     env = local_environment()
     if not (ROOT / "data/models/gif-frames.npz").exists():
         raise SystemExit(
             "Prepare the GIF library and run python -m services.retrieval.engine index."
         )
+    override = ROOT / ".cache/local-compose.yaml"
+    override.write_text('services:\n  media-fetch:\n    ports: ["127.0.0.1:8120:8120"]\n')
     subprocess.run(
         [
             "docker",
@@ -62,10 +72,16 @@ def main():
             "memeretrieve-local",
             "--env-file",
             str(ENV_FILE),
+            "-f",
+            str(ROOT / "compose.yaml"),
+            "-f",
+            str(override),
             "up",
             "-d",
+            *([] if args.reuse_fetch_image else ["--build"]),
             "--wait",
             "db",
+            "media-fetch",
         ],
         check=True,
         env=env,
@@ -111,7 +127,7 @@ def main():
         for child in children:
             if child.poll() is None:
                 child.terminate()
-        deadline = time.monotonic() + 130
+        deadline = time.monotonic() + 330
         for child in children:
             try:
                 child.wait(timeout=max(0.1, deadline - time.monotonic()))

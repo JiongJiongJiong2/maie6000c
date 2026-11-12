@@ -1,0 +1,135 @@
+{
+  "scope": "Controlled near-duplicate persistent storage smoke only. Queries resize each corpus asset to 75% in memory. First frame only; no temporal GIF model, unseen accuracy, cross-user isolation, or production retrieval claim. No external network or app DB.",
+  "model_version": "clip-vit-base-patch32@37000f5cdccec47a3f6f83142bff131370757470",
+  "dimension": 512,
+  "db_sha256": "82fb0b240f74aa2b0fdd32de20c07edb682892aa6a8470400509a205558d68a0",
+  "stored_count": 5,
+  "queries": [
+    {
+      "query_id": "drake_blank",
+      "query_source_sha256": "09dd77b5bc0a2d3ac717bb3b309bdbd5ad584e19be2843b0dc714a1e387d7926",
+      "expected_rank": 1,
+      "top3": [
+        {
+          "id": "drake_blank",
+          "cosine": 0.9999812841415405,
+          "sha256": "09dd77b5bc0a2d3ac717bb3b309bdbd5ad584e19be2843b0dc714a1e387d7926",
+          "embedding_sha256": "18dfd6ff7170211ace9f5e431daac8883f71d2acf4068c7b4aa53a595fac29a7"
+        },
+        {
+          "id": "two_buttons_redraw",
+          "cosine": 0.770453155040741,
+          "sha256": "bf90a460884efb3de788cc266e82b7245910b9dcf8b2590317bb30c767c28dd7",
+          "embedding_sha256": "c31e7f0c910414212ca392e2f39beb9314be9751364a41b8f0979162cc4a99d6"
+        },
+        {
+          "id": "jacky_preview",
+          "cosine": 0.6166560053825378,
+          "sha256": "ca3f90503c59ab5db8c1420853c1c34faeef12088396ace4b926d312ffce9f6b",
+          "embedding_sha256": "fddbd977341d86a3ace927d9774d4451483c5d8731370a4c1c630d7dafe33915"
+        }
+      ]
+    },
+    {
+      "query_id": "two_buttons_redraw",
+      "query_source_sha256": "bf90a460884efb3de788cc266e82b7245910b9dcf8b2590317bb30c767c28dd7",
+      "expected_rank": 1,
+      "top3": [
+        {
+          "id": "two_buttons_redraw",
+          "cosine": 0.9999743700027466,
+          "sha256": "bf90a460884efb3de788cc266e82b7245910b9dcf8b2590317bb30c767c28dd7",
+          "embedding_sha256": "c31e7f0c910414212ca392e2f39beb9314be9751364a41b8f0979162cc4a99d6"
+        },
+        {
+          "id": "drake_blank",
+          "cosine": 0.7712972164154053,
+          "sha256": "09dd77b5bc0a2d3ac717bb3b309bdbd5ad584e19be2843b0dc714a1e387d7926",
+          "embedding_sha256": "18dfd6ff7170211ace9f5e431daac8883f71d2acf4068c7b4aa53a595fac29a7"
+        },
+        {
+          "id": "jacky_preview",
+          "cosine": 0.6407142281532288,
+          "sha256": "ca3f90503c59ab5db8c1420853c1c34faeef12088396ace4b926d312ffce9f6b",
+          "embedding_sha256": "fddbd977341d86a3ace927d9774d4451483c5d8731370a4c1c630d7dafe33915"
+        }
+      ]
+    },
+    {
+      "query_id": "wang_gif_preview",
+      "query_source_sha256": "32527f25c932891c4c5cba3dacbaaddd9381aa274b5392243f19b461b250baa7",
+      "expected_rank": 1,
+      "top3": [
+        {
+          "id": "wang_gif_preview",
+          "cosine": 0.996696949005127,
+          "sha256": "32527f25c932891c4c5cba3dacbaaddd9381aa274b5392243f19b461b250baa7",
+          "embedding_sha256": "9547f470cd451b74bfc9c95f9e9a314d5693c64b8b1ae9fdb72827d51cefad98"
+        },
+        {
+          "id": "jacky_preview",
+          "cosine": 0.8155882358551025,
+          "sha256": "ca3f90503c59ab5db8c1420853c1c34faeef12088396ace4b926d312ffce9f6b",
+          "embedding_sha256": "fddbd977341d86a3ace927d9774d4451483c5d8731370a4c1c630d7dafe33915"
+        },
+        {
+          "id": "wang_blank_preview",
+          "cosine": 0.6855969429016113,
+          "sha256": "34cc8683372ea7eb30e3a97e51173d1718d407be1d78469ffd56063628840683",
+          "embedding_sha256": "73cff754bfaca5e137086ff705aa9a24974ad2cb91a4e41d37720612e64ea4ed"
+        }
+      ]
+    },
+    {
+      "query_id": "wang_blank_preview",
+      "query_source_sha256": "34cc8683372ea7eb30e3a97e51173d1718d407be1d78469ffd56063628840683",
+      "expected_rank": 1,
+      "top3": [
+        {
+          "id": "wang_blank_preview",
+          "cosine": 0.9937376379966736,
+          "sha256": "34cc8683372ea7eb30e3a97e51173d1718d407be1d78469ffd56063628840683",
+          "embedding_sha256": "73cff754bfaca5e137086ff705aa9a24974ad2cb91a4e41d37720612e64ea4ed"
+        },
+        {
+          "id": "jacky_preview",
+          "cosine": 0.7819507718086243,
+          "sha256": "ca3f90503c59ab5db8c1420853c1c34faeef12088396ace4b926d312ffce9f6b",
+          "embedding_sha256": "fddbd977341d86a3ace927d9774d4451483c5d8731370a4c1c630d7dafe33915"
+        },
+        {
+          "id": "wang_gif_preview",
+          "cosine": 0.6846417784690857,
+          "sha256": "32527f25c932891c4c5cba3dacbaaddd9381aa274b5392243f19b461b250baa7",
+          "embedding_sha256": "9547f470cd451b74bfc9c95f9e9a314d5693c64b8b1ae9fdb72827d51cefad98"
+        }
+      ]
+    },
+    {
+      "query_id": "jacky_preview",
+      "query_source_sha256": "ca3f90503c59ab5db8c1420853c1c34faeef12088396ace4b926d312ffce9f6b",
+      "expected_rank": 1,
+      "top3": [
+        {
+          "id": "jacky_preview",
+          "cosine": 0.9432579278945923,
+          "sha256": "ca3f90503c59ab5db8c1420853c1c34faeef12088396ace4b926d312ffce9f6b",
+          "embedding_sha256": "fddbd977341d86a3ace927d9774d4451483c5d8731370a4c1c630d7dafe33915"
+        },
+        {
+          "id": "wang_gif_preview",
+          "cosine": 0.8155738115310669,
+          "sha256": "32527f25c932891c4c5cba3dacbaaddd9381aa274b5392243f19b461b250baa7",
+          "embedding_sha256": "9547f470cd451b74bfc9c95f9e9a314d5693c64b8b1ae9fdb72827d51cefad98"
+        },
+        {
+          "id": "wang_blank_preview",
+          "cosine": 0.738861083984375,
+          "sha256": "34cc8683372ea7eb30e3a97e51173d1718d407be1d78469ffd56063628840683",
+          "embedding_sha256": "73cff754bfaca5e137086ff705aa9a24974ad2cb91a4e41d37720612e64ea4ed"
+        }
+      ]
+    }
+  ],
+  "excluded_failed_probes": 2
+}

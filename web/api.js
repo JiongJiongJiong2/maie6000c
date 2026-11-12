@@ -62,19 +62,28 @@ export class Api {
       }
       if (media) {
         const blob = await response.blob();
-        const signature = new TextDecoder().decode(
-          await blob.slice(0, 6).arrayBuffer(),
-        );
-        if (
-          blob.type.split(";")[0] !== "image/gif" ||
-          !["GIF87a", "GIF89a"].includes(signature)
-        ) {
+        const bytes = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
+        const text = new TextDecoder().decode(bytes);
+        const mime = blob.type.split(";")[0];
+        const valid =
+          (mime === "image/gif" &&
+            ["GIF87a", "GIF89a"].includes(text.slice(0, 6))) ||
+          (mime === "image/png" &&
+            bytes[0] === 137 &&
+            text.slice(1, 4) === "PNG") ||
+          (mime === "image/jpeg" &&
+            bytes[0] === 255 &&
+            bytes[1] === 216 &&
+            bytes[2] === 255) ||
+          (mime === "image/webp" &&
+            text.slice(0, 4) === "RIFF" &&
+            text.slice(8, 12) === "WEBP");
+        if (!valid)
           throw new ApiError(
-            "The returned file is not a valid GIF.",
+            "The returned file is not a supported image.",
             0,
             "invalid_media",
           );
-        }
         return blob;
       }
       if (binary) return await response.blob();
@@ -93,10 +102,15 @@ export class Api {
     }
   }
 
-  submit(file, key, signal) {
+  submit(file, key, signal, settings = {}) {
     const body = new FormData();
     body.set("image", file, file.name);
     body.set("client_submission_key", key);
+    if (settings.search_profile) {
+      body.set("search_profile", settings.search_profile);
+      body.set("target_count", String(settings.target_count || 50));
+      body.set("description", settings.description || "");
+    }
     return this.request("/search-requests", { method: "POST", body, signal });
   }
 

@@ -1,10 +1,22 @@
 # MemeRetrieve
 
+The [2026-11-13 deduplication fix and delivery record](docs/meme50-dedup-fix-20261113.md) documents verified real-media duplicate failures, their fixes, and regression evidence. Full human quality acceptance and independent member reproduction remain separate requirements.
+
+The formal `/web/` entry defaults to [image-first meme50-v2](docs/meme50.md), with optional text, generic media, isolated public fetching and up to 50 verified result groups. The active [HKUST + DeepSeek policy](docs/hkust-deepseek-execution.md) uses school vision and `deepseek-flash` query planning with DeepSeek web search; its real provider smoke check passes. Quantity, human relevance and full product acceptance remain pending. Google Vision and Brave are not required. Legacy three-GIF APIs remain available.
+
 **Recover an existing animated meme from a screenshot, review candidates, and save the selected GIF locally.**
 
 MemeRetrieve is a proposed MAIE 6000C semester project motivated by an iPhone user who sees an animated meme in Douyin comments but cannot obtain its media file. It separates quick screenshot collection from later search and review. The first retrieval baseline searches a curated GIF corpus; recovery of arbitrary internet screenshots is a later feasibility question.
 
+The fixed [post-midterm direction and four-person task plan](docs/final-project-plan.md) keeps screenshot-to-GIF recovery as the core: local search first, user-triggered web search for out-of-corpus targets, confirmed collection, and later local reuse. It defines owners, interface handoffs, the first five working days, and final acceptance. This is the plan for the work ahead; current implementation status is recorded below.
+
 ## Project status
+
+A [worker-callable web searching agent](docs/web-search-agent.md) now provides bounded query planning, web/image search adapters, follow-up searches, and execution traces. Run `.venv/Scripts/python.exe -X utf8 -m services.search_agent "your description"`. The default web path uses the existing DeepSeek key when available; DDGS is the optional open-source path. Source discovery is implemented; verified GIF processing and the production worker/UI connection use explicit integration boundaries described in the guide.
+
+The backend now persists user-triggered web-search jobs, their bounded execution records and source-bearing temporary candidates. An accepted candidate can be saved as a separate durable asset and queued for indexing; status, retry and restart-recovery paths are covered by backend tests. Real web-to-GIF recovery and saved-asset reuse still depend on YuanJian's candidate-processing and index adapters; until those are integrated, the API reports the missing capability instead of treating web pages as recovered GIFs.
+
+An independent [meme search agent v1](docs/meme-agent-v1.md) now runs at `http://127.0.0.1:8010/studio/`: DeepSeek query planning, live template discovery, local caption editing, explicit confirmation, and persistent SQLite/CLIP collection reuse. Start it with `.venv/Scripts/python.exe scripts/run_meme_agent.py`. This experimental branch uses a minimal functional UI and a bounded template catalog; it does not provide unrestricted reverse image search or multi-user hosting. It is separate from the W07 stack below.
 
 The local W07 demo now connects the web client, PostgreSQL, an independent worker, and real CLIP image retrieval over 12 attributed animated reaction GIFs. Upload, candidate review, and original GIF download are available at `http://127.0.0.1:8000/web/`. Follow the [local demo guide](docs/local-demo.md) to prepare and run it. The collection is deliberately small; arbitrary internet meme recovery and physical iPhone acceptance remain unverified. See the [W07 submission](submissions/week07/README.md) for evidence and remaining acceptance. The W07 repository checkpoint is identified by the w07-midterm tag. The W04 proposal is preserved below under historical context.
 
@@ -39,12 +51,12 @@ Development follows `feature/fix/docs branch → dev → main`. Create work bran
 
 | Member | Student ID | Role | Responsibilities |
 |---|---|---|---|
-| Jiongle He | 21321732 | Team leader; direction and scope | Set product direction and priorities; control scope; coordinate milestones and proposal decisions; lead final acceptance and submission coordination |
+| Jiongle He | 21321732 | Team leader; web searching agent | Implement query planning, search-provider adapters, tool orchestration, bounded follow-up searches and execution traces; coordinate scope, acceptance, and final delivery |
 | Haoxuan Jiang | 21313230 | Backend, data, and deployment | Implement FastAPI contracts, PostgreSQL schema/migrations, durable jobs and idempotency, shared storage, Docker deployment, and backend verification |
-| YuanJian Li | 21324552 | Retrieval, AI, and evaluation | Prepare the permitted GIF corpus/provenance, frame sampling and pretrained inference, ranking/no-match behavior, model/corpus versioning, and retrieval evaluation |
+| YuanJian Li | 21324552 | GIF validation, retrieval, and evaluation | Implement safe media retrieval and animation validation, visual ranking, multi-frame indexing and updates, model/corpus versioning, and comparative evaluation |
 | Zirui Huang | 21313436 | Client and integration | Implement image import/cropping, local metadata/media storage, submission/polling, preview/review/download, and lead device checks and end-to-end integration |
 
-Owners coordinate at the API/result contracts: Haoxuan Jiang supplies persistent services, YuanJian Li supplies worker retrieval, and Zirui Huang connects the client workflow. Jiongle He focuses on direction, scope, milestone decisions, and acceptance rather than being the primary implementation owner.
+Owners coordinate at the API/result contracts: Jiongle He supplies the web searching agent called by the worker; YuanJian Li supplies media validation, visual ranking, and multi-frame indexing; Haoxuan Jiang supplies persistent services; Zirui Huang connects and verifies the client workflow. See the [post-midterm plan](docs/final-project-plan.md) for the ownership update dated 2026-11-09.
 
 ## Core workflow
 

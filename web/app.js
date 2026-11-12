@@ -1,3 +1,4 @@
+import { memeStatus, renderMemeResults, disposeMemeResults } from "./meme50.js";
 import { Api, validAccepted, validStatus } from "./api.js";
 import { loadSession, saveSession } from "./store.js";
 
@@ -26,6 +27,7 @@ let epoch = 0;
 let lifetime = new AbortController();
 let pollTimer;
 let polling = false;
+let pollAgain = false;
 let busy = false;
 let initialized = false;
 let inputURL;
@@ -55,6 +57,7 @@ function feedback(id, message, error = false) {
 }
 
 function disposeCards() {
+  disposeMemeResults();
   for (const url of mediaURLs.values()) URL.revokeObjectURL(url);
   mediaURLs.clear();
   cardSignature = "";
@@ -71,6 +74,8 @@ function cancelSessionWork() {
 }
 
 function renderInput() {
+  $("description").value = session?.description || "";
+  $("media-filter").value = session?.filter || "all";
   if (inputURL) URL.revokeObjectURL(inputURL);
   inputURL = session?.file ? URL.createObjectURL(session.file) : null;
   $("input-preview").hidden = !inputURL;
@@ -94,11 +99,13 @@ function render() {
   const uncertainReview = session?.review && !session.review.review_id;
   $("submit").hidden = !!accepted;
   $("submit").disabled = !initialized || busy || !session?.file;
+  $("description").disabled =
+    busy || !!session?.submissionStarted || !!accepted;
   $("submit").textContent = busy
     ? "Submitting…"
     : session?.submissionStarted
       ? "Retry this upload ↗"
-      : "Find my GIF ↗";
+      : "Find related memes ↗";
   $("file-input").disabled = busy || !initialized;
   $("new-search").hidden = !accepted;
   $("new-search").disabled = busy;
@@ -145,7 +152,8 @@ function render() {
   $("request-id").textContent = accepted?.request_id || "";
   $("job-id").textContent = result?.job_id || accepted?.job_id || "";
   $("review-id").textContent = session?.review?.review_id || "Not reviewed yet";
-  $("review-panel").hidden = !hasCandidates;
+  const meme50 = result?.search_profile === "meme50-v2";
+  $("review-panel").hidden = meme50 || !hasCandidates;
   $("reject").disabled = busy || !!uncertainReview;
   $("review-retry").hidden = !uncertainReview;
   $("review-retry").disabled = busy;
@@ -163,7 +171,43 @@ function render() {
       true,
     );
   }
-  renderCandidates(hasCandidates ? result.candidates : []);
+  $("meme-controls").hidden = !meme50 || status !== "completed";
+  $("meme-retry").hidden = !meme50 || status !== "failed";
+  $("meme-analysis").hidden = !meme50 || !result?.analysis;
+  if (meme50) {
+    const stages = {
+      preprocessing: "Preparing image",
+      understanding: "Understanding image",
+      verifying: "Checking visual clues",
+      recalling: "Searching sources",
+      fetching: "Downloading and validating",
+      reranking: "Ranking and grouping",
+      finalizing: "Publishing results",
+    };
+    if (active) {
+      $("status-title").textContent =
+        stages[result.stage] || "Waiting for image search";
+      $("status-description").textContent =
+        `${result.verified_count || 0} verified content groups. Preview order may change.`;
+    }
+    if (status === "completed") {
+      $("result-count").textContent = `${result.page.total_all} images`;
+      $("status-title").textContent = "Related images are ready";
+      $("status-description").textContent =
+        result.page.total_all < result.target_count
+          ? `Found ${result.page.total_all} distinct results out of a target of ${result.target_count}. Some sources or capabilities could not supply more verified matches.`
+          : "Final order is stable. Relevance scores are ranking signals, not correctness rates.";
+      $("page-summary").textContent = `${result.page.total} in this filter`;
+      $("next-page").disabled = !result.page.next_cursor;
+      $("previous-page").disabled = !session.pageHistory?.length;
+    }
+    $("meme-analysis").textContent =
+      result.analysis?.observations?.join(" · ") || "";
+    renderMemeResults(result, api, lifetime.signal, { download: downloadMeme });
+  } else {
+    $("candidates").classList.remove("meme50-grid");
+    renderCandidates(hasCandidates ? result.candidates : []);
+  }
 }
 
 function makeButton(label, className, handler) {
@@ -270,8 +314,12 @@ async function selectFile(file) {
   render();
   notice();
   try {
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type))
-      throw new Error("Choose a PNG, JPG, or WebP screenshot.");
+    if (
+      !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(
+        file.type,
+      )
+    )
+      throw new Error("Choose a PNG, JPG, WebP, or GIF image.");
     if (!file.size || file.size > 10 * 1024 * 1024)
       throw new Error(
         "This file is empty or larger than 10 MiB. Choose a smaller image.",
@@ -289,6 +337,10 @@ async function selectFile(file) {
       );
     const next = {
       file,
+      searchProfile: "meme50-v2",
+      description: $("description").value,
+      filter: "all",
+      pageHistory: [],
       submissionKey: newKey(),
       submissionStarted: false,
       accepted: null,
@@ -321,7 +373,11 @@ async function submit() {
     // Persist the exact File and key before sending, including ambiguous timeouts.
     await saveSession(session);
     const accepted = validAccepted(
-      await api.submit(session.file, session.submissionKey, lifetime.signal),
+      await api.submit(session.file, session.submissionKey, lifetime.signal, {
+        search_profile: "meme50-v2",
+        description: session.description ?? $("description").value,
+        target_count: 50,
+      }),
     );
     if (currentEpoch !== epoch) return;
     session.accepted = accepted;
@@ -340,15 +396,28 @@ async function submit() {
 
 async function poll() {
   clearTimeout(pollTimer);
-  if (!session?.accepted || polling || document.hidden) return;
+  if (!session?.accepted || document.hidden) return;
+  if (polling) {
+    pollAgain = true;
+    return;
+  }
+  pollAgain = false;
   const currentEpoch = epoch;
   const requestId = session.accepted.request_id;
+  const navigation = JSON.stringify([session.filter, session.cursor]);
   polling = true;
   render();
   let succeeded = false;
   try {
-    const result = validStatus(await api.status(requestId, lifetime.signal));
+    const result =
+      session.accepted.search_profile === "meme50-v2"
+        ? await memeStatus(api, session.accepted, session, lifetime.signal)
+        : validStatus(await api.status(requestId, lifetime.signal));
     if (currentEpoch !== epoch) return;
+    if (navigation !== JSON.stringify([session.filter, session.cursor])) {
+      pollAgain = true;
+      return;
+    }
     if (result.request_id !== requestId)
       throw new Error("The server returned results for a different search.");
     if (session.result?.job_id && session.result.job_id !== result.job_id) {
@@ -370,7 +439,9 @@ async function poll() {
     if (currentEpoch === epoch) {
       polling = false;
       render();
-      if (
+      if (pollAgain && !document.hidden) {
+        pollTimer = setTimeout(poll, 0);
+      } else if (
         succeeded &&
         ["pending", "running"].includes(session.result.status) &&
         !document.hidden
@@ -672,7 +743,8 @@ window.addEventListener("pageshow", (event) => {
 try {
   session = (await loadSession()) || null;
   if (session?.accepted) validAccepted(session.accepted);
-  if (session?.result) validStatus(session.result);
+  if (session?.result && session?.accepted?.search_profile !== "meme50-v2")
+    validStatus(session.result);
   renderInput();
 } catch (error) {
   session = null;
@@ -717,3 +789,86 @@ async function loadDemoLibrary() {
   }
 }
 loadDemoLibrary();
+
+async function downloadMeme(candidate) {
+  try {
+    const blob = await api.media(candidate.media_url, lifetime.signal);
+    const extension = {
+      "image/gif": "gif",
+      "image/png": "png",
+      "image/jpeg": "jpg",
+      "image/webp": "webp",
+    }[blob.type.split(";")[0]];
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `meme-${candidate.candidate_id}.${extension}`;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (error) {
+    notice(error.message);
+  }
+}
+$("description").addEventListener("input", async () => {
+  if (session && !session.submissionStarted) {
+    session.description = $("description").value;
+    await saveSession(session);
+  }
+});
+$("media-filter").addEventListener("change", async () => {
+  if (!session) return;
+  if (session.filter === $("media-filter").value) return;
+  session.filter = $("media-filter").value;
+  session.cursor = null;
+  session.pageHistory = [];
+  await saveSession(session);
+  poll();
+});
+$("next-page").addEventListener("click", async () => {
+  if (!session?.result?.page?.next_cursor) return;
+  session.pageHistory = [
+    ...(session.pageHistory || []),
+    session.cursor || null,
+  ];
+  session.cursor = session.result.page.next_cursor;
+  await saveSession(session);
+  poll();
+});
+$("previous-page").addEventListener("click", async () => {
+  if (!session?.pageHistory?.length) return;
+  session.cursor = session.pageHistory.pop();
+  await saveSession(session);
+  poll();
+});
+$("meme-retry").addEventListener("click", async () => {
+  if (busy || !session?.result || session.result.status !== "failed") return;
+  busy = true;
+  render();
+  try {
+    session.retryKey = session.retryKey || newKey();
+    await saveSession(session);
+    const accepted = validAccepted(
+      await api.request(`/search-jobs/${session.result.job_id}/retry`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_retry_key: session.retryKey }),
+      }),
+    );
+    cancelSessionWork();
+    session.accepted = accepted;
+    session.result = null;
+    session.revision = null;
+    session.cursor = null;
+    session.pageHistory = [];
+    session.retryKey = null;
+    await saveSession(session);
+  } catch (error) {
+    notice(error.message);
+  } finally {
+    busy = false;
+    render();
+    poll();
+  }
+});

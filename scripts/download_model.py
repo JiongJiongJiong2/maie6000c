@@ -11,7 +11,15 @@ if __name__ == "__main__":
     snapshot_download(
         "openai/clip-vit-base-patch32",
         revision=MODEL_REVISION,
-        allow_patterns=["config.json", "preprocessor_config.json", "model.safetensors"],
+        allow_patterns=[
+            "config.json",
+            "preprocessor_config.json",
+            "model.safetensors",
+            "vocab.json",
+            "merges.txt",
+            "tokenizer_config.json",
+            "special_tokens_map.json",
+        ],
         local_dir=root / "data/models/clip-vit-base-patch32",
     )
     print("CLIP weights are ready for local inference.")

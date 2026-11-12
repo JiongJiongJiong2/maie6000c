@@ -1,0 +1,136 @@
+{
+  "provider_policy": "hkust-deepseek-v1",
+  "input_sha256": "1e1d4e37b9830e605722411072aa5d80f37c4cfc5f4b9bb1f7328025b6ce3efd",
+  "configuration_fingerprint": "03ae45b456874ceffe85336faa87b71c378068abfe25fe44c558a1532ddaa6bd",
+  "code_fingerprint": "078c99aa754a3cde53b542c54f1932b335157753b4404b9d630c1a88f51096c1",
+  "status": "passed",
+  "calls": [
+    {
+      "name": "visual",
+      "provider": "hkust",
+      "endpoint_type": "chat/completions",
+      "configuration_fingerprint": "03ae45b456874ceffe85336faa87b71c378068abfe25fe44c558a1532ddaa6bd",
+      "status": "passed",
+      "output_count": 4,
+      "elapsed_seconds": 3.695,
+      "ledger_delta": {
+        "search_calls": 0,
+        "model_calls": 1,
+        "queries": 0,
+        "preview_attempts": 0,
+        "media_attempts": 0,
+        "page_attempts": 0,
+        "response_bytes": 1549,
+        "redirects": 0,
+        "disk_bytes": 0,
+        "dns_queries": 0,
+        "connections": 0,
+        "rerank_model_calls": 0
+      },
+      "model": "gemini-2.5-flash-lite"
+    },
+    {
+      "name": "query_planning",
+      "provider": "deepseek",
+      "endpoint_type": "chat/completions",
+      "configuration_fingerprint": "03ae45b456874ceffe85336faa87b71c378068abfe25fe44c558a1532ddaa6bd",
+      "status": "passed",
+      "output_count": 5,
+      "elapsed_seconds": 2.043,
+      "ledger_delta": {
+        "search_calls": 0,
+        "model_calls": 1,
+        "queries": 0,
+        "preview_attempts": 0,
+        "media_attempts": 0,
+        "page_attempts": 0,
+        "response_bytes": 973,
+        "redirects": 0,
+        "disk_bytes": 0,
+        "dns_queries": 0,
+        "connections": 0,
+        "rerank_model_calls": 0
+      },
+      "model": "deepseek-flash"
+    },
+    {
+      "name": "keyword_web",
+      "provider": "deepseek",
+      "endpoint_type": "v1/tools/search",
+      "configuration_fingerprint": "03ae45b456874ceffe85336faa87b71c378068abfe25fe44c558a1532ddaa6bd",
+      "status": "passed",
+      "output_count": 50,
+      "elapsed_seconds": 1.345,
+      "ledger_delta": {
+        "search_calls": 1,
+        "model_calls": 0,
+        "queries": 1,
+        "preview_attempts": 0,
+        "media_attempts": 0,
+        "page_attempts": 0,
+        "response_bytes": 53026,
+        "redirects": 0,
+        "disk_bytes": 0,
+        "dns_queries": 0,
+        "connections": 0,
+        "rerank_model_calls": 0
+      }
+    },
+    {
+      "name": "web_verification",
+      "provider": "deepseek",
+      "endpoint_type": "v1/tools/search",
+      "configuration_fingerprint": "03ae45b456874ceffe85336faa87b71c378068abfe25fe44c558a1532ddaa6bd",
+      "status": "passed",
+      "output_count": 5,
+      "elapsed_seconds": 1.22,
+      "ledger_delta": {
+        "search_calls": 1,
+        "model_calls": 0,
+        "queries": 1,
+        "preview_attempts": 0,
+        "media_attempts": 0,
+        "page_attempts": 0,
+        "response_bytes": 5766,
+        "redirects": 0,
+        "disk_bytes": 0,
+        "dns_queries": 0,
+        "connections": 0,
+        "rerank_model_calls": 0
+      }
+    }
+  ],
+  "reverse_image": {
+    "status": "disabled",
+    "reason": "HKUST/DeepSeek-only; web retrieval is not pixel reverse-search"
+  },
+  "ledger": {
+    "search_calls": 2,
+    "model_calls": 2,
+    "queries": 2,
+    "preview_attempts": 0,
+    "media_attempts": 0,
+    "page_attempts": 0,
+    "response_bytes": 61314,
+    "redirects": 0,
+    "disk_bytes": 0,
+    "dns_queries": 0,
+    "connections": 0,
+    "rerank_model_calls": 0
+  },
+  "date": "2026-11-12 Asia/Hong_Kong",
+  "deepseek_default": "deepseek-flash",
+  "full_acceptance": "not_passed",
+  "quantity_40_to_50": "not_measured_in_this_provider_smoke",
+  "regression": {
+    "passed": 319,
+    "postgres_skipped": 5,
+    "smoke_deselected": 2,
+    "log": ".cache/meme50/hkust-deepseek-tests-20261112.txt"
+  },
+  "credential_scan": {
+    "checked_files": 311,
+    "matches": 0
+  },
+  "next_document": "docs/hkust-deepseek-execution.md"
+}

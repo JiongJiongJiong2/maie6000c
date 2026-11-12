@@ -1,23 +1,79 @@
 from __future__ import annotations
 
 import math
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+    model_serializer,
+)
 
 
 class AcceptedSearch(BaseModel):
     request_id: UUID
     job_id: UUID
     status: Literal["pending", "running", "completed", "failed"]
+    search_profile: Literal["legacy", "meme50-v2"] = "legacy"
+    contract_version: int = 1
+    target_count: int = 3
+
+    @model_serializer(mode="wrap")
+    def compatible_json(self, handler):
+        data = handler(self)
+        if self.search_profile == "legacy":
+            for key in ["search_profile", "contract_version", "target_count"]:
+                data.pop(key, None)
+        return data
 
 
 class CandidateRead(BaseModel):
+    contract_version: int = Field(default=1, exclude=True)
     candidate_id: UUID
     rank: int
     score: float
     media_url: str
+    source_url: str | None = None
+    image_url: str | None = None
+    provider: str | None = None
+    media_format: str = "GIF"
+    mime_type: str = "image/gif"
+    media_kind: Literal["static", "animated"] = "animated"
+    frame_count: int = 2
+    width: int | None = None
+    height: int | None = None
+    content_group_id: str | None = None
+    preview_url: str | None = None
+    sha256: str | None = None
+    byte_size: int | None = None
+    duration_ms: int | None = None
+    save_status: Literal["not_saved", "saved"] = "not_saved"
+    asset_id: UUID | None = None
+    index_status: Literal["pending", "running", "ready", "failed"] | None = None
+
+    @model_serializer(mode="wrap")
+    def compatible_json(self, handler):
+        data = handler(self)
+        if self.contract_version == 1:
+            for key in [
+                "media_format",
+                "mime_type",
+                "media_kind",
+                "frame_count",
+                "width",
+                "height",
+                "content_group_id",
+                "preview_url",
+                "sha256",
+                "byte_size",
+                "duration_ms",
+            ]:
+                data.pop(key, None)
+        return data
 
 
 class SearchError(BaseModel):
@@ -25,10 +81,114 @@ class SearchError(BaseModel):
     message: str
 
 
-class SearchRead(AcceptedSearch):
+class SearchJobRead(BaseModel):
+    job_id: UUID
+    job_kind: Literal["local", "web"]
+    status: Literal["pending", "running", "completed", "failed"]
+    stage: str
+    description: str | None
+    result_kind: Literal["candidates", "no_candidates"] | None
+    error: SearchError | None
+
+
+class SearchRead(BaseModel):
+    request_id: UUID
+    job_id: UUID
+    status: Literal["pending", "running", "completed", "failed"]
+    job_kind: Literal["local", "web"]
+    stage: str
+    local_job_id: UUID | None
+    search_profile: Literal["legacy", "meme50-v2"] = "legacy"
+    contract_version: int = 1
+    target_count: int = 3
+    result_revision: str | None = None
+    progress: dict = Field(default_factory=dict)
+    partial: bool = False
+    web_searches: list[SearchJobRead]
     result_kind: Literal["candidates", "no_candidates"] | None
     candidates: list[CandidateRead]
     error: SearchError | None
+
+    @model_serializer(mode="wrap")
+    def compatible_json(self, handler):
+        data = handler(self)
+        if self.search_profile == "legacy":
+            for key in [
+                "search_profile",
+                "contract_version",
+                "target_count",
+                "result_revision",
+                "progress",
+                "partial",
+            ]:
+                data.pop(key, None)
+        return data
+
+
+class WebSearchCreate(BaseModel):
+    description: str = Field(default="", max_length=500)
+    client_search_key: str = Field(min_length=1, max_length=128, pattern=r"^\S+$")
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def optional_description(cls, value):
+        return "" if value is None else value
+
+    @model_validator(mode="after")
+    def normalize_description(self) -> WebSearchCreate:
+        self.description = self.description.strip()
+        return self
+
+
+class SavedAssetRead(BaseModel):
+    asset_id: UUID
+    save_status: Literal["saved"]
+    media_url: str
+    index_status: Literal["pending", "running", "ready", "failed"]
+    index_error: str | None = None
+
+
+class SaveCreate(BaseModel):
+    client_save_key: str = Field(min_length=1, max_length=128, pattern=r"^\S+$")
+
+
+class WebCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    relative_path: str
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    source_url: str = Field(min_length=1, max_length=4096)
+    image_url: str = Field(min_length=1, max_length=4096)
+    provider: str = Field(min_length=1, max_length=50)
+    format: Literal["GIF"]
+    frame_count: int = Field(gt=1)
+    score: float = Field(allow_inf_nan=False)
+
+
+class WebSearchResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["completed", "failed"]
+    result_kind: Literal["sources", "candidates", "no_results"]
+    stop_reason: str = Field(min_length=1, max_length=100)
+    candidates: list[WebCandidate] = Field(default_factory=list, max_length=3)
+    trace: list[dict[str, Any]] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    search_calls: int = Field(ge=0, le=2)
+    planner_calls: int = Field(ge=0, le=2)
+    downloads_used: int = Field(ge=0, le=6)
+    model_version: str | None = Field(default=None, max_length=100)
+    agent_version: str = Field(default="web-search-v1", max_length=100)
+
+    @model_validator(mode="after")
+    def validate_result(self) -> WebSearchResult:
+        if self.result_kind == "candidates" and not self.candidates:
+            raise ValueError("candidate result must contain candidates")
+        if self.result_kind != "candidates" and self.candidates:
+            raise ValueError("only candidate results may contain candidates")
+        if self.status == "failed" and self.result_kind == "candidates":
+            raise ValueError("failed searches cannot expose candidates as a completed result")
+        return self
 
 
 class ReviewCreate(BaseModel):

@@ -1,0 +1,12 @@
+{
+  "candidate_id": "40953a1a-5b48-47ed-91f0-454a592a0a06",
+  "web_job_id": "b67f942c-c0dd-4ee5-b4ef-9b888c9a2884",
+  "image_loaded": true,
+  "distinct_rendered_frames": 10,
+  "animation_changed": true,
+  "browser_download_sha256": "ecfacdf40753e363e4022f79ee48ddf55d6b3d537b6a6fa80929718b653b7022",
+  "api_db_sha256": "ecfacdf40753e363e4022f79ee48ddf55d6b3d537b6a6fa80929718b653b7022",
+  "sha_matches": true,
+  "passed": true,
+  "note": "Real Chromium/media URL, no response interception; not human target confirmation"
+}

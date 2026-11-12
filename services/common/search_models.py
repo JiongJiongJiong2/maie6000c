@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     DateTime,
     Float,
@@ -50,6 +51,11 @@ class SearchRequest(Base):
     client_item_id: Mapped[str | None] = mapped_column(String(128))
     input_path: Mapped[str] = mapped_column(Text)
     input_sha256: Mapped[str] = mapped_column(String(64))
+    search_profile: Mapped[str] = mapped_column(
+        String(30), default="legacy", server_default="legacy"
+    )
+    target_count: Mapped[int] = mapped_column(Integer, default=3, server_default="3")
+    input_metadata: Mapped[dict | None] = mapped_column(JSON)
     user_keywords: Mapped[str | None] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -60,6 +66,21 @@ class SearchJob(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     request_id: Mapped[str] = mapped_column(ForeignKey("search_requests.id"))
     attempt_no: Mapped[int] = mapped_column(Integer, default=1)
+    job_kind: Mapped[str] = mapped_column(String(20), default="local")
+    stage: Mapped[str] = mapped_column(String(30), default="pending")
+    description: Mapped[str | None] = mapped_column(String(500))
+    search_profile: Mapped[str] = mapped_column(
+        String(30), default="legacy", server_default="legacy"
+    )
+    target_count: Mapped[int] = mapped_column(Integer, default=3, server_default="3")
+    configuration: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+    analysis: Mapped[dict | None] = mapped_column(JSON)
+    progress: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+    result_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    result_revision: Mapped[str | None] = mapped_column(String(64))
+    partial: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+    client_search_key: Mapped[str | None] = mapped_column(String(128), unique=True)
+    retry_of_job_id: Mapped[str | None] = mapped_column(ForeignKey("search_jobs.id"))
     client_retry_key: Mapped[str | None] = mapped_column(String(128), unique=True)
     status: Mapped[str] = mapped_column(String(20), default="pending")
     result_kind: Mapped[str | None] = mapped_column(String(20))
@@ -105,19 +126,55 @@ class Candidate(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     job_id: Mapped[str] = mapped_column(ForeignKey("search_jobs.id"))
-    reference_asset_id: Mapped[str] = mapped_column(ForeignKey("reference_assets.id"))
+    reference_asset_id: Mapped[str | None] = mapped_column(ForeignKey("reference_assets.id"))
+    saved_asset_id: Mapped[str | None] = mapped_column(ForeignKey("saved_assets.id"))
     rank: Mapped[int] = mapped_column(Integer)
     similarity_score: Mapped[float] = mapped_column(Float)
+    media_sha256: Mapped[str | None] = mapped_column(String(64))
+    source_url: Mapped[str | None] = mapped_column(Text)
+    image_url: Mapped[str | None] = mapped_column(Text)
+    provider: Mapped[str | None] = mapped_column(String(50))
     local_cache_path: Mapped[str] = mapped_column(Text)
     frame_count: Mapped[int] = mapped_column(Integer)
+    media_format: Mapped[str] = mapped_column(String(10), default="GIF", server_default="GIF")
+    mime_type: Mapped[str] = mapped_column(
+        String(40), default="image/gif", server_default="image/gif"
+    )
+    media_kind: Mapped[str] = mapped_column(
+        String(12), default="animated", server_default="animated"
+    )
+    width: Mapped[int | None] = mapped_column(Integer)
+    height: Mapped[int | None] = mapped_column(Integer)
+    byte_size: Mapped[int | None] = mapped_column(Integer)
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    content_group_id: Mapped[str | None] = mapped_column(String(64))
+    preview_path: Mapped[str | None] = mapped_column(Text)
     cache_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     __table_args__ = (
         UniqueConstraint("job_id", "rank", name="uq_candidate_rank"),
         UniqueConstraint("id", "job_id", name="uq_candidate_membership"),
-        CheckConstraint("rank BETWEEN 1 AND 3", name="ck_candidate_rank"),
-        CheckConstraint("frame_count > 1", name="ck_candidate_animated"),
+        CheckConstraint("rank BETWEEN 1 AND 50", name="ck_candidate_rank"),
+        CheckConstraint("frame_count >= 1", name="ck_candidate_animated"),
+        CheckConstraint(
+            "(frame_count = 1 AND media_kind = 'static') OR "
+            "(frame_count > 1 AND media_kind = 'animated')",
+            name="ck_candidate_kind",
+        ),
+        CheckConstraint(
+            "(media_format = 'GIF' AND mime_type = 'image/gif') OR "
+            "(media_format = 'PNG' AND mime_type = 'image/png') OR "
+            "(media_format = 'JPEG' AND mime_type = 'image/jpeg') OR "
+            "(media_format = 'WEBP' AND mime_type = 'image/webp')",
+            name="ck_candidate_format",
+        ),
+        UniqueConstraint("job_id", "content_group_id", name="uq_candidate_content_group"),
+        CheckConstraint(
+            "(reference_asset_id IS NOT NULL AND source_url IS NULL) OR "
+            "(reference_asset_id IS NULL AND source_url IS NOT NULL)",
+            name="ck_candidate_origin",
+        ),
         CheckConstraint(
             "abs(similarity_score) < 1.0e308",
             name="ck_candidate_score_finite",
@@ -147,3 +204,90 @@ class ReviewDecision(Base):
             name="ck_review_decision",
         ),
     )
+
+
+class SearchExecution(Base):
+    __tablename__ = "search_executions"
+
+    job_id: Mapped[str] = mapped_column(ForeignKey("search_jobs.id"), primary_key=True)
+    agent_version: Mapped[str] = mapped_column(String(100))
+    model_version: Mapped[str | None] = mapped_column(String(100))
+    stop_reason: Mapped[str] = mapped_column(String(100))
+    search_calls: Mapped[int] = mapped_column(Integer)
+    planner_calls: Mapped[int] = mapped_column(Integer)
+    downloads_used: Mapped[int] = mapped_column(Integer)
+    duration_ms: Mapped[int] = mapped_column(Integer)
+    trace: Mapped[list[dict]] = mapped_column(JSON)
+    warnings: Mapped[list[str]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class SavedAsset(Base):
+    __tablename__ = "saved_assets"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    sha256: Mapped[str] = mapped_column(String(64), unique=True)
+    title: Mapped[str] = mapped_column(String(200))
+    source_url: Mapped[str] = mapped_column(Text)
+    image_url: Mapped[str] = mapped_column(Text)
+    provider: Mapped[str] = mapped_column(String(50))
+    gif_path: Mapped[str] = mapped_column(Text)
+    frame_count: Mapped[int] = mapped_column(Integer)
+    index_status: Mapped[str] = mapped_column(String(20), default="pending")
+    index_version: Mapped[str | None] = mapped_column(String(100))
+    index_error: Mapped[str | None] = mapped_column(String(1000))
+    index_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    indexed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint("frame_count > 1", name="ck_saved_asset_animated"),
+        CheckConstraint(
+            "index_status IN ('pending', 'running', 'ready', 'failed')",
+            name="ck_saved_asset_index_status",
+        ),
+        CheckConstraint("index_attempts >= 0", name="ck_saved_asset_index_attempts"),
+        Index(
+            "ix_saved_assets_index_queue",
+            "index_status",
+            "created_at",
+            postgresql_where=text("index_status = 'pending'"),
+            sqlite_where=text("index_status = 'pending'"),
+        ),
+    )
+
+
+class CandidateSave(Base):
+    __tablename__ = "candidate_saves"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    candidate_id: Mapped[str] = mapped_column(ForeignKey("candidates.id"))
+    saved_asset_id: Mapped[str] = mapped_column(ForeignKey("saved_assets.id"))
+    client_save_key: Mapped[str] = mapped_column(String(128), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    __table_args__ = (UniqueConstraint("candidate_id", "client_save_key"),)
+
+
+class MemeCandidateDraft(Base):
+    __tablename__ = "meme_candidate_drafts"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    job_id: Mapped[str] = mapped_column(ForeignKey("search_jobs.id"), index=True)
+    draft_key: Mapped[str] = mapped_column(String(64))
+    local_path: Mapped[str] = mapped_column(Text)
+    preview_path: Mapped[str] = mapped_column(Text)
+    data: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (UniqueConstraint("job_id", "draft_key", name="uq_meme_draft_key"),)
+
+
+class MemeProgressEvent(Base):
+    __tablename__ = "meme_progress_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    job_id: Mapped[str] = mapped_column(ForeignKey("search_jobs.id"), index=True)
+    seq: Mapped[int] = mapped_column(Integer)
+    event_type: Mapped[str] = mapped_column(String(30))
+    data: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    __table_args__ = (UniqueConstraint("job_id", "seq", name="uq_meme_event_sequence"),)

@@ -1,5 +1,7 @@
 # Operations notes
 
+For the new default formal web profile, use [meme50-v2 operations](meme50.md). It sends resized frames to configured Gemini/Google Vision services and textual searches to Brave; images are not exclusively local. The local launcher now also starts the isolated media fetch container and applies the generic-media migration. Provider credentials are currently absent; an accepted upload alone does not prove successful automatic retrieval. Legacy operating notes follow.
+
 The W07 supported local profile runs host Python API and worker processes with Docker PostgreSQL. Follow [the local demo guide](local-demo.md), including PowerShell commands, preparation, and verification. Python 3.11 and Docker Desktop are required; Node.js is needed for browser tests. Model weights, corpus, and index must be prepared before startup. The base application Docker image lacks the optional retrieval dependencies and is not the verified inference deployment.
 
 The runner applies migrations, imports the corpus, creates an ignored random-password environment file, and starts separate API/worker processes. API: `http://127.0.0.1:8000`; web: `/web/`; database: loopback port 55432 in the `memeretrieve-local` Compose project. Stop the runner with Ctrl+C. Stop PostgreSQL without deleting records using:

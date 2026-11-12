@@ -1,0 +1,4 @@
+# Keep frozen protocol/query hashes stable across Windows and Unix checkouts.
+*.md text eol=lf
+*.json text eol=lf
+*.py text eol=lf

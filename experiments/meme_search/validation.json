@@ -1,0 +1,48 @@
+{
+  "date_local": "2026-10-30",
+  "python": "3.11.15",
+  "pytest": {
+    "command": "python -m pytest experiments/meme_search/tests -q",
+    "passed": 28,
+    "failed": 0
+  },
+  "ruff_check": "passed",
+  "ruff_format_check": "passed; 3 files",
+  "snapshot_integrity": {
+    "cases": 8,
+    "arms_per_case": 3,
+    "search_calls": 24,
+    "returned_pages_recorded": 120,
+    "queries_unchanged": true,
+    "summary_recompute_equal": true,
+    "source_probe_ids_match": true,
+    "frozen_hashes_match": true
+  },
+  "live_media_probe": {
+    "attempted": 7,
+    "decoded": 5,
+    "failed": 2,
+    "multi_frame": 1
+  },
+  "real_clip_storage_smoke": {
+    "first_inserted": 5,
+    "repeat_inserted": 0,
+    "query_top1": 5,
+    "query_count": 5,
+    "after_review_replay_equal": true,
+    "database_hash_unchanged": true
+  },
+  "independent_review": {
+    "reviewer": "gpt-6.1-terra",
+    "fixed_findings": [
+      "cache symlink overwrite",
+      "stale query corpus"
+    ],
+    "remaining_blockers": 0
+  },
+  "limits": [
+    "No screenshots, human acceptance, editing experiment, reverse image API, or production/MCP integration tested.",
+    "No provider billing or model token costs measured.",
+    "Local downloads/raw text/database are ignored and not intended for Git publication."
+  ]
+}

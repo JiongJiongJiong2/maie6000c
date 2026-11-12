@@ -6,6 +6,38 @@ from fastapi.testclient import TestClient
 from services.api.app.main import app
 from services.common.db import Base, get_db, make_engine, make_session_factory
 from services.common.config import get_settings
+from services.search_agent.meme_types import MemeSettings
+from services.search_agent.settings import SearchAgentSettings
+from services.meme_agent.settings import AgentSettings
+
+
+@pytest.fixture(autouse=True)
+def isolated_meme50_credentials(monkeypatch, request):
+    """Non-smoke tests must never read local production credentials."""
+    if request.node.get_closest_marker("smoke") is not None:
+        return
+    for settings_type in [MemeSettings, SearchAgentSettings, AgentSettings]:
+        monkeypatch.setitem(settings_type.model_config, "env_file", None)
+    for name in (
+        "MEME50_HKUST_API_KEY",
+        "HKUST_API_KEY",
+        "MEME50_GEMINI_API_KEY",
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
+        "MEME50_GOOGLE_VISION_API_KEY",
+        "GOOGLE_VISION_API_KEY",
+        "MEME50_BRAVE_API_KEY",
+        "BRAVE_API_KEY",
+        "MEME50_VISION_PROVIDER",
+        "MEME50_HKUST_MODEL",
+        "MEME50_VISION_MODEL",
+        "MEME50_DEEPSEEK_API_KEY",
+        "DEEPSEEK_API_KEY",
+        "DEEPSEEK_MODEL",
+        "MEME50_DEEPSEEK_MODEL",
+        "TAVILY_API_KEY",
+    ):
+        monkeypatch.delenv(name, raising=False)
 
 
 @pytest.fixture(autouse=True)

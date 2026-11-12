@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     max_candidate_bytes: int = Field(default=25 * 1024 * 1024, gt=0)
     media_retention_days: int = Field(default=7, ge=1)
     retrieval_timeout_seconds: float = Field(default=120.0, gt=0)
+    web_search_timeout_seconds: float = Field(default=60.0, gt=0, le=300)
+    web_search_call_timeout_seconds: float = Field(default=12.0, gt=0, le=60)
+    web_search_max_downloads: int = Field(default=6, ge=0, le=6)
+    saved_index_timeout_seconds: float = Field(default=300.0, gt=0, le=600)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

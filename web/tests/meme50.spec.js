@@ -1,0 +1,176 @@
+import { readFileSync } from "node:fs";
+import { test, expect } from "@playwright/test";
+const requestId = "10000000-0000-4000-8000-000000000001";
+const jobId = "20000000-0000-4000-8000-000000000001";
+const png = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAIAAABvFaqvAAAAKklEQVR4nGPc4W3AQA3ARBVTGEYNIgaMGkQYjBpEGIwaRBiMGkQYDD6DAN66AWOTozgdAAAAAElFTkSuQmCC",
+  "base64",
+);
+const accepted = {
+  request_id: requestId,
+  job_id: jobId,
+  status: "pending",
+  search_profile: "meme50-v2",
+  contract_version: 2,
+  target_count: 50,
+};
+const candidates = Array.from({ length: 50 }, (_, i) => ({
+  candidate_id: `30000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+  rank: i + 1,
+  score: 0.9 - i / 100,
+  media_kind: i % 2 ? "animated" : "static",
+  media_format: i % 2 ? "GIF" : "PNG",
+  mime_type: i % 2 ? "image/gif" : "image/png",
+  frame_count: i % 2 ? 2 : 1,
+  media_url: `/candidates/${i + 1}/media`,
+  preview_url: `/candidates/${i + 1}/preview`,
+  source_url: `https://example.org/${i + 1}`,
+}));
+
+// Deliberately controlled responses: contract/UI checks, not live quality evidence.
+test("empty text submits v2 once, pages fifty, filters, downloads and restores", async ({
+  page,
+}) => {
+  const uploads = [];
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.route("**/health/ready", (r) =>
+    r.fulfill({ json: { status: "ok" } }),
+  );
+  await page.route("**/search-requests", (r) => {
+    uploads.push(r.request().postDataBuffer().toString());
+    return r.fulfill({ status: 202, json: accepted });
+  });
+  await page.route(`**/search-jobs/${jobId}`, (r) =>
+    r.fulfill({
+      json: {
+        ...accepted,
+        status: "completed",
+        stage: "completed",
+        result_count: 50,
+        result_revision: "frozen",
+        partial: false,
+        progress: {},
+        analysis: { observations: ["controlled visible facts"] },
+      },
+    }),
+  );
+  await page.route(`**/search-jobs/${jobId}/results?*`, async (r) => {
+    const params = new URL(r.request().url()).searchParams;
+    const kind = params.get("media_kind");
+    if (kind === "animated")
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    const items = candidates.filter(
+      (c) => kind === "all" || c.media_kind === kind,
+    );
+    const offset = Number(params.get("cursor") || 0);
+    return r.fulfill({
+      json: {
+        job_id: jobId,
+        revision: "frozen",
+        items: items.slice(offset, offset + 20),
+        total: items.length,
+        total_all: 50,
+        counts: { static: 25, animated: 25 },
+        next_cursor: offset + 20 < items.length ? String(offset + 20) : null,
+      },
+    });
+  });
+  await page.route("**/candidates/*/preview", (r) =>
+    r.fulfill({ contentType: "image/png", body: png }),
+  );
+  await page.route("**/candidates/*/media", (r) =>
+    r.fulfill({ contentType: "image/png", body: png }),
+  );
+  await page.goto("/web/");
+  await expect(page.locator("#submit")).toBeDisabled();
+  await page
+    .locator("#file-input")
+    .setInputFiles({ name: "random.png", mimeType: "image/png", buffer: png });
+  await expect(page.locator("#submit")).toBeEnabled();
+  await page.locator("#submit").click();
+  await expect(page.locator(".candidate")).toHaveCount(20);
+  expect(uploads).toHaveLength(1);
+  expect(uploads[0]).toContain("meme50-v2");
+  expect(uploads[0]).toMatch(/name="description"\r\n\r\n\r\n/);
+  await expect(page.locator("#review-panel")).toBeHidden();
+  await page.locator("#next-page").click();
+  await expect(page.locator(".candidate").first()).toContainText("#21");
+  await page.locator("#next-page").click();
+  await expect(page.locator(".candidate")).toHaveCount(10);
+  await expect(page.locator("#next-page")).toBeDisabled();
+  await page.locator("#media-filter").selectOption("static");
+  await expect(page.locator(".candidate")).toHaveCount(20);
+  await expect(
+    page.getByRole("button", { name: "Play animation", exact: true }),
+  ).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator("#media-filter")).toHaveValue("static");
+  await expect(page.locator(".candidate")).toHaveCount(20);
+  const downloadPromise = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Download image ↓", exact: true })
+    .first()
+    .click();
+  expect((await downloadPromise).suggestedFilename()).toMatch(/\.png$/);
+  // A second navigation during an outstanding result fetch must win. This
+  // reproduces the real filter/page race rather than only checking fast mocks.
+  const animatedRequest = page.waitForRequest((r) =>
+    r.url().includes("media_kind=animated"),
+  );
+  await page.locator("#media-filter").selectOption("animated");
+  await animatedRequest;
+  const finalStaticResponse = page.waitForResponse((r) =>
+    r.url().includes("media_kind=static"),
+  );
+  await page.locator("#media-filter").selectOption("static");
+  await finalStaticResponse;
+  await expect(page.locator("#refresh")).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Play animation", exact: true }),
+  ).toHaveCount(0);
+  await page.locator("#next-page").click();
+  await expect(page.locator(".candidate")).toHaveCount(5);
+  await expect(page.locator(".candidate").first()).toContainText("#41");
+  expect(errors).toEqual([]);
+});
+
+test("local human review stays unreviewed and exports bound identities only", async ({
+  page,
+}) => {
+  const binding = {
+    case_id: "controlled-case",
+    job_id: "controlled-job",
+    revision: "rev",
+    candidate_id: "candidate",
+    rank: "1",
+    sha256: "a".repeat(64),
+  };
+  await page.setContent(
+    `<input id="reviewer"><button id="export-labels">Export labels.csv</button><p id="review-message"></p><article data-result="0"></article><script id="bindings" type="application/json">${JSON.stringify([binding])}</script>`,
+  );
+  await page.addScriptTag({
+    content: readFileSync(
+      new URL("../../scripts/meme50_review_ui.js", import.meta.url),
+      "utf8",
+    ),
+  });
+  for (const name of [
+    "relevance",
+    "duplicate_status",
+    "media_valid",
+    "low_quality",
+  ])
+    await expect(page.locator(`[name="${name}"]`)).toHaveValue("unreviewed");
+  await page.locator("#export-labels").click();
+  await expect(page.locator("#review-message")).toContainText(
+    "actual reviewer identity",
+  );
+  await page.locator("#reviewer").fill("CONTROLLED TEST REVIEWER");
+  const waiting = page.waitForEvent("download");
+  await page.locator("#export-labels").click();
+  const csv = readFileSync(await (await waiting).path(), "utf8");
+  expect(csv).toContain('"controlled-job","rev","candidate","1"');
+  expect(csv).toContain('"unreviewed"');
+  expect(csv).not.toContain('"clearly_related"');
+});

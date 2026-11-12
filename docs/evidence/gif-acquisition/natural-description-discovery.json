@@ -1,0 +1,41 @@
+{
+  "status": "completed",
+  "result_kind": "sources",
+  "stop_reason": "sources_found",
+  "search_calls": 1,
+  "downloads_used": 0,
+  "trace": [
+    {
+      "round": 1,
+      "step": "plan",
+      "elapsed_ms": 0,
+      "details": {
+        "query": "黑色背景上蓝色地球不断旋转的动画 GIF"
+      }
+    },
+    {
+      "round": 1,
+      "step": "search",
+      "elapsed_ms": 8058,
+      "details": {
+        "provider": "ddgs",
+        "new_sources": 6,
+        "rejected": 0
+      }
+    },
+    {
+      "round": 0,
+      "step": "stop",
+      "elapsed_ms": 8058,
+      "details": {
+        "reason": "sources_found",
+        "search_calls": 1,
+        "planner_calls": 0,
+        "downloads_used": 0
+      }
+    }
+  ],
+  "source_count": 6,
+  "candidate_count": 0,
+  "note": "Actual natural-description discovery, not GIF recovery; sources intentionally omitted."
+}

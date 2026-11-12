@@ -1,0 +1,14 @@
+{
+  "baseline_sha": "c34d9f6c55a1febbe78fcbf275baab70536424d7",
+  "image_sha256": "fb69020693a4a54cda6d987a8611158e036c713d0f300c898d7474947219434c",
+  "threshold": "0.82",
+  "sample_rule": "uniform min(8, frame_count); max normalized dot product",
+  "target_confirmation": "requires independent human review",
+  "check": "live_search_check",
+  "provider": "ddgs",
+  "mode": "web",
+  "planner": false,
+  "passed": false,
+  "elapsed_seconds": 10.864232124993578,
+  "files": []
+}

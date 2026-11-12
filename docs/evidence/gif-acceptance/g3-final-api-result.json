@@ -1,0 +1,243 @@
+{
+  "executed_at": "2026-11-11T21:04:27.489137+08:00",
+  "code_baseline": "c34d9f6c55a1febbe78fcbf275baab70536424d7",
+  "implementation_sha256": "42f7036d8c1848a7d40abf1af8049306d3923f0bd6227150ceca4957b427acc3",
+  "configuration": {
+    "SEARCH_AGENT_PROVIDER": "ddgs",
+    "SEARCH_AGENT_MODE": "web",
+    "SEARCH_AGENT_DDGS_BACKEND": "yahoo",
+    "SEARCH_AGENT_DOMAINS": "[\"cultofthepartyparrot.com\"]",
+    "RETRIEVAL_MIN_SIMILARITY": null
+  },
+  "input_sha256": "fd5e574f355d156ade24a58065c5dbee8a16e35ac399951946fa875b3a904296",
+  "description": "green dancing parrot bobbing its head animated emoji",
+  "expected": "candidates",
+  "transport": "actual HTTP; independent worker; no injected search/embedding",
+  "files": [
+    {
+      "candidate_id": "40953a1a-5b48-47ed-91f0-454a592a0a06",
+      "sha256": "ecfacdf40753e363e4022f79ee48ddf55d6b3d537b6a6fa80929718b653b7022",
+      "byte_size": 13485,
+      "frame_count": 10,
+      "size": [
+        128,
+        128
+      ],
+      "score": 0.9509462118148804,
+      "source_url": "https://cultofthepartyparrot.com/",
+      "image_url": "https://cultofthepartyparrot.com/parrots/hd/originalparrot.gif",
+      "provider": "ddgs",
+      "relative_path": "40953a1a-5b48-47ed-91f0-454a592a0a06.gif",
+      "media_url": "/candidates/40953a1a-5b48-47ed-91f0-454a592a0a06/media",
+      "db_sha_matches": true
+    }
+  ],
+  "passed": true,
+  "request_id": "9e49dd06-f059-42a2-af32-352397aae722",
+  "local_job_id": "129dcdc5-caa9-4353-a946-fd4e44ab03e3",
+  "local_result": {
+    "request_id": "9e49dd06-f059-42a2-af32-352397aae722",
+    "job_id": "129dcdc5-caa9-4353-a946-fd4e44ab03e3",
+    "status": "completed",
+    "job_kind": "local",
+    "stage": "completed",
+    "local_job_id": "129dcdc5-caa9-4353-a946-fd4e44ab03e3",
+    "web_searches": [],
+    "result_kind": "candidates",
+    "candidates": [
+      {
+        "candidate_id": "994ab1be-4b34-4d42-ae70-0b6152c31e5a",
+        "rank": 1,
+        "score": 0.8689979599754771,
+        "media_url": "/candidates/994ab1be-4b34-4d42-ae70-0b6152c31e5a/media",
+        "source_url": null,
+        "image_url": null,
+        "provider": null,
+        "save_status": "not_saved",
+        "asset_id": null,
+        "index_status": null
+      },
+      {
+        "candidate_id": "de0c2465-57b8-42c0-9617-466f4ac68e02",
+        "rank": 2,
+        "score": 0.8447030316782784,
+        "media_url": "/candidates/de0c2465-57b8-42c0-9617-466f4ac68e02/media",
+        "source_url": null,
+        "image_url": null,
+        "provider": null,
+        "save_status": "not_saved",
+        "asset_id": null,
+        "index_status": null
+      },
+      {
+        "candidate_id": "9bc457ac-0171-4fde-a602-0aedbc3f2410",
+        "rank": 3,
+        "score": 0.8285762205393183,
+        "media_url": "/candidates/9bc457ac-0171-4fde-a602-0aedbc3f2410/media",
+        "source_url": null,
+        "image_url": null,
+        "provider": null,
+        "save_status": "not_saved",
+        "asset_id": null,
+        "index_status": null
+      }
+    ],
+    "error": null
+  },
+  "local_candidates": [
+    {
+      "candidate_id": "994ab1be-4b34-4d42-ae70-0b6152c31e5a",
+      "rank": 1,
+      "score": 0.8689979599754771,
+      "media_url": "/candidates/994ab1be-4b34-4d42-ae70-0b6152c31e5a/media",
+      "source_url": null,
+      "image_url": null,
+      "provider": null,
+      "save_status": "not_saved",
+      "asset_id": null,
+      "index_status": null
+    },
+    {
+      "candidate_id": "de0c2465-57b8-42c0-9617-466f4ac68e02",
+      "rank": 2,
+      "score": 0.8447030316782784,
+      "media_url": "/candidates/de0c2465-57b8-42c0-9617-466f4ac68e02/media",
+      "source_url": null,
+      "image_url": null,
+      "provider": null,
+      "save_status": "not_saved",
+      "asset_id": null,
+      "index_status": null
+    },
+    {
+      "candidate_id": "9bc457ac-0171-4fde-a602-0aedbc3f2410",
+      "rank": 3,
+      "score": 0.8285762205393183,
+      "media_url": "/candidates/9bc457ac-0171-4fde-a602-0aedbc3f2410/media",
+      "source_url": null,
+      "image_url": null,
+      "provider": null,
+      "save_status": "not_saved",
+      "asset_id": null,
+      "index_status": null
+    }
+  ],
+  "web_job_id": "b67f942c-c0dd-4ee5-b4ef-9b888c9a2884",
+  "same_key_replay": true,
+  "changed_description_conflict": true,
+  "web_result": {
+    "job_id": "b67f942c-c0dd-4ee5-b4ef-9b888c9a2884",
+    "job_kind": "web",
+    "status": "completed",
+    "stage": "completed",
+    "description": "green dancing parrot bobbing its head animated emoji",
+    "result_kind": "candidates",
+    "error": null
+  },
+  "job_kind": "web",
+  "retry_link_matches": true,
+  "execution": {
+    "model_version": "clip-vit-base-patch32@37000f5cdccec47a3f6f83142bff131370757470",
+    "agent_version": "web-search-v1",
+    "stop_reason": "candidates_found",
+    "search_calls": 2,
+    "planner_calls": 0,
+    "downloads_used": 1,
+    "duration_ms": 6452,
+    "trace": [
+      {
+        "round": 1,
+        "step": "plan",
+        "elapsed_ms": 0,
+        "details": {
+          "query": "green dancing parrot bobbing its head animated emoji site:cultofthepartyparrot.com"
+        }
+      },
+      {
+        "round": 1,
+        "step": "search_error",
+        "elapsed_ms": 1497,
+        "details": {
+          "provider": "ddgs",
+          "code": "provider_unavailable"
+        }
+      },
+      {
+        "round": 2,
+        "step": "plan",
+        "elapsed_ms": 1498,
+        "details": {
+          "query": "green dancing parrot bobbing its head animated emoji GIF 动态表情 原图 site:cultofthepartyparrot.com"
+        }
+      },
+      {
+        "round": 2,
+        "step": "search",
+        "elapsed_ms": 2916,
+        "details": {
+          "provider": "ddgs",
+          "backend": "yahoo",
+          "new_sources": 2,
+          "rejected": 0
+        }
+      },
+      {
+        "round": 2,
+        "step": "resolve_sources",
+        "elapsed_ms": 3898,
+        "details": {
+          "page_requests": 1,
+          "pages_used": 1,
+          "media_count": 1,
+          "reasons": {
+            "unsupported_source": 1
+          },
+          "redirects": 0,
+          "diagnostics": [],
+          "hosts": [
+            "cultofthepartyparrot.com"
+          ]
+        }
+      },
+      {
+        "round": 2,
+        "step": "prepare_candidates",
+        "elapsed_ms": 6089,
+        "details": {
+          "candidates": 1,
+          "downloads_used": 1,
+          "rejected": 0,
+          "rejected_low_score": 0,
+          "redirects": 0,
+          "diagnostics": [],
+          "failure_codes": []
+        }
+      },
+      {
+        "round": 0,
+        "step": "stop",
+        "elapsed_ms": 6089,
+        "details": {
+          "reason": "candidates_found",
+          "search_calls": 2,
+          "planner_calls": 0,
+          "downloads_used": 1
+        }
+      }
+    ],
+    "warnings": [
+      "search_provider_unavailable",
+      "resolve_unsupported_source"
+    ]
+  },
+  "independent_target_sha256": "ecfacdf40753e363e4022f79ee48ddf55d6b3d537b6a6fa80929718b653b7022",
+  "target_byte_match": true,
+  "initial_target_lookup_counts": {
+    "reference": 0,
+    "saved": 0,
+    "candidates_before_request": 2,
+    "exact_local_target": 0
+  },
+  "outside_retrieval_library": false,
+  "target_note": "Post-hoc byte comparison only; human confirmation pending"
+}

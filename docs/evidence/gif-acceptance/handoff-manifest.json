@@ -1,0 +1,36 @@
+{
+  "implementation_sha256": "42f7036d8c1848a7d40abf1af8049306d3923f0bd6227150ceca4957b427acc3",
+  "snapshot_sha256": "7f06bdd74fad2b18aca94c50601abe014aa0584e547c698e7c82791b0921ca4e",
+  "snapshot_file_count": 128,
+  "snapshot_integrity_verified": true,
+  "worker_image": {
+    "id": "sha256:ed25caeac4706548b1594c4682d9fa56b6449f4d3398186232a2910819ab5dbc",
+    "user": "10001:10001",
+    "architecture": "arm64"
+  },
+  "machine_checks": {
+    "container_G1": true,
+    "real_engineering_search_and_API": true,
+    "browser_playback_and_download": true,
+    "real_low_score_no_candidates": true,
+    "worker_interruption_and_restart": true,
+    "regression_passed": 236,
+    "regression_skipped": 0,
+    "smoke_deselected": 2
+  },
+  "request_id": "9e49dd06-f059-42a2-af32-352397aae722",
+  "web_job_id": "b67f942c-c0dd-4ee5-b4ef-9b888c9a2884",
+  "candidate_id": "40953a1a-5b48-47ed-91f0-454a592a0a06",
+  "api_sha256": "ecfacdf40753e363e4022f79ee48ddf55d6b3d537b6a6fa80929718b653b7022",
+  "source_proposals": 3,
+  "qualified_real_user_cases": 0,
+  "human_target_confirmation": "pending",
+  "independent_member_reproduction": "pending",
+  "planner_mode": "explicitly disabled; no paid key; not accepted as tested",
+  "human_review_template": ".cache/gif-acceptance/human-review-template.json",
+  "review_page": ".cache/gif-acceptance/container-review/review-samples/review.html",
+  "raw_build_log": ".cache/gif-acceptance/worker-build-03.log",
+  "raw_runtime_root": ".cache/gif-acceptance",
+  "stack": "Docker PostgreSQL 16 + independent host API and worker; running at 127.0.0.1:8000",
+  "overall_acceptance": "PENDING G4 and G5; engineering success is not user-target confirmation"
+}

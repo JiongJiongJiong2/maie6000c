@@ -1,0 +1,740 @@
+{
+  "kind": "real_media_dedup_regression",
+  "reviewer_type": "user-delegated Codex agent; not human attestation",
+  "dedup_version": "meme50-temporal-local-v8",
+  "positive_pairs": 9,
+  "negative_pairs": 1,
+  "all_passed": true,
+  "pairs": [
+    {
+      "case_id": "resource-homer",
+      "job_id": "2b513365-a21d-407e-acee-ec2efa055c7c",
+      "revision": "0a20378842ce4abf829db4e5d3620b23",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "af6a8db3-4170-447d-bb06-c55116c52999",
+          "rank": 2,
+          "sha256": "d16664af37f8dbc1b9688a34c62715a9ab72ef532710ea291056abab2f826d5d",
+          "source_url": "https://tenor.com/view/grrr-gif-18348448",
+          "image_url": "https://media.tenor.com/RrqS3IoQ94cAAAAx/grrr.webp"
+        },
+        {
+          "candidate_id": "067a10f0-394e-479c-a730-c34e81046696",
+          "rank": 13,
+          "sha256": "4ac0bc3783b657cc2264b93d4770c7b666833a61e358e4c710d0167b1f1bb312",
+          "source_url": "https://tenor.com/zh-CN/view/homer-simpson-yelling-shout-gurgi-gif-45647186631198232",
+          "image_url": "https://media.tenor.com/AKIr39gmBhgAAAAx/homer-simpson-yelling.webp"
+        }
+      ]
+    },
+    {
+      "case_id": "resource-pepe",
+      "job_id": "c870b0a8-f2c9-4a77-9bf8-b37fd17a57ce",
+      "revision": "c3858a7dd27340a8ada6a7eabe3ee0aa",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "84e1f0d0-2457-4d47-be6c-bed705c78637",
+          "rank": 2,
+          "sha256": "c8e6ae23500df1a7da4390998d959e6214baff0b4b0adcf1f767a9a2a802fb28",
+          "source_url": "https://tenor.com/view/uh-huh-yeah-yes-nod-pepe-the-frog-gif-16391170",
+          "image_url": "https://media.tenor.com/noNJGfVkHQUAAAAx/uh-huh-yeah.webp"
+        },
+        {
+          "candidate_id": "1af6ce7f-2c33-43b1-8193-c2fedceaf388",
+          "rank": 3,
+          "sha256": "62ec1983023d576dc8b34ceb02b4a95186aff4c4b79b53916eb8e6b4343dcfda",
+          "source_url": "https://gifdb.com/gif/pepe-frog-nodding-pyc0hmhxoxf3a6ul.html",
+          "image_url": "https://gifdb.com/images/thumbnail/pepe-frog-nodding-pyc0hmhxoxf3a6ul.gif"
+        }
+      ]
+    },
+    {
+      "case_id": "resource-tom-jerry",
+      "job_id": "ba8a6638-bd4d-4308-8509-3140929b82c2",
+      "revision": "bfc1aac33f7b4461b8d6c1bf83df4066",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "fd28dba6-bead-4d63-ac8d-e3d815fa075a",
+          "rank": 15,
+          "sha256": "c273a1dfb21fc0546a323f991ff70ed69b503629e882c9fd6c3483663e8a7709",
+          "source_url": "https://imgbin.com/png/uFXs9ngS/tom-cat-jerry-mouse-tom-and-jerry-png",
+          "image_url": "https://thumbnail.imgbin.com/1/8/21/tom-and-jerry-tom-and-jerry-playful-cartoon-moment-fY7HqTS9_t.jpg"
+        },
+        {
+          "candidate_id": "5b117444-b7ea-41f2-b739-ddc39bdbcbd7",
+          "rank": 17,
+          "sha256": "997cd0b62b922a041aab1660da85f5992196e1672631fcbef914a1b919bad79e",
+          "source_url": "https://imgbin.com/png/uFXs9ngS/tom-cat-jerry-mouse-tom-and-jerry-png",
+          "image_url": "https://thumbnail.imgbin.com/21/13/6/tom-and-jerry-cartoon-of-tom-and-jerry-in-mischievous-action-jEiz61HR_t.jpg"
+        }
+      ]
+    },
+    {
+      "case_id": "heldout-v2-02",
+      "job_id": "fce70cea-4ce9-4bbe-b571-1bdcdf8a4b4c",
+      "revision": "3f3056b4f15a4afca06b40136230383d",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "af14f9d7-001f-4288-a26f-257ec9f000df",
+          "rank": 1,
+          "sha256": "1f72b88171dd00af45ced1b33b0f9b904f91146306ca4dce79e7fdd5a24622ec",
+          "source_url": "https://tenor.com/view/obama-what-seriously-what-the-president-gif-16881768",
+          "image_url": "https://media.tenor.com/LI5thcJfcg4AAAAx/obama-what.webp"
+        },
+        {
+          "candidate_id": "acbe18a3-abe6-4622-ab34-be1ebae83aeb",
+          "rank": 2,
+          "sha256": "c1591bba10d4fefddbf528c319266a067cc3eb9cb9c4a0045adbe5f1898e4775",
+          "source_url": "https://tenor.com/zh-CN/view/really-so-what-potus-barack-gif-5772734",
+          "image_url": "https://c.tenor.com/-jbl-dLK38sAAAAC/tenor.gif"
+        }
+      ]
+    },
+    {
+      "case_id": "resource-homer",
+      "job_id": "3b329969-ea01-42cb-9b68-f0575fda5f60",
+      "revision": "be25b18e35ef485f89b49ea151244805",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "a722247a-c0e7-4d53-ab7f-40fc60bc2e42",
+          "rank": 5,
+          "sha256": "1254b7833ab77cbb1efa7906ad48cf2779bd7f1ba7a90a1f7144c0ee110d2df6",
+          "source_url": "https://tenor.com/view/the-simpsons-homer-simpson-bush-hide-bye-gif-16150806",
+          "image_url": "https://media.tenor.com/hRiPtsp-m0IAAAAx/the-simpsons-homer-simpson.webp"
+        },
+        {
+          "candidate_id": "331a9b8e-7e04-47ba-a591-9a24f3f2f4e4",
+          "rank": 8,
+          "sha256": "f1208eb98b89024a6f71ca7f55a159a52e06f0c1b23d02acd1576aa9765e7c6e",
+          "source_url": "https://tenor.com/view/simpsons-homer-simpson-gif-13518564799186478937",
+          "image_url": "https://media.tenor.com/u5uXD3icJ1kAAAAx/simpsons-homer-simpson.webp"
+        }
+      ]
+    },
+    {
+      "case_id": "resource-homer",
+      "job_id": "3b329969-ea01-42cb-9b68-f0575fda5f60",
+      "revision": "be25b18e35ef485f89b49ea151244805",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "a9a2ee92-4885-4fea-a6d4-fd116e1ddd8a",
+          "rank": 18,
+          "sha256": "31bc75b2d9ac0530eea89ca8319d65b6b10c5133f3e17351474450962278b627",
+          "source_url": "https://vectorseek.com/vector_logo/nelson-muntzlos-simpsons-logo-vector/",
+          "image_url": "https://vectorseek.com/wp-content/uploads/2023/08/Nelson-MuntzLos-Simpsons-Logo-Vector.svg-.png"
+        },
+        {
+          "candidate_id": "120601c2-8b92-4aa6-8aed-23618ebab01a",
+          "rank": 21,
+          "sha256": "039b0a332f725f149b976ec40caa4c89ca5c3e389eccb0b8e246a35d3d27a50c",
+          "source_url": "https://vectorseek.com/vector_logo/nelson-muntzlos-simpsons-logo-vector/",
+          "image_url": "https://vectorseek.com/wp-content/uploads/2023/08/Nelson-MuntzLos-Simpsons-Logo-Vector.svg--300x233.png"
+        }
+      ]
+    },
+    {
+      "case_id": "resource-homer",
+      "job_id": "3b329969-ea01-42cb-9b68-f0575fda5f60",
+      "revision": "be25b18e35ef485f89b49ea151244805",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "cd1f4e92-6c34-4887-bbdd-25413fb48e52",
+          "rank": 23,
+          "sha256": "645945e9e7a1094eff3cb135705db07786ab1735d4225ecf1264d6e6ec65f2f6",
+          "source_url": "https://gifdb.com/gif/homer-simpson-gif-7rt6x5cizxeawu1z.html",
+          "image_url": "https://gifdb.com/images/thumbnail/homer-simpson-gif-7rt6x5cizxeawu1z.gif"
+        },
+        {
+          "candidate_id": "ef29265e-b266-4819-a209-9bebbcb0c24c",
+          "rank": 24,
+          "sha256": "6d7c812fd64427ffe886d48c81614c4c4511871a57c015184297444ec4e55e4b",
+          "source_url": "https://gifdb.com/gif/homer-simpson-gif-7rt6x5cizxeawu1z.html",
+          "image_url": "https://gifdb.com/images/branded/high/homer-simpson-gif-7rt6x5cizxeawu1z.gif"
+        }
+      ]
+    },
+    {
+      "case_id": "resource-pepe",
+      "job_id": "a22c62be-4480-428a-9cec-54b250dda874",
+      "revision": "27c31ac6e455404db141e392427c0102",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "b479e410-a11d-4a5b-98f8-30a150f28efb",
+          "rank": 9,
+          "sha256": "757a8226e8047c29f0e5432a0ecac4750f439bc832229a361004c850a4540622",
+          "source_url": "https://meme.com/memes/pepe-the-frog",
+          "image_url": "https://cdn-v2.meme.com//memes/pepe-the-frog/2026-05-16/1778922530239.webp"
+        },
+        {
+          "candidate_id": "cd544c5d-656d-4468-8927-2e2ebc47d870",
+          "rank": 12,
+          "sha256": "5e60a38f5b40f1f1e18622479018aa9295c88e14ed09bea00451a41a82a87313",
+          "source_url": "https://meme.com/memes/pepe-the-frog",
+          "image_url": "https://cdn-v2.meme.com/memes/pepe-the-frog/og-card/2026-10-03/1791002673122.webp"
+        }
+      ]
+    },
+    {
+      "case_id": "resource-pepe",
+      "job_id": "a22c62be-4480-428a-9cec-54b250dda874",
+      "revision": "27c31ac6e455404db141e392427c0102",
+      "expected_same_content": true,
+      "merged": true,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "7f794c50-ebf4-4f6e-8c8d-053e137ca776",
+          "rank": 18,
+          "sha256": "d13319a76376616e5fb673159232d4952954eeccc81504d7b67a76bf1a6a98c8",
+          "source_url": "https://gifdb.com/gif/pepe-the-frog-nodding-g4imo3cuvvkf5hvn.html",
+          "image_url": "https://gifdb.com/images/branded/high/pepe-the-frog-nodding-g4imo3cuvvkf5hvn.gif"
+        },
+        {
+          "candidate_id": "bcd9e74b-be9f-4fe9-aca0-221ab09abf87",
+          "rank": 19,
+          "sha256": "d5920a8329577fd8dae741f6b8cb4d10f92d96049a47bb841dc17c1915789bf0",
+          "source_url": "https://gifdb.com/gif/pepe-the-frog-nodding-g4imo3cuvvkf5hvn.html",
+          "image_url": "https://gifdb.com/images/thumbnail/pepe-the-frog-nodding-g4imo3cuvvkf5hvn.gif"
+        }
+      ]
+    },
+    {
+      "case_id": "resource-pepe",
+      "job_id": "a22c62be-4480-428a-9cec-54b250dda874",
+      "revision": "27c31ac6e455404db141e392427c0102",
+      "expected_same_content": false,
+      "merged": false,
+      "passed": true,
+      "candidates": [
+        {
+          "candidate_id": "7f794c50-ebf4-4f6e-8c8d-053e137ca776",
+          "rank": 18,
+          "sha256": "d13319a76376616e5fb673159232d4952954eeccc81504d7b67a76bf1a6a98c8",
+          "source_url": "https://gifdb.com/gif/pepe-the-frog-nodding-g4imo3cuvvkf5hvn.html",
+          "image_url": "https://gifdb.com/images/branded/high/pepe-the-frog-nodding-g4imo3cuvvkf5hvn.gif"
+        },
+        {
+          "candidate_id": "598308aa-74a9-4269-84ee-740423c9f067",
+          "rank": 30,
+          "sha256": "aef41834bcdbc95a3a34d20381adfe13288beea71afcdc36419e4ddb094c6700",
+          "source_url": "https://gifdb.com/gif/pepe-the-frog-nodding-g4imo3cuvvkf5hvn.html",
+          "image_url": "https://gifdb.com/images/thumbnail/pepe-the-frog-on-fire-dzz9oii7fe0ni0um.gif"
+        }
+      ]
+    }
+  ],
+  "recorded_at": "2026-11-13T02:34:06.313999+08:00",
+  "verification": {
+    "python_postgres": {
+      "passed": 351,
+      "deselected": 2,
+      "scope": "full non-smoke non-live suite, real isolated PostgreSQL databases"
+    },
+    "frontend": {
+      "local_passed": 18,
+      "github_status": "passed",
+      "github_run": "https://github.com/JiongJiongJiong2/maie6000c/actions/runs/43281741186"
+    },
+    "browser": {
+      "status": "passed",
+      "job_id": "0251f7c6-f2f6-4c6d-b666-9307bf8a7719",
+      "revision": "3a9f245c25f542039682d1326178b980",
+      "result_count": 48,
+      "code_fingerprint": "0e8266e13cfc1aa713f30cea116b24c00366a8928886a660f0a27831e6a167f1",
+      "configuration_fingerprint": "3d242731596a54a489e6032f3051a98ec4a2c733cedf336a4d5c8cc3210f92cd",
+      "assertions": {
+        "pagination_ids": true,
+        "no_unconditional_original_loading": true,
+        "animation_pixels_changed": true,
+        "animation_paused": true,
+        "offscreen_animation_paused": true,
+        "filter_counts": true,
+        "refresh_position": true,
+        "mobile_scroll": true
+      },
+      "stop_reason": "query_limit",
+      "route_interception": false
+    },
+    "full_human_quality": "pending",
+    "independent_member_reproduction": "pending",
+    "github_python": {
+      "status": "passed",
+      "commit": "f2401b0d25754506dd553708defd97a388693072",
+      "run": "https://github.com/JiongJiongJiong2/maie6000c/actions/runs/43281741208"
+    },
+    "all_media": {
+      "kind": "final_all_media_download_verification",
+      "status": "passed",
+      "job_id": "0251f7c6-f2f6-4c6d-b666-9307bf8a7719",
+      "revision": "3a9f245c25f542039682d1326178b980",
+      "dedup_version": "meme50-temporal-local-v8",
+      "count": 48,
+      "static": 23,
+      "animated": 25,
+      "all_sha_unique": true,
+      "results": [
+        {
+          "rank": 1,
+          "candidate_id": "339b7f2d-91cc-431e-9d55-0610ca107b1a",
+          "sha256": "4d5a40edca23d25cacabfd010efee994afb42e7ea2de103ec9ce6bc8af726abe",
+          "media_kind": "animated",
+          "frame_count": 13,
+          "bytes": 147792,
+          "database_check": "passed"
+        },
+        {
+          "rank": 2,
+          "candidate_id": "ce815e55-31f4-479e-b64b-53d96db6910c",
+          "sha256": "041353ee8f53592912740c2bd69d61219e0c504abc9a092113a4776c516f028b",
+          "media_kind": "animated",
+          "frame_count": 12,
+          "bytes": 103280,
+          "database_check": "passed"
+        },
+        {
+          "rank": 3,
+          "candidate_id": "1a8365ea-65e5-4531-a5b0-d2fa46f14b9a",
+          "sha256": "76c81540f3f1a3cfb2c65fe4a56eef33c28dc22f37096aa725a122937e838503",
+          "media_kind": "animated",
+          "frame_count": 19,
+          "bytes": 228560,
+          "database_check": "passed"
+        },
+        {
+          "rank": 4,
+          "candidate_id": "a8d75d8b-b48d-4301-a664-563826d7994d",
+          "sha256": "28e363e93ce025e01029ba8d7e515b80c457cefeb1849d6bc99218cbea44ee6b",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 19674,
+          "database_check": "passed"
+        },
+        {
+          "rank": 5,
+          "candidate_id": "dc73a7f7-9e75-435e-a9bb-96fe84255545",
+          "sha256": "1254b7833ab77cbb1efa7906ad48cf2779bd7f1ba7a90a1f7144c0ee110d2df6",
+          "media_kind": "animated",
+          "frame_count": 69,
+          "bytes": 304586,
+          "database_check": "passed"
+        },
+        {
+          "rank": 6,
+          "candidate_id": "af43af3a-953f-4365-a834-ec335ed92c00",
+          "sha256": "c8d613e94f23d4bd36dfe7e3d80701897495f07db3ecb8e8d20116976754ee94",
+          "media_kind": "animated",
+          "frame_count": 13,
+          "bytes": 100850,
+          "database_check": "passed"
+        },
+        {
+          "rank": 7,
+          "candidate_id": "c3896766-e47a-4780-9a43-9c0c2cff625f",
+          "sha256": "e14355876649afd0a0b4896991dc2b83cd7b520ed8e8bba365dcf57989110270",
+          "media_kind": "animated",
+          "frame_count": 5,
+          "bytes": 61238,
+          "database_check": "passed"
+        },
+        {
+          "rank": 8,
+          "candidate_id": "9ba936c2-6dd9-4fb0-a104-037e8dc7e0c2",
+          "sha256": "54b5d1e4e445ad50f4a76a1467f64abcc0ebf92f51f8436bb69ee28b011a440d",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 17914,
+          "database_check": "passed"
+        },
+        {
+          "rank": 9,
+          "candidate_id": "37afdbf3-420d-442b-bee3-49ea6f830fa4",
+          "sha256": "18015617a49d528f210c9e6ad019f115bd1f4f4e8302f4c2b735ec9a90c76a89",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 22470,
+          "database_check": "passed"
+        },
+        {
+          "rank": 10,
+          "candidate_id": "0ff34ef9-2fbf-494f-9128-37a44550154e",
+          "sha256": "1ec61b1a3ab20eb8938ebc2f5436b1d4d6592d5c75ed6384c3b3588160dfef72",
+          "media_kind": "animated",
+          "frame_count": 55,
+          "bytes": 783272,
+          "database_check": "passed"
+        },
+        {
+          "rank": 11,
+          "candidate_id": "fcd9edf6-0dbd-4f22-823c-c6f2eb87355d",
+          "sha256": "3c5646037698451966d30bfcc24ab5929f1605087f3db85301eb29865c66ddf4",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 1046710,
+          "database_check": "passed"
+        },
+        {
+          "rank": 12,
+          "candidate_id": "4df9f1fa-1a3e-4540-9552-52c766a161ac",
+          "sha256": "67e8228d3ea41889e9b29d370e1f6043fa2d1d4aa1b8ee9267a3b7d5a0c18ddd",
+          "media_kind": "animated",
+          "frame_count": 19,
+          "bytes": 496610,
+          "database_check": "passed"
+        },
+        {
+          "rank": 13,
+          "candidate_id": "26691906-d413-487e-a268-67b07f810431",
+          "sha256": "01753f0f4764e46a569b4b0f3c57b54f6a7d26758f37d16c7de5041f23ee3202",
+          "media_kind": "animated",
+          "frame_count": 12,
+          "bytes": 74946,
+          "database_check": "passed"
+        },
+        {
+          "rank": 14,
+          "candidate_id": "8df7809c-effe-4b8b-9b27-e1827ae171f1",
+          "sha256": "9ae8494013ad6acddfada4da1498ad511e6aa1238a23f77bda979b03bc2db0ac",
+          "media_kind": "animated",
+          "frame_count": 8,
+          "bytes": 108775,
+          "database_check": "passed"
+        },
+        {
+          "rank": 15,
+          "candidate_id": "ffcdb9c5-509a-4964-a0dd-0d72fed90ea3",
+          "sha256": "6d7c812fd64427ffe886d48c81614c4c4511871a57c015184297444ec4e55e4b",
+          "media_kind": "animated",
+          "frame_count": 41,
+          "bytes": 4839400,
+          "database_check": "passed"
+        },
+        {
+          "rank": 16,
+          "candidate_id": "bce57f7f-3fbf-499d-93d7-e626034acb39",
+          "sha256": "95109c031d4cfbdcbac256edcc33a30100f151d9d88d20f0643f8e8bb5721642",
+          "media_kind": "animated",
+          "frame_count": 33,
+          "bytes": 124209,
+          "database_check": "passed"
+        },
+        {
+          "rank": 17,
+          "candidate_id": "33a04505-c69e-4030-866d-4944582adc44",
+          "sha256": "38b85a74c05b19857ace49a98f3c48161e669a9cd5080f283bfeec50d16237f5",
+          "media_kind": "animated",
+          "frame_count": 35,
+          "bytes": 139310,
+          "database_check": "passed"
+        },
+        {
+          "rank": 18,
+          "candidate_id": "e77dad19-aa30-47fb-9ef9-d4ec959bf9a0",
+          "sha256": "2fa45b4703b66bc6d9e1000618425b9c5fc57195c76f4b79d92719b74faebfc0",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 243997,
+          "database_check": "passed"
+        },
+        {
+          "rank": 19,
+          "candidate_id": "0a4574ff-fa75-44a7-9631-72c02f580312",
+          "sha256": "8f92631899c670a1439a4ade659858a41073d52e9450fc917132800ee9961964",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 19543,
+          "database_check": "passed"
+        },
+        {
+          "rank": 20,
+          "candidate_id": "462d626d-d05e-477c-809d-1d6e1f940acc",
+          "sha256": "68e9a8cd8804369118f5986d4b693a269984caca3150d57947c6280eb747df4d",
+          "media_kind": "animated",
+          "frame_count": 53,
+          "bytes": 1290244,
+          "database_check": "passed"
+        },
+        {
+          "rank": 21,
+          "candidate_id": "cbfb4477-1e4c-4f92-b00b-78d8812cf284",
+          "sha256": "b604476d3d54a819483128c5ffb4faa06747e57778d4c0c17e89f19a2cecec2f",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 21584,
+          "database_check": "passed"
+        },
+        {
+          "rank": 22,
+          "candidate_id": "9bc780cf-4c24-4a58-94ec-bd37347e5bf8",
+          "sha256": "f2c20ae5210db6dc7eb9538feb16290c4c0c78256e70b2839707960ec9d467d2",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 145174,
+          "database_check": "passed"
+        },
+        {
+          "rank": 23,
+          "candidate_id": "24c93e25-29b6-4d3b-8a18-91f72d89aadd",
+          "sha256": "f828e55f1abe30a176875a373aa57f0e6f780de90df0a345500390bb6c757987",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 80444,
+          "database_check": "passed"
+        },
+        {
+          "rank": 24,
+          "candidate_id": "0bea56c8-bf73-42cc-8e80-1c78c8a3b3b4",
+          "sha256": "81dd33a1ffce292acf8d7e78367573a677423738ade62995fadf36f3a533da88",
+          "media_kind": "animated",
+          "frame_count": 39,
+          "bytes": 53452,
+          "database_check": "passed"
+        },
+        {
+          "rank": 25,
+          "candidate_id": "577d0ffe-bea4-4d46-8d26-75928cca8b62",
+          "sha256": "4e1be5517124433a68ddbe2b90df4610f396d91f77c2c3268d1033e5a2163d99",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 34575,
+          "database_check": "passed"
+        },
+        {
+          "rank": 26,
+          "candidate_id": "0c870929-8b52-4bd6-a727-d63556679598",
+          "sha256": "8d0242359e1a7b1c8aaa8f77ec5be3ef2dd3cdc8ba1d7c54f74fd32d34786bd0",
+          "media_kind": "animated",
+          "frame_count": 6,
+          "bytes": 369570,
+          "database_check": "passed"
+        },
+        {
+          "rank": 27,
+          "candidate_id": "8d68bce2-7fbc-4b93-bc49-eb4aa63a54b7",
+          "sha256": "4278bc1dd2147fd56d47d8e1bd06e87d4134c91071f8aa2f92ed43aedf40a0fe",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 44564,
+          "database_check": "passed"
+        },
+        {
+          "rank": 28,
+          "candidate_id": "00674306-19e6-47ec-be9b-15ca3c9627d8",
+          "sha256": "5be1704866e3fe5885cec79d15c206007d88a1322ee5bf56a1791a9745b89f5b",
+          "media_kind": "animated",
+          "frame_count": 71,
+          "bytes": 59192,
+          "database_check": "passed"
+        },
+        {
+          "rank": 29,
+          "candidate_id": "e5b13d1d-1f0c-484b-a8e1-aa49f40e98d5",
+          "sha256": "6efde17b4f8ebb7b9422c6eadf68a3fd31946834d4ca8a25580e4ffc83966da9",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 77691,
+          "database_check": "passed"
+        },
+        {
+          "rank": 30,
+          "candidate_id": "50ca34b0-7aea-4a04-8464-d49be9db3483",
+          "sha256": "01b1957ee8b7f0be51ef0997f5fd8b8c3388986e60b96d0d1f8d16e78433a03c",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 41281,
+          "database_check": "passed"
+        },
+        {
+          "rank": 31,
+          "candidate_id": "fd42b523-a82e-40de-aed7-1daddc1ea8dd",
+          "sha256": "29f5597a9fafc8fd3605a6b0c47cc7e90a9e6b2f8ad0345c3e257129cf3cbc5e",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 51953,
+          "database_check": "passed"
+        },
+        {
+          "rank": 32,
+          "candidate_id": "88dda5e8-0cc4-4376-8a81-37bc0190594d",
+          "sha256": "a501807b12f2cbf69dd02815c85c6b91380b31458442a83b67e2e07e45c416f7",
+          "media_kind": "animated",
+          "frame_count": 42,
+          "bytes": 68354,
+          "database_check": "passed"
+        },
+        {
+          "rank": 33,
+          "candidate_id": "fb6df6c0-4205-4784-be09-d335b7110a72",
+          "sha256": "81808de228d5f665782a809ea039795a0d2629b7bd277e7fba15a2b5faea142a",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 40902,
+          "database_check": "passed"
+        },
+        {
+          "rank": 34,
+          "candidate_id": "6701e3f2-ebb6-44b2-96bd-b7501df07b4b",
+          "sha256": "21658e2b0f524ace246146f5d845dffa56d2172cfa12a2162cade99b3a712a39",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 21019,
+          "database_check": "passed"
+        },
+        {
+          "rank": 35,
+          "candidate_id": "09f9fde1-210b-4d1f-bf66-19df20590e42",
+          "sha256": "4e02559adfcfa002d853b5df42ee2be004fbbe29fb21e6e3e9def8d2cf2518f0",
+          "media_kind": "animated",
+          "frame_count": 15,
+          "bytes": 26906,
+          "database_check": "passed"
+        },
+        {
+          "rank": 36,
+          "candidate_id": "ef9e4e40-4158-4319-b301-8104f6defc8f",
+          "sha256": "77a6d3bddf2e9b670a563ae504816a1bb716364f8e36d184f0cbb7e2fa6f9886",
+          "media_kind": "animated",
+          "frame_count": 16,
+          "bytes": 31074,
+          "database_check": "passed"
+        },
+        {
+          "rank": 37,
+          "candidate_id": "0ee97cc2-e76d-42e9-88b3-55a2aa003558",
+          "sha256": "c0400794f8361ae74b72ba989ae1a440f934781c15ae700776e823434b0f9393",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 21357,
+          "database_check": "passed"
+        },
+        {
+          "rank": 38,
+          "candidate_id": "eec87f10-0ac9-48d4-8535-f1b7b0d00fbe",
+          "sha256": "4adb6e0946eea4acbeda3ace1e6041d1880a4a0b5cb90a2dc895ac8cf9fde81b",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 171899,
+          "database_check": "passed"
+        },
+        {
+          "rank": 39,
+          "candidate_id": "2f83ea58-b9f2-4af5-864c-cacf634bf38a",
+          "sha256": "218557a204482c3fff00fafefe726209380c222d1dbfdabc585a20daa58db833",
+          "media_kind": "animated",
+          "frame_count": 34,
+          "bytes": 54514,
+          "database_check": "passed"
+        },
+        {
+          "rank": 40,
+          "candidate_id": "e52f1313-25b6-4845-aed5-fb62e8bf56cb",
+          "sha256": "b9d6af34dc86707135909778b925c1413fb15a22e4eb4e1d4cf271651446651a",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 58466,
+          "database_check": "passed"
+        },
+        {
+          "rank": 41,
+          "candidate_id": "ff816c53-4728-40b4-9be0-c8db165c447e",
+          "sha256": "103a4d22f9fc127248ca0dedaad10a32a51648fd558b8b49e92315b9a4c2faa9",
+          "media_kind": "animated",
+          "frame_count": 62,
+          "bytes": 224640,
+          "database_check": "passed"
+        },
+        {
+          "rank": 42,
+          "candidate_id": "e2b06b08-1eab-403d-be9c-888833cd3b69",
+          "sha256": "cac5efed343b2f77df78a9136a9523b34961d32517a8c8dca2bc002097dc58f3",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 33768,
+          "database_check": "passed"
+        },
+        {
+          "rank": 43,
+          "candidate_id": "465c4018-1165-4615-b23c-888a80d3c723",
+          "sha256": "8431f255ea08ec3aab06792ce6d56ab2e1081cfb159b2a643de77e9fbf371bce",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 21290,
+          "database_check": "passed"
+        },
+        {
+          "rank": 44,
+          "candidate_id": "6cda7d4a-4b52-47ae-95a7-dd0f7816c398",
+          "sha256": "3e17f6d7acefede4f0e82288ac383df68338cb489d93658cac36187998b90dc9",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 27456,
+          "database_check": "passed"
+        },
+        {
+          "rank": 45,
+          "candidate_id": "29764c32-801d-4ac6-9950-ba03ae07b40a",
+          "sha256": "c51d7a32c4c65edd7818d64e151dcc0b231f11e1cb5dcc436a58d3bc1bc7e2f5",
+          "media_kind": "static",
+          "frame_count": 1,
+          "bytes": 27640,
+          "database_check": "passed"
+        },
+        {
+          "rank": 46,
+          "candidate_id": "576b959f-66b5-47e9-93b0-cf7519c50935",
+          "sha256": "6d7e6967304769544affe507ebc349c7c57a874d05bd191eb4bca477265f2183",
+          "media_kind": "animated",
+          "frame_count": 12,
+          "bytes": 269763,
+          "database_check": "passed"
+        },
+        {
+          "rank": 47,
+          "candidate_id": "1c7a099f-5aea-466a-96a4-577ed8b791e2",
+          "sha256": "df955979f0cc25e8595616acaadd8804aea63223de1b1725964bfe53bc0a918f",
+          "media_kind": "animated",
+          "frame_count": 20,
+          "bytes": 107428,
+          "database_check": "passed"
+        },
+        {
+          "rank": 48,
+          "candidate_id": "3bdad11e-895a-4a45-9d5a-cf802980fc28",
+          "sha256": "efadd90afe5ebea4fb82291231ed4b2ccd480a1b41102ab68d33f6a878228bea",
+          "media_kind": "animated",
+          "frame_count": 26,
+          "bytes": 58946,
+          "database_check": "passed"
+        }
+      ]
+    }
+  },
+  "source_sha256": {
+    "services/retrieval/dedup.py": "bebaa85992525d5f74982e3f82788b7d3c10d691199ad6a68f126eaf7558f56a",
+    "services/search_agent/meme_pipeline.py": "ba007cd0275f1f2e61d4ff7cecc66b2d35c4db51ab559b94260ab10109005d94",
+    "services/search_agent/meme_types.py": "33a6dcc197037c51423767148b17d358c151c56b5883685427e240d7a2f49e9a"
+  }
+}

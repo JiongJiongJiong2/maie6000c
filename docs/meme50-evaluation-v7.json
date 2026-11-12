@@ -1,0 +1,666 @@
+{
+  "version": "meme50-evaluation-v7-resources-20261112",
+  "frozen_at": "2026-11-12T07:00:09.718525+00:00",
+  "status": "resource_prescreen_complete_candidate_frozen_human_quality_unreviewed",
+  "configuration": {
+    "provider_policy": "hkust-deepseek-v1",
+    "deepseek_model": "deepseek-flash",
+    "reverse_image_provider": "disabled",
+    "vision_provider": "hkust",
+    "hkust_model": "gemini-2.5-flash-lite",
+    "vision_model": "gemini-3.8-flash",
+    "keyword_provider": "deepseek",
+    "verify_entities": true,
+    "target_count": 50,
+    "timeout_seconds": 180.0,
+    "call_timeout_seconds": 18.0,
+    "max_search_calls": 16,
+    "max_model_calls": 3,
+    "max_queries": 6,
+    "max_sources": 500,
+    "max_previews": 250,
+    "max_originals": 120,
+    "max_pages": 40,
+    "max_bytes": 536870912,
+    "max_redirects": 120,
+    "max_disk_bytes": 536870912,
+    "concurrency": 6,
+    "dns_mode": "doh",
+    "minimum_score": 0.55,
+    "scoring_version": "meme50-rank-dev-v1-unvalidated",
+    "dedup_version": "meme50-temporal-local-v5"
+  },
+  "configuration_fingerprint": "c40faa19cc79414c4554e3f32c96dd9d137a54d8bb60610f80a0ef3935049291",
+  "source_scope": "Real public reaction and sticker references, Tenor source bias recorded; originals remain ignored local test data.",
+  "quality_rules": {
+    "top10_denominator": 10,
+    "returned_denominator": "actual returned up to 50; failed or empty is zero",
+    "fixed_p50_denominator": 50,
+    "macro_includes_all_cases": true,
+    "threshold_top10": 0.9,
+    "threshold_returned": 0.8,
+    "unreviewed": "pending, never accepted as human judgment",
+    "human_duplicates": "must be explicitly reviewed independent of content_group_id"
+  },
+  "cases": [
+    {
+      "case_id": "resource-homer",
+      "split": "development",
+      "family": "simpsons-homer-resource",
+      "input_path": ".cache/meme50/inputs/cbd8a56fa2fd4850abaccdd7d0e9d234.webp",
+      "sha256": "4d5a40edca23d25cacabfd010efee994afb42e7ea2de103ec9ce6bc8af726abe",
+      "format": "WEBP",
+      "media_kind": "animated",
+      "description": "",
+      "source_url": "https://tenor.com/view/homer-simpson-simpsons-juicy-gif-6692258396482537216",
+      "source_rights": "Publicly reachable source reference for local testing; no redistribution or license assertion.",
+      "resource_rich": {
+        "prescreened": true,
+        "evidence": ".cache/meme50/prescreen/homer-02/selection.json",
+        "evidence_sha256": "2c5326c52a4cd56fba2e5907c7e9cfe7ba44a9d32d1b0c41f6508cc2e89395f8",
+        "available_selected_count": 40,
+        "prescreen_actor": "execution_agent_visual_prescreen_not_human_quality_reviewer"
+      },
+      "judgment_notes": "Judge visible characters, actions, emotion or meme meaning; same character in different actions is allowed. Do not count resize/crop/framerate variants or meaningless modifications as different content. Respect optional preferences."
+    },
+    {
+      "case_id": "resource-pepe",
+      "split": "development",
+      "family": "pepe-frog-resource",
+      "input_path": ".cache/meme50/inputs/46ca9275ea454d47b0a6f2fe53152cb4.webp",
+      "sha256": "8683f0fe02ac4ec0e5d55421cc5c08ac4b38c5577077127a6c52d2795707bef1",
+      "format": "WEBP",
+      "media_kind": "animated",
+      "description": "",
+      "source_url": "https://tenor.com/view/pepe-blink-blink-pepe-pepe-pepe-the-frog-blink-blink-pepe-the-frog-gif-1555930131853257684",
+      "source_rights": "Publicly reachable source reference for local testing; no redistribution or license assertion.",
+      "resource_rich": {
+        "prescreened": true,
+        "evidence": ".cache/meme50/prescreen/pepe-02/selection.json",
+        "evidence_sha256": "24af4ca8644ce28849aae8f12d6018fd47e141b519beeb0e5aa3ef779a198485",
+        "available_selected_count": 40,
+        "prescreen_actor": "execution_agent_visual_prescreen_not_human_quality_reviewer"
+      },
+      "judgment_notes": "Judge visible characters, actions, emotion or meme meaning; same character in different actions is allowed. Do not count resize/crop/framerate variants or meaningless modifications as different content. Respect optional preferences."
+    },
+    {
+      "case_id": "resource-tom-jerry",
+      "split": "development",
+      "family": "tom-jerry-resource",
+      "input_path": ".cache/meme50/inputs/e3c46f9efc3f456f9e3303e25e8b1e7c.webp",
+      "sha256": "259d4c593aec88110cb5fc15e73868b5eca502003bfdc0a5eb9533c0c8bb5f14",
+      "format": "WEBP",
+      "media_kind": "animated",
+      "description": "",
+      "source_url": "https://tenor.com/view/jerry-tom-rat-gif-23865315",
+      "source_rights": "Publicly reachable source reference for local testing; no redistribution or license assertion.",
+      "resource_rich": {
+        "prescreened": true,
+        "evidence": ".cache/meme50/prescreen/tom-01/selection.json",
+        "evidence_sha256": "02fc080f8fe006831b4ba2af70d28fa6fe2a0b5b2a634743f5cb8ab7c5bde861",
+        "available_selected_count": 40,
+        "prescreen_actor": "execution_agent_visual_prescreen_not_human_quality_reviewer"
+      },
+      "judgment_notes": "Judge visible characters, actions, emotion or meme meaning; same character in different actions is allowed. Do not count resize/crop/framerate variants or meaningless modifications as different content. Respect optional preferences."
+    },
+    {
+      "case_id": "heldout-v2-01",
+      "split": "heldout",
+      "family": "mango-thanks",
+      "source_url": "https://tenor.com/view/thank-you-dancing-thanks-gif-9112786",
+      "categories": [
+        "chinese_text",
+        "cartoon_or_animal"
+      ],
+      "description": "",
+      "source_rights": "Public reference for local acceptance only; rights remain with the author; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "input_path": ".cache/meme50/acceptance/20261112-v2/inputs-attempt2/400f3d49933649ad8263cd82721fe5bd.jpg",
+      "sha256": "7652596090fa7f1cb77ee7966c5fd41d63b8e730780455c553b1239ae13ed00c",
+      "format": "JPEG",
+      "media_kind": "static",
+      "metadata": {
+        "format": "JPEG",
+        "mime_type": "image/jpeg",
+        "media_kind": "static",
+        "frame_count": 1,
+        "width": 240,
+        "height": 320,
+        "byte_size": 11691,
+        "duration_ms": 0,
+        "sha256": "7652596090fa7f1cb77ee7966c5fd41d63b8e730780455c553b1239ae13ed00c"
+      },
+      "source_media_url": "https://c.tenor.com/4auLYc3fvcAAAAAC/tenor.gif",
+      "source_sha256": "2421102bf1d6fa5ea3e926e864d94d4a2c79ab6c0f088b684bdddbf1da4de64e",
+      "transformation": "frame index min(2,n-1), white background; encode JPEG",
+      "status": "prepared_not_searched",
+      "judgment_notes": "Judge visible subject/action/emotion/meme meaning; visible text meaning matters. Different resolutions of one animation are duplicates. Match explicit preference when supplied."
+    },
+    {
+      "case_id": "heldout-v2-02",
+      "split": "heldout",
+      "family": "obama-shrug",
+      "source_url": "https://tenor.com/view/obama-shrug-what-confused-really-gif-4993035",
+      "categories": [
+        "human_reaction",
+        "crop"
+      ],
+      "description": "",
+      "source_rights": "Public reference for local acceptance only; rights remain with the author; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "input_path": ".cache/meme50/acceptance/20261112-v2/inputs-attempt2/14f53249d9d244ed9d9866c538586662.jpg",
+      "sha256": "65e86bca05cbedeb03b3f3ecdb0ed5c00ae2d91861a60c194992a41fe4faf23e",
+      "format": "JPEG",
+      "media_kind": "static",
+      "metadata": {
+        "format": "JPEG",
+        "mime_type": "image/jpeg",
+        "media_kind": "static",
+        "frame_count": 1,
+        "width": 215,
+        "height": 193,
+        "byte_size": 8346,
+        "duration_ms": 0,
+        "sha256": "65e86bca05cbedeb03b3f3ecdb0ed5c00ae2d91861a60c194992a41fe4faf23e"
+      },
+      "source_media_url": "https://c.tenor.com/2q0JIsVTnfQAAAAC/tenor.gif",
+      "source_sha256": "8da4d8422e27bbfc104edfcf9e97b4d2639b1c3ba2774d1e84418218e262a94d",
+      "transformation": "frame index min(2,n-1), white background; 6% border crop; encode JPEG",
+      "status": "prepared_not_searched",
+      "judgment_notes": "Judge visible subject/action/emotion/meme meaning; visible text meaning matters. Different resolutions of one animation are duplicates. Match explicit preference when supplied."
+    },
+    {
+      "case_id": "heldout-v2-03",
+      "split": "heldout",
+      "family": "crying-cat",
+      "source_url": "https://tenor.com/view/cat-crying-crying-cat-crying-cat-meme-gif-24958078",
+      "categories": [
+        "cartoon_or_animal"
+      ],
+      "description": "",
+      "source_rights": "Public reference for local acceptance only; rights remain with the author; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "input_path": ".cache/meme50/acceptance/20261112-v2/inputs-attempt2/6aa37e67f15d467f83fe4c147686eb63.gif",
+      "sha256": "297af8632bd201e6a29ca9c907e96e7ca7ff71368d82a6779301a9672f06419a",
+      "format": "GIF",
+      "media_kind": "animated",
+      "metadata": {
+        "format": "GIF",
+        "mime_type": "image/gif",
+        "media_kind": "animated",
+        "frame_count": 102,
+        "width": 220,
+        "height": 220,
+        "byte_size": 798193,
+        "duration_ms": 10200,
+        "sha256": "297af8632bd201e6a29ca9c907e96e7ca7ff71368d82a6779301a9672f06419a"
+      },
+      "source_media_url": "https://media.tenor.com/BlqO9ew06X0AAAAM/cat-crying.gif",
+      "source_sha256": "297af8632bd201e6a29ca9c907e96e7ca7ff71368d82a6779301a9672f06419a",
+      "transformation": "original animation, unchanged",
+      "status": "prepared_not_searched",
+      "judgment_notes": "Judge visible subject/action/emotion/meme meaning; visible text meaning matters. Different resolutions of one animation are duplicates. Match explicit preference when supplied."
+    },
+    {
+      "case_id": "heldout-v2-04",
+      "split": "heldout",
+      "family": "pingu",
+      "source_url": "https://tenor.com/view/pingu-noot-noot-penguin-head-bang-gif-17021033",
+      "categories": [
+        "cartoon_or_animal"
+      ],
+      "description": "",
+      "source_rights": "Public reference for local acceptance only; rights remain with the author; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "input_path": ".cache/meme50/acceptance/20261112-v2/inputs-attempt2/f7152a7f5c2347e78e033530497f2f65.gif",
+      "sha256": "c328de27474147e5bede6d6bfc59d750a60bdd6218eef41c58af1c0c037746a5",
+      "format": "GIF",
+      "media_kind": "animated",
+      "metadata": {
+        "format": "GIF",
+        "mime_type": "image/gif",
+        "media_kind": "animated",
+        "frame_count": 9,
+        "width": 498,
+        "height": 247,
+        "byte_size": 544842,
+        "duration_ms": 900,
+        "sha256": "c328de27474147e5bede6d6bfc59d750a60bdd6218eef41c58af1c0c037746a5"
+      },
+      "source_media_url": "https://c.tenor.com/Lz1UYKdZkQkAAAAC/tenor.gif",
+      "source_sha256": "c328de27474147e5bede6d6bfc59d750a60bdd6218eef41c58af1c0c037746a5",
+      "transformation": "original animation, unchanged",
+      "status": "prepared_not_searched",
+      "judgment_notes": "Judge visible subject/action/emotion/meme meaning; visible text meaning matters. Different resolutions of one animation are duplicates. Match explicit preference when supplied."
+    },
+    {
+      "case_id": "heldout-v2-05",
+      "split": "heldout",
+      "family": "pikachu",
+      "source_url": "https://tenor.com/view/surprised-pikachu-pokemon-shock-surprised-pikachu-gif-15392554765847051913",
+      "categories": [
+        "cartoon_or_animal",
+        "crop"
+      ],
+      "description": "",
+      "source_rights": "Public reference for local acceptance only; rights remain with the author; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "input_path": ".cache/meme50/acceptance/20261112-v2/inputs-attempt2/008fd44a6538471fbc1c908d2582f41c.webp",
+      "sha256": "6bb28089ab86eebbbc5f5c5386e0b1f3a05cb22b57dfff09f4d96d1e909c798e",
+      "format": "WEBP",
+      "media_kind": "static",
+      "metadata": {
+        "format": "WEBP",
+        "mime_type": "image/webp",
+        "media_kind": "static",
+        "frame_count": 1,
+        "width": 435,
+        "height": 439,
+        "byte_size": 7090,
+        "duration_ms": 0,
+        "sha256": "6bb28089ab86eebbbc5f5c5386e0b1f3a05cb22b57dfff09f4d96d1e909c798e"
+      },
+      "source_media_url": "https://c.tenor.com/1Z1XAZwPPokAAAAC/tenor.gif",
+      "source_sha256": "95873f89aba45fba27515845975096518da00642dd0462458dbddfefe8e2da03",
+      "transformation": "frame index min(2,n-1), white background; 6% border crop; encode WEBP",
+      "status": "prepared_not_searched",
+      "judgment_notes": "Judge visible subject/action/emotion/meme meaning; visible text meaning matters. Different resolutions of one animation are duplicates. Match explicit preference when supplied."
+    },
+    {
+      "case_id": "heldout-v2-06",
+      "split": "heldout",
+      "family": "spongebob",
+      "source_url": "https://tenor.com/view/spongebob-laughing-lol-funny-hilarious-gif-17731315",
+      "categories": [
+        "cartoon_or_animal"
+      ],
+      "description": "",
+      "source_rights": "Public reference for local acceptance only; rights remain with the author; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "input_path": ".cache/meme50/acceptance/20261112-v2/inputs-attempt2/0e6560d994b6444aaa559cc25a9046e4.gif",
+      "sha256": "c5318dda3a6af180824abde1b77cfeb8086164566615c5fe916eec60f195c33e",
+      "format": "GIF",
+      "media_kind": "animated",
+      "metadata": {
+        "format": "GIF",
+        "mime_type": "image/gif",
+        "media_kind": "animated",
+        "frame_count": 42,
+        "width": 415,
+        "height": 498,
+        "byte_size": 4460635,
+        "duration_ms": 2100,
+        "sha256": "c5318dda3a6af180824abde1b77cfeb8086164566615c5fe916eec60f195c33e"
+      },
+      "source_media_url": "https://c.tenor.com/tiSbc4kevYwAAAAC/tenor.gif",
+      "source_sha256": "c5318dda3a6af180824abde1b77cfeb8086164566615c5fe916eec60f195c33e",
+      "transformation": "original animation, unchanged",
+      "status": "prepared_not_searched",
+      "judgment_notes": "Judge visible subject/action/emotion/meme meaning; visible text meaning matters. Different resolutions of one animation are duplicates. Match explicit preference when supplied."
+    },
+    {
+      "case_id": "heldout-v2-07",
+      "split": "heldout",
+      "family": "doge",
+      "source_url": "https://tenor.com/view/doge-gif-22211400",
+      "categories": [
+        "cartoon_or_animal"
+      ],
+      "description": "",
+      "source_rights": "Public reference for local acceptance only; rights remain with the author; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "input_path": ".cache/meme50/acceptance/20261112-v2/inputs-attempt2/0103912ffa7d4a31b3fa4e1550a0fd7a.jpg",
+      "sha256": "00d5dfef547f43a8d6db07cae761bf097ac36a8d536d9e0d4a766d76bfb71b03",
+      "format": "JPEG",
+      "media_kind": "static",
+      "metadata": {
+        "format": "JPEG",
+        "mime_type": "image/jpeg",
+        "media_kind": "static",
+        "frame_count": 1,
+        "width": 487,
+        "height": 498,
+        "byte_size": 33585,
+        "duration_ms": 0,
+        "sha256": "00d5dfef547f43a8d6db07cae761bf097ac36a8d536d9e0d4a766d76bfb71b03"
+      },
+      "source_media_url": "https://c.tenor.com/tZadyUFohd0AAAAC/tenor.gif",
+      "source_sha256": "38c7c1b3c1a1dd96286e40f5396c542d8ba55e5d551e85be7ab256887213fe02",
+      "transformation": "frame index min(2,n-1), white background; encode JPEG",
+      "status": "prepared_not_searched",
+      "judgment_notes": "Judge visible subject/action/emotion/meme meaning; visible text meaning matters. Different resolutions of one animation are duplicates. Match explicit preference when supplied."
+    },
+    {
+      "case_id": "heldout-v2-08",
+      "split": "heldout",
+      "family": "drake",
+      "source_url": "https://tenor.com/view/drake-meme-no-yes-meme-tagalog-meme-gif-26160305",
+      "categories": [
+        "human_reaction"
+      ],
+      "description": "",
+      "source_rights": "Public reference for local acceptance only; rights remain with the author; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "input_path": ".cache/meme50/acceptance/20261112-v2/inputs-attempt2/6eaab7f6b7c0402185fc4c291c7bc9d3.png",
+      "sha256": "e53cd5df6872d7749fdf48a35292a7540d530b3cafec3bba15bff8aaec99072c",
+      "format": "PNG",
+      "media_kind": "static",
+      "metadata": {
+        "format": "PNG",
+        "mime_type": "image/png",
+        "media_kind": "static",
+        "frame_count": 1,
+        "width": 498,
+        "height": 396,
+        "byte_size": 122181,
+        "duration_ms": 0,
+        "sha256": "e53cd5df6872d7749fdf48a35292a7540d530b3cafec3bba15bff8aaec99072c"
+      },
+      "source_media_url": "https://c.tenor.com/Aw8ooHGbYTgAAAAC/tenor.gif",
+      "source_sha256": "92495a1dc18d1aa73e600ca3c0b396b820580650a67efec71c82621181efe872",
+      "transformation": "frame index min(2,n-1), white background; encode PNG",
+      "status": "prepared_not_searched",
+      "judgment_notes": "Judge visible subject/action/emotion/meme meaning; visible text meaning matters. Different resolutions of one animation are duplicates. Match explicit preference when supplied."
+    },
+    {
+      "case_id": "heldout-v2-09",
+      "split": "heldout",
+      "family": "flying-mouse",
+      "source_url": "https://tenor.com/view/%E8%B0%A2%E8%B0%A2-%E6%84%9F%E8%B0%A2-%E8%B0%A2%E4%BA%86-%E9%9E%A0%E8%BA%AC-%E6%84%9F%E6%BF%80-gif-13948272",
+      "categories": [
+        "cartoon_or_animal"
+      ],
+      "description": "Please prioritize a similar action or emotion.",
+      "source_rights": "Public reference for local acceptance only; rights remain with the author; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "input_path": ".cache/meme50/acceptance/20261112-v2/inputs-attempt2/66d1bf32b59b4bbd91aef0c1bc0408c9.png",
+      "sha256": "711bd765539a6da9dc6e69dd44f7db475981075600200cf549c144cc3535bd7c",
+      "format": "PNG",
+      "media_kind": "static",
+      "metadata": {
+        "format": "PNG",
+        "mime_type": "image/png",
+        "media_kind": "static",
+        "frame_count": 1,
+        "width": 498,
+        "height": 498,
+        "byte_size": 47189,
+        "duration_ms": 0,
+        "sha256": "711bd765539a6da9dc6e69dd44f7db475981075600200cf549c144cc3535bd7c"
+      },
+      "source_media_url": "https://c.tenor.com/zPyHtHd_1sIAAAAC/tenor.gif",
+      "source_sha256": "d742b8454bdff21c63893bc0a11f1eba10941c6cc146466f367c7a890712f19e",
+      "transformation": "frame index min(2,n-1), white background; encode PNG",
+      "status": "prepared_not_searched",
+      "judgment_notes": "Judge visible subject/action/emotion/meme meaning; visible text meaning matters. Different resolutions of one animation are duplicates. Match explicit preference when supplied."
+    },
+    {
+      "case_id": "heldout-v2-10",
+      "split": "heldout",
+      "family": "bow-thanks",
+      "source_url": "https://tenor.com/view/thank-you-bow-gif-12497955",
+      "categories": [
+        "human_reaction"
+      ],
+      "description": "Please prioritize a similar action or emotion.",
+      "source_rights": "Public reference for local acceptance only; rights remain with the author; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "input_path": ".cache/meme50/acceptance/20261112-v2/inputs-attempt2/62cd509831da4096a638a878d1f5fabb.webp",
+      "sha256": "184c46bbda0f0de4a6d1ab1325c60aeee61752c67f1efef9e892fa557b56c174",
+      "format": "WEBP",
+      "media_kind": "static",
+      "metadata": {
+        "format": "WEBP",
+        "mime_type": "image/webp",
+        "media_kind": "static",
+        "frame_count": 1,
+        "width": 250,
+        "height": 246,
+        "byte_size": 5712,
+        "duration_ms": 0,
+        "sha256": "184c46bbda0f0de4a6d1ab1325c60aeee61752c67f1efef9e892fa557b56c174"
+      },
+      "source_media_url": "https://c.tenor.com/2bOB9Ar0EbEAAAAC/tenor.gif",
+      "source_sha256": "beac5e23f1213b82f8fadb4427aba2c54843d67cf75bef8eb407f85c47b929da",
+      "transformation": "frame index min(2,n-1), white background; encode WEBP",
+      "status": "prepared_not_searched",
+      "judgment_notes": "Judge visible subject/action/emotion/meme meaning; visible text meaning matters. Different resolutions of one animation are duplicates. Match explicit preference when supplied."
+    },
+    {
+      "case_id": "heldout-v2-11",
+      "split": "heldout",
+      "family": "nicolas-cage",
+      "source_url": "https://tenor.com/view/nic-cage-nicolas-cage-laughing-laughing-hysterically-laughing-nic-cage-laugh-gif-23420572",
+      "categories": [
+        "human_reaction"
+      ],
+      "description": "Please prioritize a similar action or emotion.",
+      "source_rights": "Public reference for local acceptance only; rights remain with the author; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "input_path": ".cache/meme50/acceptance/20261112-v2/inputs-replacements/494f12be352a43d087f3ebfa7a3b09bb.gif",
+      "sha256": "b1becfec6d49a2143b5b3e1b9bee9cd68e46fcbd444517d9e5dbebf4513e6289",
+      "format": "GIF",
+      "media_kind": "animated",
+      "metadata": {
+        "format": "GIF",
+        "mime_type": "image/gif",
+        "media_kind": "animated",
+        "frame_count": 63,
+        "width": 498,
+        "height": 373,
+        "byte_size": 5023989,
+        "duration_ms": 3150,
+        "sha256": "b1becfec6d49a2143b5b3e1b9bee9cd68e46fcbd444517d9e5dbebf4513e6289"
+      },
+      "source_media_url": "https://c.tenor.com/YBp1gVv7t8YAAAAC/tenor.gif",
+      "source_sha256": "b1becfec6d49a2143b5b3e1b9bee9cd68e46fcbd444517d9e5dbebf4513e6289",
+      "transformation": "original animation, unchanged",
+      "status": "prepared_not_searched",
+      "judgment_notes": "Judge visible subject/action/emotion/meme meaning; visible text meaning matters. Different resolutions of one animation are duplicates. Match explicit preference when supplied."
+    },
+    {
+      "case_id": "heldout-v2-12",
+      "split": "heldout",
+      "family": "bugs-bunny",
+      "source_url": "https://tenor.com/view/bugs-bunny-no-gif-14777259547146478494",
+      "categories": [
+        "cartoon_or_animal"
+      ],
+      "description": "Please prioritize a similar action or emotion.",
+      "source_rights": "Public reference for local acceptance only; rights remain with the author; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "input_path": ".cache/meme50/acceptance/20261112-v2/inputs-replacements/db337a04f1b941f996d361c90288d7a6.png",
+      "sha256": "59670010b6bbfc8eb2cf5286505eb42c1851579a97a1b39068668b8a36de8af4",
+      "format": "PNG",
+      "media_kind": "static",
+      "metadata": {
+        "format": "PNG",
+        "mime_type": "image/png",
+        "media_kind": "static",
+        "frame_count": 1,
+        "width": 498,
+        "height": 466,
+        "byte_size": 119544,
+        "duration_ms": 0,
+        "sha256": "59670010b6bbfc8eb2cf5286505eb42c1851579a97a1b39068668b8a36de8af4"
+      },
+      "source_media_url": "https://c.tenor.com/zRNfQ81qY54AAAAC/tenor.gif",
+      "source_sha256": "80e4e09d7294001465fedb1d86612e65136f8c0cee541adf7f0ae66a049494d4",
+      "transformation": "frame index min(2,n-1), white background; encode PNG",
+      "status": "prepared_not_searched",
+      "judgment_notes": "Judge visible subject/action/emotion/meme meaning; visible text meaning matters. Different resolutions of one animation are duplicates. Match explicit preference when supplied."
+    }
+  ],
+  "prior_manifest": "docs/meme50-evaluation-v6.json",
+  "freeze_notes": [
+    "Inputs and SHA preserved from v2; no heldout input used for semantic tuning.",
+    "General duplicate fixes use original development GIFs only. Some heldout-family characters incidentally appeared in unrelated development search results; no labels or thresholds fitted to those outputs.",
+    "Known development duplicates and weak relevance remain; all heldout failures and insufficient counts will be retained.",
+    "Resource-rich three-case prescreen is not complete and cannot be inferred from numeric result counts.",
+    "v3 was not run against heldout. v4 adds a development regression for embedding drift of the same rephased clip; keeps visual ranking threshold unchanged.",
+    "v4 development exposed a boolean HTML attribute TypeError. Batch stopped before heldout; v5 normalizes None attributes, with public-HTML and Commons regression. No semantic threshold or heldout change.",
+    "v5 first-pass heldout 07/08 exposed an RGB channel-inference error. Fixed using synthetic 1px images and real CLIP processor, without inspecting heldout pixels or changing semantic thresholds/queries. v5 failures retained; v6 reruns the full same frozen input set as a regression, not a claim of never-before-executed inputs.",
+    "Three resource cases selected before this formal run from real decoded public inventories; failed Shrek prescreen retained. These source names/queries/URLs are not passed into production requests.",
+    "Original user GIF and engineering cases remain historical development records in prior manifests; no attempts combined.",
+    "v7 formal development is the three prescreened resource cases. Existing frozen heldout inputs are all rerun; prior protocol failures remain in v5/v6 history."
+  ],
+  "engineering_development_history": [
+    {
+      "case_id": "dev-01",
+      "split": "development",
+      "family": "bumblebee-user-dev",
+      "input_path": ".cache/meme50/inputs/dev-01.gif",
+      "sha256": "1e1d4e37b9830e605722411072aa5d80f37c4cfc5f4b9bb1f7328025b6ce3efd",
+      "format": "GIF",
+      "media_kind": "animated",
+      "description": "",
+      "source_rights": "User supplied local test input; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "judgment_notes": "Match visible subject, action, emotion or meme meaning. Respect optional user preferences."
+    },
+    {
+      "case_id": "dev-02",
+      "split": "development",
+      "family": "speed-user-dev",
+      "input_path": ".cache/meme50/inputs/dev-02.gif",
+      "sha256": "3177e34c1b4834bb90e18b7d0712bbaaf6fbb10a7a46497915bd77563018c31f",
+      "format": "GIF",
+      "media_kind": "animated",
+      "description": "",
+      "source_rights": "User supplied local test input; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "judgment_notes": "Match visible subject, action, emotion or meme meaning. Respect optional user preferences."
+    },
+    {
+      "case_id": "dev-03",
+      "split": "development",
+      "family": "nick-user-dev",
+      "input_path": ".cache/meme50/inputs/dev-03.gif",
+      "sha256": "c8b2aad41f7d232a5dea3ae2b2f75d911e64904c81145f37ade530d30866c726",
+      "format": "GIF",
+      "media_kind": "animated",
+      "description": "",
+      "source_rights": "User supplied local test input; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "judgment_notes": "Match visible subject, action, emotion or meme meaning. Respect optional user preferences."
+    },
+    {
+      "case_id": "engineering-chinese-panda",
+      "split": "development",
+      "family": "chinese-panda",
+      "source_url": "https://tenor.com/view/chinese-panda-gif-new-gif-6482232925024948722",
+      "categories": [
+        "chinese_text",
+        "cartoon_or_animal"
+      ],
+      "description": "",
+      "source_rights": "Public reference for local acceptance only; rights remain with the author; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "input_path": ".cache/meme50/acceptance/20261112-v2/inputs-attempt2/db292e4e2feb44ccb0ed6ac04c2ddd3a.png",
+      "sha256": "226af5a92e5b70e8e1e4eb8bfa9ef312c7430a062a05f907d7967f23e07df45f",
+      "format": "PNG",
+      "media_kind": "static",
+      "metadata": {
+        "format": "PNG",
+        "mime_type": "image/png",
+        "media_kind": "static",
+        "frame_count": 1,
+        "width": 498,
+        "height": 498,
+        "byte_size": 184833,
+        "duration_ms": 0,
+        "sha256": "226af5a92e5b70e8e1e4eb8bfa9ef312c7430a062a05f907d7967f23e07df45f"
+      },
+      "source_media_url": "https://c.tenor.com/WfWEgD90EfIAAAAC/tenor.gif",
+      "source_sha256": "8459d54a9c1981087de21f422e072a83ed559d6e0b3fafd30579ca6530ec9154",
+      "transformation": "frame index min(2,n-1), white background; encode PNG",
+      "status": "prepared_not_searched",
+      "engineering_only": true,
+      "development_reason": "Source page/wrapper examined while diagnosing transport before holdout freeze."
+    },
+    {
+      "case_id": "engineering-office-no",
+      "split": "development",
+      "family": "office-no",
+      "source_url": "https://tenor.com/view/michael-scott-no-the-office-gif-11135056",
+      "categories": [
+        "human_reaction"
+      ],
+      "description": "",
+      "source_rights": "Public reference for local acceptance only; rights remain with the author; not redistributed.",
+      "resource_rich": {
+        "prescreened": false,
+        "evidence": null
+      },
+      "input_path": ".cache/meme50/acceptance/20261112-v2/inputs-attempt2/955daaa919e14755bf7f1a623ac5f1d1.gif",
+      "sha256": "433a61464bb56769011d0632b13a0764e88939ab94c6b5bceba56ddcbdede7e8",
+      "format": "GIF",
+      "media_kind": "animated",
+      "metadata": {
+        "format": "GIF",
+        "mime_type": "image/gif",
+        "media_kind": "animated",
+        "frame_count": 81,
+        "width": 220,
+        "height": 178,
+        "byte_size": 2214951,
+        "duration_ms": 8100,
+        "sha256": "433a61464bb56769011d0632b13a0764e88939ab94c6b5bceba56ddcbdede7e8"
+      },
+      "source_media_url": "https://c.tenor.com/Xa4IJrYLXeIAAAAC/tenor.gif",
+      "source_sha256": "433a61464bb56769011d0632b13a0764e88939ab94c6b5bceba56ddcbdede7e8",
+      "transformation": "original animation, unchanged",
+      "status": "prepared_not_searched",
+      "engineering_only": true,
+      "development_reason": "Source page/wrapper examined while diagnosing transport before holdout freeze."
+    }
+  ]
+}

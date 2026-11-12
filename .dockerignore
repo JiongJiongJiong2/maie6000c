@@ -10,3 +10,6 @@ __pycache__
 *.pyc
 .env
 data
+
+# Private atomic credential updates
+.meme50-env-*

@@ -38,7 +38,13 @@ def encode_images(images: list[Image.Image]) -> np.ndarray:
     import torch
 
     model, processor, device = load_model()
-    inputs = processor(images=[on_white(image) for image in images], return_tensors="pt")
+    # PIL RGB arrays are HWC. Tiny public images (including 1px trackers) make
+    # automatic channel inference ambiguous and can otherwise abort a batch.
+    inputs = processor(
+        images=[on_white(image) for image in images],
+        input_data_format="channels_last",
+        return_tensors="pt",
+    )
     with torch.inference_mode():
         features = model.get_image_features(pixel_values=inputs["pixel_values"].to(device))
         features = torch.nn.functional.normalize(features, p=2, dim=-1)
@@ -47,3 +53,25 @@ def encode_images(images: list[Image.Image]) -> np.ndarray:
 
 def encode_image(image: Image.Image) -> np.ndarray:
     return encode_images([image])[0]
+
+
+@lru_cache(maxsize=1)
+def load_tokenizer():
+    from transformers import CLIPTokenizerFast
+
+    return CLIPTokenizerFast.from_pretrained(
+        get_settings().model_cache_root / "clip-vit-base-patch32", local_files_only=True
+    )
+
+
+def encode_texts(texts):
+    import torch
+
+    model, _, device = load_model()
+    inputs = load_tokenizer()(
+        texts, padding=True, truncation=True, max_length=77, return_tensors="pt"
+    )
+    with torch.inference_mode():
+        features = model.get_text_features(**{k: v.to(device) for k, v in inputs.items()})
+        features = torch.nn.functional.normalize(features, p=2, dim=-1)
+    return features.cpu().numpy().astype(np.float32)
