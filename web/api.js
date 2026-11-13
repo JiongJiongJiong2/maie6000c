@@ -120,6 +120,18 @@ export class Api {
     });
   }
 
+  continueOnline(id, payload, signal) {
+    return this.request(
+      `/search-requests/${encodeURIComponent(id)}/web-search`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal,
+      },
+    );
+  }
+
   review(jobId, payload, signal) {
     return this.request(`/search-jobs/${encodeURIComponent(jobId)}/reviews`, {
       method: "POST",

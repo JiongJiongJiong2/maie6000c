@@ -12,13 +12,18 @@ export function disposeMemeResults() {
   signature = "";
 }
 
-export async function memeStatus(api, accepted, state, signal) {
-  const job = await api.request(`/search-jobs/${accepted.job_id}`, { signal });
+export async function memeStatus(api, accepted, state, signal, summary) {
+  const job =
+    summary ||
+    (await api.request(`/search-jobs/${accepted.job_id}`, { signal }));
   if (
     job.job_id !== accepted.job_id ||
     job.request_id !== accepted.request_id ||
     job.search_profile !== "meme50-v2" ||
     job.contract_version !== 2 ||
+    (accepted.job_kind === "web"
+      ? job.job_kind !== "web"
+      : job.job_kind && job.job_kind !== "web") ||
     !["pending", "running", "completed", "failed"].includes(job.status)
   ) {
     throw new ApiError("Invalid image-search response.", 0, "invalid_response");
@@ -81,8 +86,7 @@ function button(label, handler, name = "secondary") {
   return node;
 }
 
-export function renderMemeResults(result, api, signal, callbacks) {
-  const container = document.getElementById("candidates");
+export function renderMemeResults(container, result, api, signal, callbacks) {
   const provisional = result.status !== "completed";
   const items = provisional ? result.previewItems || [] : result.candidates;
   const next = JSON.stringify([
@@ -136,11 +140,11 @@ export function renderMemeResults(result, api, signal, callbacks) {
     let animated;
     let requested = false;
     card.loadPoster = async () => {
-      if (requested || signal.aborted) return;
+      if (requested || cardSignal.aborted) return;
       requested = true;
       try {
-        const blob = await api.media(item.preview_url, signal);
-        if (signal.aborted || !card.isConnected) return;
+        const blob = await api.media(item.preview_url, cardSignal);
+        if (cardSignal.aborted || !card.isConnected) return;
         poster = URL.createObjectURL(blob);
         urls.add(poster);
         image.src = poster;
@@ -155,8 +159,8 @@ export function renderMemeResults(result, api, signal, callbacks) {
         return;
       }
       try {
-        const blob = await api.media(item.media_url, signal);
-        if (signal.aborted || !card.isConnected) return;
+        const blob = await api.media(item.media_url, cardSignal);
+        if (cardSignal.aborted || !card.isConnected) return;
         animated = URL.createObjectURL(blob);
         urls.add(animated);
         image.src = animated;

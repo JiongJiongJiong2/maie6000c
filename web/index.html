@@ -387,21 +387,6 @@
               <button id="refresh" class="secondary" hidden>
                 Refresh status
               </button>
-              <div id="meme-controls" class="meme-controls" hidden>
-                <label for="media-filter">Show</label>
-                <select id="media-filter">
-                  <option value="all">All images</option>
-                  <option value="static">Static</option>
-                  <option value="animated">Animated</option>
-                </select>
-                <button id="previous-page" class="secondary">Previous</button>
-                <button id="next-page" class="secondary">Next</button>
-                <span id="page-summary"></span>
-              </div>
-              <button id="meme-retry" class="secondary" hidden>
-                Retry search
-              </button>
-              <p id="meme-analysis" class="muted" hidden></p>
               <div id="candidates" class="candidates"></div>
               <div id="review-panel" class="review-panel" hidden>
                 <p class="muted">
@@ -416,6 +401,51 @@
                 <p id="review-status" class="feedback" role="status"></p>
               </div>
               <p id="download-status" class="feedback" role="status"></p>
+              <section
+                id="continue-panel"
+                aria-labelledby="continue-title"
+                hidden
+              >
+                <h3 id="continue-title">继续联网搜索 · Continue online</h3>
+                <form id="continue-form">
+                  <label for="continue-description"
+                    >Description or preference (optional)</label
+                  >
+                  <textarea
+                    id="continue-description"
+                    maxlength="500"
+                    rows="2"
+                  ></textarea>
+                  <p class="muted image-disclosure">
+                    Resized images or representative frames are sent to external
+                    visual and image-search services to find related memes.
+                  </p>
+                  <button id="continue-submit" class="secondary" type="submit">
+                    继续联网搜索 · Continue online
+                  </button>
+                </form>
+                <p id="continue-feedback" role="status"></p>
+              </section>
+              <section id="web-results" aria-labelledby="web-title" hidden>
+                <h3 id="web-title">Online results</h3>
+                <p id="web-status" role="status"></p>
+                <div id="meme-controls" class="meme-controls" hidden>
+                  <label for="media-filter">Show</label>
+                  <select id="media-filter">
+                    <option value="all">All images</option>
+                    <option value="static">Static</option>
+                    <option value="animated">Animated</option>
+                  </select>
+                  <button id="previous-page" class="secondary">Previous</button>
+                  <button id="next-page" class="secondary">Next</button>
+                  <span id="page-summary"></span>
+                </div>
+                <button id="meme-retry" class="secondary" hidden>
+                  重试联网任务 · Retry search
+                </button>
+                <p id="meme-analysis" class="muted" hidden></p>
+                <div id="web-candidates" class="candidates"></div>
+              </section>
               <details id="trace" class="trace" hidden>
                 <summary>Open the case file</summary>
                 <dl>

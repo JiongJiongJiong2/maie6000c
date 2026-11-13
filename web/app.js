@@ -63,7 +63,6 @@ function feedback(id, message, error = false) {
 }
 
 function disposeCards() {
-  disposeMemeResults();
   for (const url of mediaURLs.values()) URL.revokeObjectURL(url);
   mediaURLs.clear();
   cardSignature = "";
@@ -76,12 +75,16 @@ function cancelSessionWork() {
   lifetime = new AbortController();
   clearTimeout(pollTimer);
   polling = false;
+  clearWebCards();
   disposeCards();
 }
 
 function renderInput() {
   $("search-mode").value = session?.searchProfile || $("search-mode").value;
   $("description").value = session?.description || "";
+  $("continue-description").value =
+    session?.online?.creation?.payload.description || "";
+  feedback("continue-feedback", "");
   $("media-filter").value = session?.filter || "all";
   if (inputURL) URL.revokeObjectURL(inputURL);
   inputURL = session?.file ? URL.createObjectURL(session.file) : null;
@@ -187,46 +190,83 @@ function render() {
       true,
     );
   }
-  $("meme-controls").hidden = !meme50 || status !== "completed";
-  $("meme-retry").hidden = !meme50 || status !== "failed";
-  $("meme-analysis").hidden = !meme50 || !result?.analysis;
-  if (meme50) {
-    const stages = {
-      preprocessing: "Preparing image",
-      understanding: "Understanding image",
-      verifying: "Checking visual clues",
-      recalling: "Searching sources",
-      fetching: "Downloading and validating",
-      reranking: "Ranking and grouping",
-      finalizing: "Publishing results",
-    };
-    if (active) {
-      $("status-title").textContent =
-        stages[result.stage] || "Waiting for image search";
-      $("status-description").textContent =
-        `${result.verified_count || 0} verified content groups. Preview order may change.`;
-    }
-    if (status === "completed") {
+  renderCandidates(!meme50 && hasCandidates ? result.candidates : []);
+  renderOnline();
+}
+
+function onlineState() {
+  return session?.accepted?.search_profile === "meme50-v2"
+    ? session
+    : session?.online;
+}
+
+function clearWebCards() {
+  disposeMemeResults();
+  $("web-candidates").replaceChildren();
+}
+
+function renderOnline() {
+  const state = onlineState();
+  const result = state?.result;
+  const status = result?.status || state?.accepted?.status;
+  const direct = !!state && state === session;
+  const active =
+    state?.accepted && (!result || ["pending", "running"].includes(status));
+  const completed = status === "completed";
+  const paged = completed && !!result?.page;
+  const localReady = session?.result?.status === "completed" && !direct;
+  $("continue-panel").hidden = !localReady;
+  $("continue-form").hidden = status === "failed" && !state?.creation;
+  $("continue-description").disabled = !!(busy || active || state?.creation);
+  $("continue-submit").disabled = !!(busy || active);
+  $("continue-submit").textContent = state?.creation
+    ? "继续提交 · Resume online search"
+    : "继续联网搜索 · Continue online";
+  $("web-results").hidden = !state?.accepted;
+  $("meme-controls").hidden = !paged;
+  $("meme-retry").hidden = status !== "failed";
+  $("meme-retry").disabled = busy || !!state?.creation;
+  $("meme-analysis").hidden = !result?.analysis;
+  $("meme-analysis").textContent =
+    result?.analysis?.observations?.join(" · ") || "";
+  if (!state?.accepted) return;
+  const stages = {
+    preprocessing: "Preparing image",
+    understanding: "Understanding image",
+    verifying: "Checking visual clues",
+    recalling: "Searching sources",
+    fetching: "Downloading and validating",
+    reranking: "Ranking and grouping",
+    finalizing: "Publishing results",
+  };
+  let message = active
+    ? `${stages[result?.stage] || "Waiting for image search"} · ${result?.verified_count || 0} verified results`
+    : status === "failed"
+      ? result.error?.message || "Online search failed."
+      : "No related images found";
+  if (completed && (result?.page?.total_all || result?.candidates?.length))
+    message = "Related images are ready";
+  $(direct ? "status-title" : "web-status").textContent = message;
+  if (direct) {
+    $("web-status").textContent = "";
+    if (paged) {
       $("result-count").textContent = `${result.page.total_all} images`;
-      $("status-title").textContent = "Related images are ready";
       $("status-description").textContent =
-        result.page.total_all < result.target_count
-          ? `Found ${result.page.total_all} distinct results out of a target of ${result.target_count}. Some sources or capabilities could not supply more verified matches.`
-          : "Final order is stable. Relevance scores are ranking signals, not correctness rates.";
-      $("page-summary").textContent = `${result.page.total} in this filter`;
-      $("next-page").disabled = !result.page.next_cursor;
-      $("previous-page").disabled = !session.pageHistory?.length;
+        `${result.page.total_all} verified results`;
     }
-    $("meme-analysis").textContent =
-      result.analysis?.observations?.join(" · ") || "";
-    renderMemeResults(result, api, lifetime.signal, {
+  }
+  if (paged) {
+    $("media-filter").value = state.filter || "all";
+    $("page-summary").textContent =
+      `${result.page.total} in this filter · ${result.page.total_all} total`;
+    $("next-page").disabled = !result.page.next_cursor;
+    $("previous-page").disabled = !state.pageHistory?.length;
+  }
+  if (result)
+    renderMemeResults($("web-candidates"), result, api, lifetime.signal, {
       download: downloadMeme,
       favorite: mountFavorite,
     });
-  } else {
-    $("candidates").classList.remove("meme50-grid");
-    renderCandidates(hasCandidates ? result.candidates : []);
-  }
 }
 
 function makeButton(label, className, handler) {
@@ -444,33 +484,89 @@ async function poll() {
   const currentEpoch = epoch;
   const requestId = session.accepted.request_id;
   const searchSession = session;
-  const navigation = JSON.stringify([session.filter, session.cursor]);
   polling = true;
   render();
   let succeeded = false;
   try {
-    const result =
-      session.accepted.search_profile === "meme50-v2"
-        ? await memeStatus(
-            api,
-            searchSession.accepted,
-            searchSession,
-            lifetime.signal,
-          )
-        : validStatus(await api.status(requestId, lifetime.signal));
-    if (currentEpoch !== epoch) return;
-    if (navigation !== JSON.stringify([session.filter, session.cursor])) {
-      pollAgain = true;
-      return;
+    const direct = searchSession.accepted.search_profile === "meme50-v2";
+    if (!direct) {
+      const previousOnline = searchSession.online;
+      const previousOnlineJob = previousOnline?.accepted?.job_id;
+      const relation = validAccepted(
+        await api.status(requestId, lifetime.signal),
+      );
+      if (relation.request_id !== requestId)
+        throw new Error("Search request mismatch.");
+      if (currentEpoch !== epoch) return;
+      const localId = relation.local_job_id || searchSession.accepted.job_id;
+      const local =
+        relation.job_id === localId && relation.job_kind !== "web"
+          ? validStatus(relation)
+          : await readJobResult(requestId, localId, "local");
+      if (currentEpoch !== epoch) return;
+      if (searchSession.review && searchSession.review.jobId !== local.job_id) {
+        searchSession.review = null;
+        feedback("review-status", "");
+        feedback("download-status", "");
+      }
+      searchSession.result = local;
+      const latest = relation.web_searches?.at(-1);
+      const online = searchSession.online;
+      if (
+        latest &&
+        latest.job_id !== online?.accepted?.job_id &&
+        online === previousOnline &&
+        online?.accepted?.job_id === previousOnlineJob &&
+        !online?.creation &&
+        !online?.retryKey &&
+        !busy
+      ) {
+        searchSession.online = {
+          accepted: validAccepted({ ...latest, request_id: requestId }),
+        };
+        clearWebCards();
+      }
     }
-    if (result.request_id !== requestId)
-      throw new Error("The server returned results for a different search.");
-    if (session.result?.job_id && session.result.job_id !== result.job_id) {
-      session.review = null;
-      feedback("review-status", "");
-      feedback("download-status", "");
+    const web = direct ? searchSession : searchSession.online;
+    if (web?.accepted) {
+      const webId = web.accepted.job_id;
+      const navigation = JSON.stringify([web.filter, web.cursor]);
+      const view = { ...web };
+      const summary = web.accepted.search_profile
+        ? null
+        : await api.request(`/search-jobs/${encodeURIComponent(webId)}`, {
+            signal: lifetime.signal,
+          });
+      if (currentEpoch !== epoch) return;
+      const profile = summary?.search_profile || web.accepted.search_profile;
+      const result =
+        profile === "meme50-v2"
+          ? await memeStatus(
+              api,
+              {
+                ...web.accepted,
+                ...(direct ? {} : { job_kind: "web" }),
+              },
+              view,
+              lifetime.signal,
+              summary,
+            )
+          : await readJobResult(requestId, webId, "web", summary);
+      if (currentEpoch !== epoch) return;
+      if (
+        web !== onlineState() ||
+        webId !== web.accepted.job_id ||
+        navigation !== JSON.stringify([web.filter, web.cursor])
+      ) {
+        pollAgain = true;
+        return;
+      }
+      web.accepted = { ...web.accepted, search_profile: result.search_profile };
+      web.result = result;
+      web.revision = view.revision;
+      web.cursor = view.cursor;
+      web.pageHistory = view.pageHistory;
     }
-    session.result = result;
     await saveSession(session);
     if (currentEpoch !== epoch) return;
     notice();
@@ -488,7 +584,9 @@ async function poll() {
         pollTimer = setTimeout(poll, 0);
       } else if (
         succeeded &&
-        ["pending", "running"].includes(session.result.status) &&
+        [session.result, onlineState()?.result].some((result) =>
+          ["pending", "running"].includes(result?.status),
+        ) &&
         !document.hidden
       ) {
         pollTimer = setTimeout(poll, 1500);
@@ -771,7 +869,9 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) clearTimeout(pollTimer);
   else if (
     session?.accepted &&
-    !["completed", "failed"].includes(session.result?.status)
+    (!["completed", "failed"].includes(session.result?.status) ||
+      (onlineState()?.accepted &&
+        !["completed", "failed"].includes(onlineState()?.result?.status)))
   )
     poll();
 });
@@ -794,8 +894,23 @@ window.addEventListener("pageshow", (event) => {
 try {
   session = (await loadSession()) || null;
   if (session?.accepted) validAccepted(session.accepted);
-  if (session?.result && session?.accepted?.search_profile !== "meme50-v2")
-    validStatus(session.result);
+  if (
+    session?.accepted &&
+    !session.accepted.search_profile &&
+    session.result?.search_profile === "meme50-v2" &&
+    session.result.job_id === session.accepted.job_id &&
+    session.result.job_kind !== "local"
+  ) {
+    session.accepted.search_profile = "meme50-v2";
+  }
+  if (session?.result && session.accepted?.search_profile !== "meme50-v2") {
+    if (
+      session.result.search_profile === "meme50-v2" ||
+      session.result.job_kind === "web"
+    )
+      session.result = null;
+    else validStatus(session.result);
+  }
   renderInput();
 } catch (error) {
   session = null;
@@ -872,52 +987,144 @@ $("description").addEventListener("input", async () => {
     await saveSession(session);
   }
 });
+async function readJobResult(requestId, id, kind, summary = null) {
+  const signal = lifetime.signal;
+  const path = `/search-jobs/${encodeURIComponent(id)}`;
+  const job =
+    summary?.result_kind !== undefined
+      ? summary
+      : await api.request(path, { signal });
+  if (
+    job.job_id !== id ||
+    job.request_id !== requestId ||
+    job.job_kind !== kind
+  )
+    throw new Error("Search job does not belong to this request.");
+  const candidates =
+    job.status === "completed"
+      ? await api.request(`${path}/candidates`, { signal })
+      : [];
+  return validStatus({
+    ...job,
+    candidates: candidates.map((candidate) => ({
+      ...candidate,
+      ...(kind === "web"
+        ? {
+            media_kind: candidate.media_kind || "animated",
+            media_format: candidate.media_format || "GIF",
+            frame_count: candidate.frame_count || 2,
+            preview_url: candidate.preview_url || candidate.media_url,
+          }
+        : {}),
+    })),
+  });
+}
+
+$("continue-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (
+    busy ||
+    session?.result?.status !== "completed" ||
+    ["pending", "running"].includes(
+      session.online?.result?.status || session.online?.accepted?.status,
+    )
+  )
+    return;
+  const state = (session.online ||= {});
+  busy = true;
+  try {
+    state.creation ||= {
+      requestId: session.accepted.request_id,
+      payload: {
+        description: $("continue-description").value.trim(),
+        client_search_key: newKey(),
+        search_profile: "meme50-v2",
+      },
+    };
+    render();
+    await saveSession(session);
+    const { requestId, payload } = state.creation;
+    const accepted = validAccepted(
+      await api.continueOnline(requestId, payload, lifetime.signal),
+    );
+    validateOnlineAccepted(accepted, session.result.job_id);
+    session.online = { accepted };
+    clearWebCards();
+    await saveSession(session);
+    $("continue-description").value = "";
+    feedback("continue-feedback", "");
+  } catch (error) {
+    feedback("continue-feedback", error.message, true);
+  } finally {
+    busy = false;
+    render();
+    poll();
+  }
+});
+
+function validateOnlineAccepted(accepted, previousId, profile = "meme50-v2") {
+  if (
+    accepted.request_id !== session.accepted.request_id ||
+    accepted.job_id === previousId ||
+    (accepted.search_profile || "legacy") !== profile
+  )
+    throw new Error("Invalid linked online search response.");
+}
+
 $("media-filter").addEventListener("change", async () => {
-  if (!session) return;
-  if (session.filter === $("media-filter").value) return;
-  session.filter = $("media-filter").value;
-  session.cursor = null;
-  session.pageHistory = [];
+  const state = onlineState();
+  if (!state) return;
+  state.filter = $("media-filter").value;
+  state.cursor = null;
+  state.pageHistory = [];
   await saveSession(session);
   poll();
 });
 $("next-page").addEventListener("click", async () => {
-  if (!session?.result?.page?.next_cursor) return;
-  session.pageHistory = [
-    ...(session.pageHistory || []),
-    session.cursor || null,
-  ];
-  session.cursor = session.result.page.next_cursor;
+  const state = onlineState();
+  if (!state?.result?.page?.next_cursor) return;
+  state.pageHistory = [...(state.pageHistory || []), state.cursor || null];
+  state.cursor = state.result.page.next_cursor;
   await saveSession(session);
   poll();
 });
 $("previous-page").addEventListener("click", async () => {
-  if (!session?.pageHistory?.length) return;
-  session.cursor = session.pageHistory.pop();
+  const state = onlineState();
+  if (!state?.pageHistory?.length) return;
+  state.cursor = state.pageHistory.pop();
   await saveSession(session);
   poll();
 });
 $("meme-retry").addEventListener("click", async () => {
-  if (busy || !session?.result || session.result.status !== "failed") return;
+  const state = onlineState();
+  if (busy || state?.result?.status !== "failed") return;
   busy = true;
   render();
   try {
-    session.retryKey = session.retryKey || newKey();
+    state.retryKey ||= newKey();
     await saveSession(session);
     const accepted = validAccepted(
-      await api.request(`/search-jobs/${session.result.job_id}/retry`, {
+      await api.request(`/search-jobs/${state.result.job_id}/retry`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ client_retry_key: session.retryKey }),
+        body: JSON.stringify({ client_retry_key: state.retryKey }),
+        signal: lifetime.signal,
       }),
     );
-    cancelSessionWork();
-    session.accepted = accepted;
-    session.result = null;
-    session.revision = null;
-    session.cursor = null;
-    session.pageHistory = [];
-    session.retryKey = null;
+    validateOnlineAccepted(
+      accepted,
+      state.result.job_id,
+      state.result.search_profile,
+    );
+    Object.assign(state, {
+      accepted,
+      result: null,
+      revision: null,
+      cursor: null,
+      pageHistory: [],
+      retryKey: null,
+    });
+    clearWebCards();
     await saveSession(session);
   } catch (error) {
     notice(error.message);

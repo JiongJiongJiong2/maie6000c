@@ -1946,7 +1946,8 @@ label[for="search-mode"] {
   font-weight: 650;
   margin: 16px 0 8px;
 }
-#description {
+#description,
+#continue-description {
   width: 100%;
   resize: vertical;
   min-height: 76px;
@@ -1972,6 +1973,13 @@ label[for="search-mode"] {
   padding: 8px;
   max-width: 100%;
   font: inherit;
+}
+#continue-panel,
+#web-results {
+  margin-top: 24px;
+}
+#continue-description {
+  margin-top: 8px;
 }
 .candidates.meme50-grid {
   display: grid;

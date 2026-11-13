@@ -615,3 +615,43 @@ def test_default_index_subprocess_publishes_saved_gif_vectors(
     assert asset_id == asset.id
     assert vectors.shape == (asset.frame_count, 512)
     assert client.get(saved["media_url"]).content == image_bytes(gif=True)
+
+
+@pytest.mark.parametrize("description", ["", "  dancing cat  "])
+def test_explicit_linked_v2_reuses_upload_and_preserves_local_job(
+    client, db_session, worker_factory, description,
+):
+    local = finish_local_job(client, db_session, worker_factory)
+    path = f"/search-requests/{local['request_id']}"
+    payload = {
+        "description": description,
+        "search_profile": "meme50-v2",
+        "client_search_key": "explicit-online",
+    }
+    response = client.post(f"{path}/web-search", json=payload)
+    assert response.status_code == 202
+    web = response.json()
+    assert web["request_id"] == local["request_id"]
+    assert web["job_id"] != local["job_id"]
+    assert web["search_profile"] == "meme50-v2"
+    assert web["target_count"] == 50
+    normalized = {**payload, "description": description.strip()}
+    assert client.post(f"{path}/web-search", json=normalized).json() == web
+    conflicting = {**payload, "description": "changed"}
+    assert client.post(f"{path}/web-search", json=conflicting).json()["detail"]["code"] == (
+        "search_key_conflict"
+    )
+    if description:
+        omitted = {key: value for key, value in payload.items() if key != "search_profile"}
+        assert client.post(f"{path}/web-search", json=omitted).json()["detail"]["code"] == (
+            "search_key_conflict"
+        )
+    state = client.get(path).json()
+    assert state["local_job_id"] == local["job_id"]
+    assert state["web_searches"][0]["job_id"] == web["job_id"]
+    assert state["web_searches"][0]["description"] == description.strip()
+    local_summary = client.get(f"/search-jobs/{local['job_id']}").json()
+    assert local_summary["job_kind"] == "local"
+    assert local_summary["status"] == "completed"
+    assert local_summary["result_kind"] == "no_candidates"
+    assert client.get(f"/search-jobs/{local['job_id']}/candidates").json() == []

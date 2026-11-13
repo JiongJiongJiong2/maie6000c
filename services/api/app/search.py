@@ -415,17 +415,27 @@ def create_web_search(
     db: Database,
 ) -> AcceptedSearch:
     request = require_request(db, str(request_id), lock=True)
-    existing = db.scalar(
-        select(SearchJob).where(SearchJob.client_search_key == payload.client_search_key)
+    description = payload.description.strip()
+    profile = payload.search_profile or (request.search_profile if description else "meme50-v2")
+    target = request.target_count if request.search_profile == "meme50-v2" else (
+        50 if profile == "meme50-v2" else 3
     )
-    if existing is not None:
+
+    def replay(existing: SearchJob) -> AcceptedSearch:
         if (
             existing.request_id != request.id
-            or existing.description != payload.description.strip()
+            or existing.description != description
             or existing.job_kind != "web"
+            or existing.search_profile != profile
+            or existing.target_count != target
         ):
             raise fail(409, "search_key_conflict", "Search key has different content")
         return accepted(existing)
+
+    key_query = select(SearchJob).where(SearchJob.client_search_key == payload.client_search_key)
+    existing = db.scalar(key_query)
+    if existing is not None:
+        return replay(existing)
     input_path = contained_path(get_settings().media_root, request.input_path)
     if not input_path.is_file():
         raise fail(410, "input_expired", "Search input is unavailable")
@@ -448,11 +458,9 @@ def create_web_search(
         attempt_no=(last_attempt or 0) + 1,
         job_kind="web",
         stage="pending",
-        description=payload.description.strip(),
-        search_profile=request.search_profile if payload.description.strip() else "meme50-v2",
-        target_count=request.target_count
-        if request.search_profile == "meme50-v2"
-        else (50 if not payload.description.strip() else 3),
+        description=description,
+        search_profile=profile,
+        target_count=target,
         client_search_key=payload.client_search_key,
     )
     db.add(job)
@@ -460,15 +468,9 @@ def create_web_search(
         db.commit()
     except IntegrityError:
         db.rollback()
-        existing = db.scalar(
-            select(SearchJob).where(SearchJob.client_search_key == payload.client_search_key)
-        )
-        if existing is not None and (
-            existing.request_id == request.id
-            and existing.description == payload.description.strip()
-            and existing.job_kind == "web"
-        ):
-            return accepted(existing)
+        existing = db.scalar(key_query)
+        if existing is not None:
+            return replay(existing)
         raise fail(409, "search_conflict", "Another search is already active")
     logger.info(
         "web_search_accepted",

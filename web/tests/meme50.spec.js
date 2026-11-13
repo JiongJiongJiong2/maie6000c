@@ -283,3 +283,119 @@ test("favorites replay both keys, recover index status after refresh, and switch
     uploads[0].match(submissionKey)[1],
   );
 });
+
+test("local results survive linked search acknowledgement loss, retry, and refresh", async ({
+  page,
+}) => {
+  const webId = "20000000-0000-4000-8000-000000000002";
+  const retryId = "20000000-0000-4000-8000-000000000003";
+  const local = {
+    request_id: requestId,
+    job_id: jobId,
+    status: "completed",
+    job_kind: "local",
+    result_kind: "candidates",
+  };
+  const candidate = candidates[1];
+  const linked = { ...accepted, job_id: webId, job_kind: "web" };
+  let latest;
+  let uploads = 0;
+  const creates = [];
+  const reviews = [];
+  await page.route("**/search-requests", (route) => {
+    uploads++;
+    return route.fulfill({ status: 202, json: local });
+  });
+  await page.route(`**/search-requests/${requestId}`, (route) =>
+    route.fulfill({
+      json: {
+        ...(latest || local),
+        local_job_id: jobId,
+        web_searches: latest ? [latest] : [],
+        candidates: latest ? [] : [candidate],
+      },
+    }),
+  );
+  await page.route(`**/search-jobs/${jobId}`, (route) =>
+    route.fulfill({ json: local }),
+  );
+  await page.route(`**/search-jobs/${jobId}/candidates`, (route) =>
+    route.fulfill({ json: [candidate] }),
+  );
+  await page.route(`**/search-jobs/${jobId}/reviews`, (route) => {
+    reviews.push(route.request().postDataJSON());
+    return route.fulfill({ json: { review_id: "local-review" } });
+  });
+  await page.route(`**/search-requests/${requestId}/web-search`, (route) => {
+    creates.push(route.request().postDataJSON());
+    latest = {
+      ...linked,
+      status: "failed",
+      error: { message: "Provider unavailable" },
+    };
+    return creates.length === 1
+      ? route.abort()
+      : route.fulfill({ status: 202, json: linked });
+  });
+  await page.route(`**/search-jobs/${webId}`, (route) =>
+    route.fulfill({ json: latest }),
+  );
+  await page.route(`**/search-jobs/${webId}/retry`, (route) => {
+    expect(route.request().postDataJSON().client_retry_key).toBeTruthy();
+    latest = {
+      ...linked,
+      job_id: retryId,
+      status: "completed",
+      result_revision: "retry",
+    };
+    return route.fulfill({ status: 202, json: latest });
+  });
+  await page.route(`**/search-jobs/${retryId}`, (route) =>
+    route.fulfill({ json: latest }),
+  );
+  await page.route(`**/search-jobs/${retryId}/results?*`, (route) =>
+    route.fulfill({
+      json: { revision: "retry", items: [candidate], total: 1, total_all: 1 },
+    }),
+  );
+  await page.goto("/web/");
+  await page.locator("#search-mode").selectOption("legacy");
+  await page.locator("#file-input").setInputFiles({
+    name: "screenshot.png",
+    mimeType: "image/png",
+    buffer: png,
+  });
+  await page.locator("#submit").click();
+  await page.getByRole("button", { name: "This is the one" }).click();
+  await expect(page.locator("#review-id")).toHaveText("local-review");
+  expect(creates).toHaveLength(0);
+  await page.locator("#continue-description").fill("  green parrot  ");
+  await page.locator("#continue-submit").click();
+  await expect(page.locator("#continue-feedback")).toContainText(
+    "Connection interrupted",
+  );
+  await page.reload();
+  await expect(page.locator("#continue-description")).toHaveValue(
+    "green parrot",
+  );
+  await page.locator("#continue-submit").click();
+  await expect(page.locator("#web-status")).toHaveText("Provider unavailable");
+  await expect(page.locator("#candidates .candidate")).toHaveCount(1);
+  await page.locator("#meme-retry").click();
+  await expect(page.locator("#web-candidates .candidate")).toHaveCount(1);
+  await expect(page.locator("#web-candidates")).toContainText(
+    "Confirm and save",
+  );
+  await page.reload();
+  await expect(page.locator("#web-candidates .candidate")).toHaveCount(1);
+  await expect(page.locator("#candidates .candidate")).toHaveCount(1);
+  await expect(page.locator("#review-id")).toHaveText("local-review");
+  expect(uploads).toBe(1);
+  expect(reviews).toHaveLength(1);
+  expect(creates).toHaveLength(2);
+  expect(creates[0]).toEqual(creates[1]);
+  expect(creates[0]).toMatchObject({
+    description: "green parrot",
+    search_profile: "meme50-v2",
+  });
+});
