@@ -1,3 +1,4 @@
+import { mountGifShare } from "./share.js";
 import { memeStatus, renderMemeResults, disposeMemeResults } from "./meme50.js";
 import { Api, validAccepted, validStatus } from "./api.js";
 import {
@@ -38,6 +39,7 @@ let initialized = false;
 let inputURL;
 let cardSignature = "";
 const mediaURLs = new Map();
+let localCards;
 const activeFavorites = new Map();
 
 // crypto.randomUUID is unavailable on plain-HTTP LAN origins; getRandomValues
@@ -63,6 +65,7 @@ function feedback(id, message, error = false) {
 }
 
 function disposeCards() {
+  localCards?.abort();
   for (const url of mediaURLs.values()) URL.revokeObjectURL(url);
   mediaURLs.clear();
   cardSignature = "";
@@ -262,10 +265,12 @@ function renderOnline() {
     $("next-page").disabled = !result.page.next_cursor;
     $("previous-page").disabled = !state.pageHistory?.length;
   }
-  if (result)
+  if (result && !state.navigating)
     renderMemeResults($("web-candidates"), result, api, lifetime.signal, {
       download: downloadMeme,
       favorite: mountFavorite,
+      share: (body, download, id, url, signal) =>
+        mountGifShare(api, body, download, id, url, signal),
     });
 }
 
@@ -283,6 +288,8 @@ function renderCandidates(candidates) {
   if (signature !== cardSignature) {
     disposeCards();
     cardSignature = signature;
+    localCards = new AbortController();
+    const signal = AbortSignal.any([localCards.signal, lifetime.signal]);
     for (const candidate of [...candidates].sort((a, b) => a.rank - b.rank)) {
       const card = document.createElement("article");
       card.className = "candidate";
@@ -310,7 +317,22 @@ function renderCandidates(candidates) {
         loadMedia(candidate, media, reload),
       );
       reload.hidden = true;
+      download.hidden = true;
       body.append(score, accept, download, reload);
+      if (
+        (!candidate.media_format || candidate.media_format === "GIF") &&
+        (candidate.frame_count == null || candidate.frame_count > 1) &&
+        candidate.media_kind !== "static"
+      ) {
+        mountGifShare(
+          api,
+          body,
+          download,
+          candidate.candidate_id,
+          () => candidateMediaUrl(candidate),
+          signal,
+        );
+      }
       if (candidate.asset_id && candidate.save_status === "saved") {
         card.dataset.saved = "true";
         card.dataset.assetId = candidate.asset_id;
@@ -335,8 +357,13 @@ function renderCandidates(candidates) {
       : "This is the one";
     card.querySelector(".accept").disabled =
       busy || !!(review && !review.review_id) || !!selected;
-    card.querySelector(".download").hidden = !selected && !card.dataset.saved;
-    card.querySelector(".download").disabled = busy;
+    const download = card.querySelector(".download");
+    const hidden = !selected && !card.dataset.saved;
+    if (hidden !== download.hidden) {
+      download.hidden = hidden;
+      download.dispatchEvent(new Event("eligibilitychange"));
+    }
+    download.disabled = busy;
   }
 }
 
@@ -563,6 +590,7 @@ async function poll() {
       }
       web.accepted = { ...web.accepted, search_profile: result.search_profile };
       web.result = result;
+      web.navigating = false;
       web.revision = view.revision;
       web.cursor = view.cursor;
       web.pageHistory = view.pageHistory;
@@ -648,6 +676,12 @@ async function sendReview() {
   }
 }
 
+function candidateMediaUrl(candidate) {
+  return candidate.asset_id
+    ? `/saved-assets/${encodeURIComponent(candidate.asset_id)}/media`
+    : candidate.media_url;
+}
+
 async function downloadCandidate(candidate, button) {
   if (
     busy ||
@@ -664,10 +698,7 @@ async function downloadCandidate(candidate, button) {
   try {
     // Re-fetch so expired or unavailable media is reported instead of silently
     // treating an earlier preview as a successful current download.
-    const urlPath = candidate.asset_id
-      ? `/saved-assets/${encodeURIComponent(candidate.asset_id)}/media`
-      : candidate.media_url;
-    const blob = await api.media(urlPath, lifetime.signal);
+    const blob = await api.media(candidateMediaUrl(candidate), lifetime.signal);
     if (currentEpoch !== epoch) return;
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -1074,6 +1105,8 @@ function validateOnlineAccepted(accepted, previousId, profile = "meme50-v2") {
 $("media-filter").addEventListener("change", async () => {
   const state = onlineState();
   if (!state) return;
+  clearWebCards();
+  state.navigating = true;
   state.filter = $("media-filter").value;
   state.cursor = null;
   state.pageHistory = [];
@@ -1083,6 +1116,8 @@ $("media-filter").addEventListener("change", async () => {
 $("next-page").addEventListener("click", async () => {
   const state = onlineState();
   if (!state?.result?.page?.next_cursor) return;
+  clearWebCards();
+  state.navigating = true;
   state.pageHistory = [...(state.pageHistory || []), state.cursor || null];
   state.cursor = state.result.page.next_cursor;
   await saveSession(session);
@@ -1091,6 +1126,8 @@ $("next-page").addEventListener("click", async () => {
 $("previous-page").addEventListener("click", async () => {
   const state = onlineState();
   if (!state?.pageHistory?.length) return;
+  clearWebCards();
+  state.navigating = true;
   state.cursor = state.pageHistory.pop();
   await saveSession(session);
   poll();
@@ -1163,7 +1200,10 @@ function mountFavorite(jobId, candidate, body, download, signal) {
     if (signal.aborted) return;
     const asset = record?.asset;
     if (asset) {
-      download.dataset.mediaUrl = asset.media_url;
+      if (download.dataset.mediaUrl !== asset.media_url) {
+        download.dataset.mediaUrl = asset.media_url;
+        download.dispatchEvent(new Event("mediachange"));
+      }
       body.closest(".candidate")?.setAttribute("data-asset-id", asset.asset_id);
     }
     status.textContent = [

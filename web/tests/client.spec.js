@@ -1,5 +1,9 @@
+import { readFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 
+const animatedGif = readFileSync(
+  new URL("./fixtures/two-frames.gif", import.meta.url),
+);
 const requestId = "10000000-0000-4000-8000-000000000001";
 const jobId = "20000000-0000-4000-8000-000000000001";
 const candidateId = "30000000-0000-4000-8000-000000000001";
@@ -346,4 +350,144 @@ test("mobile layout fits, controls are labeled, and errors are not HTML", async 
     ),
   ).toBe(true);
   await expect(page.getByLabel("Choose screenshot")).toBeVisible();
+});
+
+test("legacy share waits for confirmation and falls back to original download", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(navigator, "canShare", {
+      configurable: true,
+      value: undefined,
+    });
+  });
+  const { reviews } = await fixtures(page);
+  await page.route("**/candidates/*/media", (route) =>
+    route.fulfill({ contentType: "image/gif", body: animatedGif }),
+  );
+  await upload(page);
+  const share = page.locator(".share-gif");
+  await expect(share).toBeHidden();
+  await page.getByRole("button", { name: "This is the one" }).click();
+  await share.click();
+  await expect(page.getByText(/暂不支持分享/)).toBeVisible();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: /Download GIF/ }).click();
+  expect(readFileSync(await (await download).path())).toEqual(animatedGif);
+  expect(reviews).toHaveLength(1);
+});
+
+test("saved local GIF shares its permanent file even with failed indexing", async ({
+  page,
+}) => {
+  const asset = "50000000-0000-4000-8000-000000000001";
+  await page.addInitScript(() => {
+    navigator.canShare = () => true;
+    navigator.share = async ({ files }) => {
+      window.shared = Array.from(new Uint8Array(await files[0].arrayBuffer()));
+    };
+  });
+  const { reviews } = await fixtures(page, {
+    ...complete,
+    candidates: [
+      {
+        ...candidate,
+        asset_id: asset,
+        save_status: "saved",
+        index_status: "failed",
+      },
+    ],
+  });
+  await page.route(`**/saved-assets/${asset}/media`, (route) =>
+    route.fulfill({ contentType: "image/gif", body: animatedGif }),
+  );
+  await upload(page);
+  await page.getByRole("button", { name: /Share GIF/ }).click();
+  await page.getByRole("button", { name: /Open share menu/ }).click();
+  await expect
+    .poll(() => page.evaluate(() => window.shared))
+    .toEqual([...animatedGif]);
+  expect(reviews).toHaveLength(0);
+});
+
+test("share media errors stay on the card and never invoke the share menu", async ({
+  page,
+}) => {
+  const asset = "50000000-0000-4000-8000-000000000001";
+  await page.addInitScript(() => {
+    window.shareCalls = 0;
+    navigator.canShare = () => true;
+    navigator.share = async () => {
+      window.shareCalls++;
+    };
+  });
+  await fixtures(page, {
+    ...complete,
+    candidates: [{ ...candidate, asset_id: asset, save_status: "saved" }],
+  });
+  let failure = 401;
+  await page.route(`**/saved-assets/${asset}/media`, (route) =>
+    failure
+      ? route.fulfill({ status: failure })
+      : route.fulfill({ contentType: "image/png", body: png }),
+  );
+  await upload(page);
+  const share = page.getByRole("button", { name: /Share GIF/ });
+  await share.click();
+  await expect(page.getByText(/access token is missing/)).toBeVisible();
+  failure = 410;
+  await share.click();
+  await expect(page.getByText(/GIF has expired/)).toBeVisible();
+  failure = 0;
+  await share.click();
+  await expect(page.getByText(/原文件不是 GIF/)).toBeVisible();
+  await expect(share).toBeEnabled();
+  expect(await page.evaluate(() => window.shareCalls)).toBe(0);
+});
+
+test("changing the screenshot discards an in-flight GIF preparation", async ({
+  page,
+}) => {
+  const asset = "50000000-0000-4000-8000-000000000001";
+  await page.addInitScript(() => {
+    window.shareCalls = 0;
+    navigator.canShare = () => true;
+    navigator.share = async () => {
+      window.shareCalls++;
+    };
+  });
+  await fixtures(page, {
+    ...complete,
+    candidates: [{ ...candidate, asset_id: asset, save_status: "saved" }],
+  });
+  let respond;
+  const held = new Promise((resolve) => {
+    respond = resolve;
+  });
+  await page.route(`**/saved-assets/${asset}/media`, async (route) => {
+    await held;
+    await route.fulfill({ contentType: "image/gif", body: animatedGif });
+  });
+  await upload(page);
+  const pending = page.waitForRequest(`**/saved-assets/${asset}/media`);
+  await page.getByRole("button", { name: /Share GIF/ }).click();
+  await pending;
+  await page
+    .locator("#file-input")
+    .setInputFiles({
+      name: "replacement.png",
+      mimeType: "image/png",
+      buffer: png,
+    });
+  await expect(page.locator("#file-name")).toHaveText("replacement.png");
+  respond();
+  await expect(page.locator(".share-gif")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /Open share menu/ }),
+  ).toHaveCount(0);
+  expect(await page.evaluate(() => window.shareCalls)).toBe(0);
 });

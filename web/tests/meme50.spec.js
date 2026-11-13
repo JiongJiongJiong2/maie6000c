@@ -287,6 +287,20 @@ test("favorites replay both keys, recover index status after refresh, and switch
 test("local results survive linked search acknowledgement loss, retry, and refresh", async ({
   page,
 }) => {
+  const gif = readFileSync(
+    new URL("./fixtures/two-frames.gif", import.meta.url),
+  );
+  await page.addInitScript(() => {
+    navigator.canShare = () => true;
+    navigator.share = async ({ files }) => {
+      window.linkedShare = Array.from(
+        new Uint8Array(await files[0].arrayBuffer()),
+      );
+    };
+  });
+  await page.route("**/candidates/2/media", (route) =>
+    route.fulfill({ contentType: "image/gif", body: gif }),
+  );
   const webId = "20000000-0000-4000-8000-000000000002";
   const retryId = "20000000-0000-4000-8000-000000000003";
   const local = {
@@ -390,6 +404,14 @@ test("local results survive linked search acknowledgement loss, retry, and refre
   await expect(page.locator("#web-candidates .candidate")).toHaveCount(1);
   await expect(page.locator("#candidates .candidate")).toHaveCount(1);
   await expect(page.locator("#review-id")).toHaveText("local-review");
+  await page
+    .locator("#web-candidates")
+    .getByRole("button", { name: /Share GIF/ })
+    .click();
+  await page.getByRole("button", { name: /Open share menu/ }).click();
+  await expect
+    .poll(() => page.evaluate(() => window.linkedShare))
+    .toEqual([...gif]);
   expect(uploads).toBe(1);
   expect(reviews).toHaveLength(1);
   expect(creates).toHaveLength(2);
@@ -398,4 +420,132 @@ test("local results survive linked search acknowledgement loss, retry, and refre
     description: "green parrot",
     search_profile: "meme50-v2",
   });
+});
+
+test("online file sharing is lazy, preserves bytes, and invalidates on favorite", async ({
+  page,
+}) => {
+  const gif = readFileSync(
+    new URL("./fixtures/two-frames.gif", import.meta.url),
+  );
+  const item = candidates[1];
+  const asset = "50000000-0000-4000-8000-000000000001";
+  const saved = {
+    asset_id: asset,
+    media_url: `/saved-assets/${asset}/media`,
+    save_status: "saved",
+    index_status: "ready",
+  };
+  const reads = [];
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  await page.addInitScript(() => {
+    window.shareCalls = [];
+    window.rejectShare = "AbortError";
+    window.shareSupported = false;
+    navigator.canShare = () => window.shareSupported;
+    navigator.share = async (data) => {
+      const [file] = data.files;
+      window.shareCalls.push({
+        keys: Object.keys(data),
+        count: data.files.length,
+        name: file.name,
+        type: file.type,
+        bytes: Array.from(new Uint8Array(await file.arrayBuffer())),
+      });
+      if (window.rejectShare)
+        throw new DOMException("Share rejected", window.rejectShare);
+    };
+  });
+  await page.route("**/search-requests", (r) => r.fulfill({ json: accepted }));
+  await page.route(`**/search-jobs/${jobId}`, (r) =>
+    r.fulfill({
+      json: { ...accepted, status: "completed", result_revision: "share" },
+    }),
+  );
+  await page.route("**/results?*", (r) =>
+    r.fulfill({
+      json: {
+        revision: "share",
+        items: [
+          candidates[0],
+          item,
+          { ...candidates[2], media_format: "GIF", mime_type: "image/gif" },
+          { ...candidates[3], media_format: "WEBP", mime_type: "image/webp" },
+        ],
+        total: 4,
+        total_all: 4,
+      },
+    }),
+  );
+  await page.route("**/preview", (r) =>
+    r.fulfill({ contentType: "image/png", body: png }),
+  );
+  await page.route("**/candidates/2/media", async (r) => {
+    reads.push("candidate");
+    await gate;
+    await r.fulfill({ contentType: "image/gif", body: gif });
+  });
+  await page.route("**/reviews", (r) =>
+    r.fulfill({ json: { review_id: "ok" } }),
+  );
+  await page.route("**/save", (r) => r.fulfill({ json: saved }));
+  await page.route(`**/saved-assets/${asset}`, (r) =>
+    r.fulfill({ json: saved }),
+  );
+  await page.route(`**/saved-assets/${asset}/media`, (r) => {
+    reads.push("saved");
+    return r.fulfill({ contentType: "image/gif", body: gif });
+  });
+  await page.goto("/web/");
+  await page
+    .locator("#file-input")
+    .setInputFiles({ name: "test.png", mimeType: "image/png", buffer: png });
+  await page.locator("#submit").click();
+  const prepare = page.getByRole("button", { name: /Share GIF/ });
+  const open = page.getByRole("button", { name: /Open share menu/ });
+  await expect(prepare).toHaveCount(1);
+  expect(reads).toEqual([]);
+  await prepare.click();
+  await expect(prepare).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: /Download image/ }).nth(1),
+  ).toBeEnabled();
+  release();
+  await expect(page.getByText(/暂不支持分享/)).toBeVisible();
+  await page.evaluate(() => {
+    window.shareSupported = true;
+  });
+  await prepare.click();
+  await expect(open).toBeEnabled();
+  expect(await page.evaluate(() => window.shareCalls)).toEqual([]);
+  await open.click();
+  await expect(page.getByText(/分享未完成/)).toBeVisible();
+  await page.evaluate(() => {
+    window.rejectShare = "NotAllowedError";
+  });
+  await open.click();
+  await expect(page.getByText(/分享未完成/)).toBeVisible();
+  await page.getByRole("button", { name: /Confirm and save/ }).click();
+  await expect(prepare).toBeVisible();
+  await expect(open).toHaveCount(0);
+  await prepare.click();
+  await page.evaluate(() => {
+    window.rejectShare = "";
+  });
+  await open.click();
+  await expect(page.getByText(/已交给系统分享/)).toBeVisible();
+  expect(reads).toEqual(["candidate", "candidate", "saved"]);
+  const calls = await page.evaluate(() => window.shareCalls);
+  expect(calls).toHaveLength(3);
+  for (const call of calls)
+    expect(call).toEqual({
+      keys: ["files"],
+      count: 1,
+      name: `meme-${item.candidate_id}.gif`,
+      type: "image/gif",
+      bytes: [...gif],
+    });
 });
