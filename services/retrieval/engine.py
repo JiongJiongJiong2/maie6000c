@@ -105,7 +105,14 @@ def search(image_path: Path, top_k: int = 3) -> dict:
             raise ValueError("The GIF index does not match the corpus")
         with Image.open(image_path) as image:
             query = encode_image(image)
-        matches = rank_assets(embeddings, ids, query, top_k, minimum)
+    from services.retrieval.saved_index import ready_vectors
+
+    batches = [embeddings]
+    asset_ids = list(ids)
+    for asset_id, vectors in ready_vectors():
+        batches.append(vectors)
+        asset_ids.extend([asset_id] * len(vectors))
+    matches = rank_assets(np.concatenate(batches), asset_ids, query, top_k, minimum)
     return {
         "matches": matches,
         "model_version": MODEL_VERSION,

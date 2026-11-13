@@ -698,15 +698,18 @@ def save_candidate(
         else:
             verify_saved_asset_media(asset)
 
-    candidate.saved_asset_id = asset.id
-    db.add(
-        CandidateSave(
-            candidate_id=candidate.id,
-            saved_asset_id=asset.id,
-            client_save_key=payload.client_save_key,
-        )
-    )
     try:
+        # PostgreSQL enforces the foreign keys when each statement executes.
+        # Publish the asset row before assigning its ID to the candidate.
+        db.flush()
+        candidate.saved_asset_id = asset.id
+        db.add(
+            CandidateSave(
+                candidate_id=candidate.id,
+                saved_asset_id=asset.id,
+                client_save_key=payload.client_save_key,
+            )
+        )
         db.commit()
     except IntegrityError:
         db.rollback()

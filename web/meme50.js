@@ -2,9 +2,11 @@ import { ApiError, sameOriginPath } from "./api.js";
 let signature = "";
 const urls = new Set();
 let observer;
+let cardWork;
 
 export function disposeMemeResults() {
   observer?.disconnect();
+  cardWork?.abort();
   for (const url of urls) URL.revokeObjectURL(url);
   urls.clear();
   signature = "";
@@ -92,6 +94,8 @@ export function renderMemeResults(result, api, signal, callbacks) {
   if (next === signature) return;
   disposeMemeResults();
   signature = next;
+  cardWork = new AbortController();
+  const cardSignal = AbortSignal.any([signal, cardWork.signal]);
   container.replaceChildren();
   container.classList.add("meme50-grid");
   observer = new IntersectionObserver(
@@ -174,7 +178,16 @@ export function renderMemeResults(result, api, signal, callbacks) {
     body.append(score);
     if (!provisional) {
       if (item.media_kind === "animated") body.append(play);
-      body.append(button("Download image ↓", () => callbacks.download(item)));
+      const download = button("Download image ↓", () =>
+        callbacks.download({
+          ...item,
+          media_url: download.dataset.mediaUrl || item.media_url,
+        }),
+      );
+      body.append(download);
+      if (item.media_format === "GIF" && item.frame_count > 1) {
+        callbacks.favorite(result.job_id, item, body, download, cardSignal);
+      }
       if (item.source_url) {
         const link = document.createElement("a");
         link.href = item.source_url;

@@ -174,3 +174,112 @@ test("local human review stays unreviewed and exports bound identities only", as
   expect(csv).toContain('"unreviewed"');
   expect(csv).not.toContain('"clearly_related"');
 });
+
+test("favorites replay both keys, recover index status after refresh, and switch to local", async ({
+  page,
+}) => {
+  const candidate = candidates[1];
+  const assetId = "40000000-0000-4000-8000-000000000001";
+  const uploads = [];
+  const reviews = [];
+  const saves = [];
+  let indexStatus = "pending";
+  const asset = () => ({
+    asset_id: assetId,
+    save_status: "saved",
+    media_url: `/saved-assets/${assetId}/media`,
+    index_status: indexStatus,
+    index_error: indexStatus === "failed" ? "Model unavailable" : null,
+  });
+  await page.route("**/search-requests", (route) => {
+    uploads.push(route.request().postData());
+    return route.fulfill({
+      status: 202,
+      json:
+        uploads.length === 1
+          ? accepted
+          : {
+              request_id: requestId,
+              job_id: jobId,
+              status: "pending",
+            },
+    });
+  });
+  await page.route(`**/search-requests/${requestId}`, (route) =>
+    route.fulfill({
+      json: {
+        request_id: requestId,
+        job_id: jobId,
+        job_kind: "local",
+        status: "completed",
+        result_kind: "candidates",
+        candidates: [{ ...candidate, rank: 1, ...asset() }],
+      },
+    }),
+  );
+  await page.route(`**/search-jobs/${jobId}`, (route) =>
+    route.fulfill({
+      json: { ...accepted, status: "completed", result_revision: "frozen" },
+    }),
+  );
+  await page.route(`**/search-jobs/${jobId}/results?*`, (route) =>
+    route.fulfill({
+      json: { revision: "frozen", items: [candidate], total: 1, total_all: 1 },
+    }),
+  );
+  await page.route("**/reviews", (route) => {
+    reviews.push(route.request().postDataJSON());
+    return reviews.length === 1
+      ? route.abort()
+      : route.fulfill({ json: { review_id: "ack" } });
+  });
+  await page.route("**/candidates/*/save", (route) => {
+    saves.push(route.request().postDataJSON());
+    return saves.length === 1
+      ? route.abort()
+      : route.fulfill({ json: asset() });
+  });
+  await page.route(`**/saved-assets/${assetId}`, (route) =>
+    route.fulfill({ json: asset() }),
+  );
+  await page.route(`**/saved-assets/${assetId}/index-retry`, (route) => {
+    indexStatus = "ready";
+    return route.fulfill({ json: asset() });
+  });
+  await page.goto("/web/");
+  await page.locator("#file-input").setInputFiles({
+    name: "screenshot.png",
+    mimeType: "image/png",
+    buffer: png,
+  });
+  await page.locator("#submit").click();
+  await page.getByRole("button", { name: /Confirm and save/ }).click();
+  await page.getByText(/Connection interrupted/).waitFor();
+  await page.getByRole("button", { name: /Resume saving/ }).click();
+  await page.getByText(/Connection interrupted/).waitFor();
+  await page.reload();
+  await page.getByRole("button", { name: /Resume saving/ }).click();
+  await expect(page.getByText(/indexing queued/)).toBeVisible();
+  expect(reviews).toHaveLength(2);
+  expect(reviews[1]).toEqual(reviews[0]);
+  expect(saves).toHaveLength(2);
+  expect(saves[1]).toEqual(saves[0]);
+  expect(saves[0].client_save_key).not.toBe(reviews[0].client_review_key);
+  indexStatus = "failed";
+  await expect(page.getByText(/Model unavailable/)).toBeVisible();
+  await page.getByRole("button", { name: /Retry indexing/ }).click();
+  await expect(page.getByText(/Saved, searchable locally/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(/Saved, searchable locally/)).toBeVisible();
+  await page.locator("#search-mode").selectOption("legacy");
+  await page.locator("#submit").click();
+  await expect(
+    page.getByRole("button", { name: /Download GIF/ }),
+  ).toBeVisible();
+  expect(uploads[1]).not.toContain('name="search_profile"');
+  expect(uploads[1]).not.toContain('name="target_count"');
+  const submissionKey = /name="client_submission_key"\r\n\r\n([^\r]+)/;
+  expect(uploads[1].match(submissionKey)[1]).not.toBe(
+    uploads[0].match(submissionKey)[1],
+  );
+});

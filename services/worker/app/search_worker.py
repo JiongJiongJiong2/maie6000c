@@ -217,7 +217,10 @@ def claim_next_search_job(db: Session) -> SearchJob | None:
         job.stage = "local_retrieval" if job.job_kind == "local" else "web_search"
         job.started_at = utcnow()
         db.commit()
-        logger.info("search_claimed", extra={"request_id": job.request_id, "job_id": job.id})
+        logger.info(
+            "search_claimed",
+            extra={"request_id": job.request_id, "job_id": job.id, "job_kind": job.job_kind},
+        )
     return job
 
 
@@ -374,6 +377,7 @@ def process_search_job(job_id: str, retriever: Retriever = invoke_retrieval) -> 
                     "request_id": job.request_id,
                     "job_id": job.id,
                     "result_kind": job.result_kind,
+                    "job_kind": job.job_kind,
                     "candidate_count": len(result.matches),
                     "duration_seconds": elapsed_seconds(job.started_at, finished_at),
                 },
@@ -681,13 +685,18 @@ def process_saved_asset_index(
         asset = db.get(SavedAsset, asset_id)
         if asset is None or asset.index_status != "running":
             raise RuntimeError("Only a claimed saved asset can be indexed")
-        asset_path = contained_path(get_settings().media_root, asset.gif_path)
+        relative_path = asset.gif_path
         digest = asset.sha256
         expected_frame_count = asset.frame_count
     try:
+        settings = get_settings()
+        asset_path = contained_path(settings.media_root, relative_path)
         if not asset_path.is_file():
             raise IndexingError("saved_asset_missing", "Saved GIF is missing from storage")
-        data = asset_path.read_bytes()
+        with asset_path.open("rb") as source:
+            data = source.read(settings.max_candidate_bytes + 1)
+        if len(data) > settings.max_candidate_bytes:
+            raise MediaError("Saved GIF exceeds the configured byte limit")
         if sha256(data) != digest:
             raise IndexingError("saved_asset_corrupted", "Saved GIF checksum does not match")
         frame_count = validate_image(data, animated_gif=True)

@@ -1940,7 +1940,8 @@ html[data-motion="off"] .progress-track > span {
   text-decoration: underline;
 }
 
-.optional-description {
+.optional-description,
+label[for="search-mode"] {
   display: block;
   font-weight: 650;
   margin: 16px 0 8px;
@@ -1966,7 +1967,8 @@ html[data-motion="off"] .progress-track > span {
   flex-wrap: wrap;
   margin: 16px 0;
 }
-.meme-controls select {
+.meme-controls select,
+#search-mode {
   padding: 8px;
   max-width: 100%;
   font: inherit;

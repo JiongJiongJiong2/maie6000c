@@ -129,6 +129,23 @@ export class Api {
     });
   }
 
+  saveCandidate(id, key, signal) {
+    return this.request(`/candidates/${encodeURIComponent(id)}/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_save_key: key }),
+      signal,
+    });
+  }
+
+  savedAsset(id, signal, retry = false) {
+    const path = `/saved-assets/${encodeURIComponent(id)}`;
+    return this.request(retry ? `${path}/index-retry` : path, {
+      method: retry ? "POST" : "GET",
+      signal,
+    });
+  }
+
   media(url, signal) {
     return this.request(url, { signal, media: true, timeout: 60000 });
   }

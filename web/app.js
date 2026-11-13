@@ -1,6 +1,11 @@
 import { memeStatus, renderMemeResults, disposeMemeResults } from "./meme50.js";
 import { Api, validAccepted, validStatus } from "./api.js";
-import { loadSession, saveSession } from "./store.js";
+import {
+  loadFavorite,
+  saveFavorite,
+  loadSession,
+  saveSession,
+} from "./store.js";
 
 const $ = (id) => document.getElementById(id);
 const api = new Api();
@@ -33,6 +38,7 @@ let initialized = false;
 let inputURL;
 let cardSignature = "";
 const mediaURLs = new Map();
+const activeFavorites = new Map();
 
 // crypto.randomUUID is unavailable on plain-HTTP LAN origins; getRandomValues
 // still supplies cryptographic UUIDs there.
@@ -74,6 +80,7 @@ function cancelSessionWork() {
 }
 
 function renderInput() {
+  $("search-mode").value = session?.searchProfile || $("search-mode").value;
   $("description").value = session?.description || "";
   $("media-filter").value = session?.filter || "all";
   if (inputURL) URL.revokeObjectURL(inputURL);
@@ -99,8 +106,17 @@ function render() {
   const uncertainReview = session?.review && !session.review.review_id;
   $("submit").hidden = !!accepted;
   $("submit").disabled = !initialized || busy || !session?.file;
+  const local = $("search-mode").value === "legacy";
+  $("file-input").accept = local
+    ? "image/png,image/jpeg,image/webp"
+    : "image/png,image/jpeg,image/webp,image/gif";
+  $("search-mode").disabled = busy || !initialized;
+  $("local-hint").hidden = !local;
+  document.querySelector(".image-disclosure").hidden = local;
+  $("description").hidden = local;
+  document.querySelector('label[for="description"]').hidden = local;
   $("description").disabled =
-    busy || !!session?.submissionStarted || !!accepted;
+    local || busy || !!session?.submissionStarted || !!accepted;
   $("submit").textContent = busy
     ? "Submitting…"
     : session?.submissionStarted
@@ -203,7 +219,10 @@ function render() {
     }
     $("meme-analysis").textContent =
       result.analysis?.observations?.join(" · ") || "";
-    renderMemeResults(result, api, lifetime.signal, { download: downloadMeme });
+    renderMemeResults(result, api, lifetime.signal, {
+      download: downloadMeme,
+      favorite: mountFavorite,
+    });
   } else {
     $("candidates").classList.remove("meme50-grid");
     renderCandidates(hasCandidates ? result.candidates : []);
@@ -252,6 +271,13 @@ function renderCandidates(candidates) {
       );
       reload.hidden = true;
       body.append(score, accept, download, reload);
+      if (candidate.asset_id && candidate.save_status === "saved") {
+        card.dataset.saved = "true";
+        card.dataset.assetId = candidate.asset_id;
+        const status = document.createElement("p");
+        status.textContent = favoriteLabel(candidate.index_status);
+        body.append(status);
+      }
       card.append(media, body);
       $("candidates").append(card);
       loadMedia(candidate, media, reload);
@@ -269,7 +295,7 @@ function renderCandidates(candidates) {
       : "This is the one";
     card.querySelector(".accept").disabled =
       busy || !!(review && !review.review_id) || !!selected;
-    card.querySelector(".download").hidden = !selected;
+    card.querySelector(".download").hidden = !selected && !card.dataset.saved;
     card.querySelector(".download").disabled = busy;
   }
 }
@@ -320,6 +346,8 @@ async function selectFile(file) {
       )
     )
       throw new Error("Choose a PNG, JPG, WebP, or GIF image.");
+    if ($("search-mode").value === "legacy" && file.type === "image/gif")
+      throw new Error("Use a PNG, JPEG, or WebP screenshot for local search.");
     if (!file.size || file.size > 10 * 1024 * 1024)
       throw new Error(
         "This file is empty or larger than 10 MiB. Choose a smaller image.",
@@ -337,7 +365,7 @@ async function selectFile(file) {
       );
     const next = {
       file,
-      searchProfile: "meme50-v2",
+      searchProfile: $("search-mode").value,
       description: $("description").value,
       filter: "all",
       pageHistory: [],
@@ -364,6 +392,10 @@ async function selectFile(file) {
 
 async function submit() {
   if (busy || !session?.file || session.accepted) return;
+  if (session.searchProfile === "legacy" && session.file.type === "image/gif") {
+    notice("Use a PNG, JPEG, or WebP screenshot for local search.");
+    return;
+  }
   busy = true;
   notice();
   render();
@@ -373,11 +405,18 @@ async function submit() {
     // Persist the exact File and key before sending, including ambiguous timeouts.
     await saveSession(session);
     const accepted = validAccepted(
-      await api.submit(session.file, session.submissionKey, lifetime.signal, {
-        search_profile: "meme50-v2",
-        description: session.description ?? $("description").value,
-        target_count: 50,
-      }),
+      await api.submit(
+        session.file,
+        session.submissionKey,
+        lifetime.signal,
+        session.searchProfile === "legacy"
+          ? {}
+          : {
+              search_profile: "meme50-v2",
+              description: session.description ?? $("description").value,
+              target_count: 50,
+            },
+      ),
     );
     if (currentEpoch !== epoch) return;
     session.accepted = accepted;
@@ -404,6 +443,7 @@ async function poll() {
   pollAgain = false;
   const currentEpoch = epoch;
   const requestId = session.accepted.request_id;
+  const searchSession = session;
   const navigation = JSON.stringify([session.filter, session.cursor]);
   polling = true;
   render();
@@ -411,7 +451,12 @@ async function poll() {
   try {
     const result =
       session.accepted.search_profile === "meme50-v2"
-        ? await memeStatus(api, session.accepted, session, lifetime.signal)
+        ? await memeStatus(
+            api,
+            searchSession.accepted,
+            searchSession,
+            lifetime.signal,
+          )
         : validStatus(await api.status(requestId, lifetime.signal));
     if (currentEpoch !== epoch) return;
     if (navigation !== JSON.stringify([session.filter, session.cursor])) {
@@ -508,8 +553,9 @@ async function sendReview() {
 async function downloadCandidate(candidate, button) {
   if (
     busy ||
-    !session?.review?.review_id ||
-    session.review.payload.candidate_id !== candidate.candidate_id
+    (!candidate.asset_id &&
+      (!session?.review?.review_id ||
+        session.review.payload.candidate_id !== candidate.candidate_id))
   )
     return;
   const currentEpoch = epoch;
@@ -520,7 +566,10 @@ async function downloadCandidate(candidate, button) {
   try {
     // Re-fetch so expired or unavailable media is reported instead of silently
     // treating an earlier preview as a successful current download.
-    const blob = await api.media(candidate.media_url, lifetime.signal);
+    const urlPath = candidate.asset_id
+      ? `/saved-assets/${encodeURIComponent(candidate.asset_id)}/media`
+      : candidate.media_url;
+    const blob = await api.media(urlPath, lifetime.signal);
     if (currentEpoch !== epoch) return;
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -559,6 +608,8 @@ async function reset(keepFile = false) {
       keepFile && session?.file
         ? {
             file: session.file,
+            searchProfile: $("search-mode").value,
+            description: $("description").value,
             submissionKey: newKey(),
             submissionStarted: false,
             accepted: null,
@@ -811,6 +862,10 @@ async function downloadMeme(candidate) {
     notice(error.message);
   }
 }
+$("search-mode").addEventListener("change", async () => {
+  if (session?.file) await reset(true);
+  render();
+});
 $("description").addEventListener("input", async () => {
   if (session && !session.submissionStarted) {
     session.description = $("description").value;
@@ -872,3 +927,154 @@ $("meme-retry").addEventListener("click", async () => {
     poll();
   }
 });
+
+function favoriteLabel(status) {
+  return (
+    {
+      pending: "已收藏，等待建立索引 · Saved, indexing queued",
+      running: "已收藏，正在建立索引 · Saved, indexing",
+      ready: "已收藏，可在本地搜到 · Saved, searchable locally",
+      failed: "已收藏，索引失败 · Saved, indexing failed",
+    }[status] || ""
+  );
+}
+
+function mountFavorite(jobId, candidate, body, download, signal) {
+  const key = `favorite/${jobId}/${candidate.candidate_id}`;
+  const status = document.createElement("p");
+  status.setAttribute("role", "status");
+  const action = makeButton("确认并收藏 · Confirm and save", "secondary", act);
+  action.disabled = true;
+  body.append(status, action);
+  let record;
+  let timer;
+  let error = "";
+  let expired = false;
+  signal.addEventListener("abort", () => clearTimeout(timer), { once: true });
+
+  function show(working = false) {
+    if (signal.aborted) return;
+    const asset = record?.asset;
+    if (asset) {
+      download.dataset.mediaUrl = asset.media_url;
+      body.closest(".candidate")?.setAttribute("data-asset-id", asset.asset_id);
+    }
+    status.textContent = [
+      asset
+        ? favoriteLabel(asset.index_status)
+        : working
+          ? "正在收藏 · Saving…"
+          : "",
+      asset?.index_error,
+      error,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    action.textContent = asset
+      ? error
+        ? "重新读取 · Refresh index status"
+        : "重试索引 · Retry indexing"
+      : record?.reviewKey
+        ? "继续收藏 · Resume saving"
+        : "确认并收藏 · Confirm and save";
+    action.hidden =
+      expired || (!!asset && !error && asset.index_status !== "failed");
+    action.disabled = working;
+  }
+
+  async function rememberAsset(asset) {
+    if (
+      asset?.save_status !== "saved" ||
+      !asset.asset_id ||
+      !asset.media_url ||
+      !favoriteLabel(asset.index_status) ||
+      (record.asset && asset.asset_id !== record.asset.asset_id)
+    ) {
+      throw new Error("The server returned invalid saved GIF details.");
+    }
+    record.asset = asset;
+    await saveFavorite(key, record);
+  }
+
+  async function check(retry = false) {
+    if (signal.aborted) return;
+    clearTimeout(timer);
+    error = "";
+    show(true);
+    try {
+      await rememberAsset(
+        await api.savedAsset(record.asset.asset_id, signal, retry),
+      );
+      if (
+        ["pending", "running"].includes(record.asset.index_status) &&
+        !signal.aborted
+      )
+        timer = setTimeout(check, 1500);
+    } catch (failure) {
+      error = failure.message;
+    }
+    show();
+  }
+
+  async function act() {
+    if (record?.asset) {
+      await check(!error && record.asset.index_status === "failed");
+      return;
+    }
+    if (activeFavorites.has(key)) return;
+    error = "";
+    show(true);
+    // Allow an acknowledged save to reach IndexedDB even if the card goes away.
+    const operation = (async () => {
+      record ||= { reviewKey: newKey(), saveKey: newKey() };
+      await saveFavorite(key, record);
+      if (!record.reviewId) {
+        const review = await api.review(jobId, {
+          candidate_id: candidate.candidate_id,
+          decision: "accept",
+          client_review_key: record.reviewKey,
+        });
+        if (!review?.review_id)
+          throw new Error("The server did not acknowledge the confirmation.");
+        record.reviewId = review.review_id;
+        await saveFavorite(key, record);
+      }
+      await rememberAsset(
+        await api.saveCandidate(candidate.candidate_id, record.saveKey),
+      );
+    })();
+    activeFavorites.set(key, operation);
+    try {
+      await operation;
+      await check();
+    } catch (failure) {
+      error = failure.message;
+      expired = failure.status === 410;
+      show();
+    } finally {
+      activeFavorites.delete(key);
+    }
+  }
+
+  async function restore() {
+    await activeFavorites.get(key)?.catch(() => {});
+    record = await loadFavorite(key);
+    if (!record?.asset && candidate.asset_id) {
+      record = {
+        ...record,
+        asset: {
+          asset_id: candidate.asset_id,
+          media_url: `/saved-assets/${encodeURIComponent(candidate.asset_id)}/media`,
+          save_status: "saved",
+          index_status: candidate.index_status,
+        },
+      };
+    }
+    show();
+    if (record?.asset) await check();
+  }
+  restore().catch((failure) => {
+    error = failure.message;
+    show();
+  });
+}

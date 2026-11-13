@@ -6,6 +6,7 @@ from datetime import timedelta
 from pathlib import Path
 from uuid import UUID
 
+import numpy as np
 import pytest
 from PIL import Image
 from sqlalchemy import select
@@ -529,7 +530,6 @@ def test_real_processor_agent_conversion_worker_and_media(
     client, db_session, worker_factory, monkeypatch,
 ):
     """Offline transport/embeddings; actual preparation, serialization, worker and API."""
-    import numpy as np
     from services.retrieval import candidates as preparation
     from services.retrieval import prepare_candidates
     from services.search_agent import SearchBudget, search_web
@@ -565,3 +565,53 @@ def test_real_processor_agent_conversion_worker_and_media(
     assert sha256(response.content) == sha256(data)
     from services.common.storage import validate_image
     assert validate_image(response.content, animated_gif=True) == 2
+
+
+def test_default_index_subprocess_publishes_saved_gif_vectors(
+    client, db_session, worker_factory, monkeypatch, tmp_path,
+):
+    import os
+    import sys
+
+
+    from services.retrieval import saved_index
+
+    # Substitute only CLIP inference in the child; use the normal runner, storage and DB.
+    (tmp_path / "sitecustomize.py").write_text(
+        "import numpy as np\n"
+        "from services.retrieval import saved_index\n"
+        "saved_index.encode_images = lambda images: "
+        "np.tile(np.eye(1, 512, dtype=np.float32), (len(images), 1))\n"
+    )
+    monkeypatch.setenv("PYTHONPATH", os.pathsep.join([str(tmp_path), *sys.path]))
+    monkeypatch.setenv("DATABASE_URL", str(db_session.bind.url))
+    monkeypatch.setattr(saved_index, "get_session_factory", lambda: worker_factory)
+    request = finish_local_job(client, db_session, worker_factory)
+    accepted = create_web_job(client, request["request_id"])
+    run_web_job(client, worker_factory, accepted["job_id"])
+    candidate = client.get(f"/search-jobs/{accepted['job_id']}/candidates").json()[0]
+    candidate_id = candidate["candidate_id"]
+    assert client.post(
+        f"/search-jobs/{accepted['job_id']}/reviews",
+        json={
+            "decision": "accept", "candidate_id": candidate_id,
+            "client_review_key": "subprocess-review",
+        },
+    ).status_code == 201
+    save_url = f"/candidates/{candidate_id}/save"
+    payload = {"client_save_key": "subprocess-save"}
+    response = client.post(save_url, json=payload)
+    assert response.status_code == 202
+    saved = response.json()
+    assert client.post(save_url, json=payload).json()["asset_id"] == saved["asset_id"]
+    with worker_factory() as db:
+        assert search_worker.claim_next_saved_asset_index(db).id == saved["asset_id"]
+    search_worker.process_saved_asset_index(saved["asset_id"])
+    db_session.expire_all()
+    asset = db_session.get(SavedAsset, saved["asset_id"])
+    assert asset.index_status == "ready"
+    assert asset.index_attempts == 1
+    [(asset_id, vectors)] = list(saved_index.ready_vectors())
+    assert asset_id == asset.id
+    assert vectors.shape == (asset.frame_count, 512)
+    assert client.get(saved["media_url"]).content == image_bytes(gif=True)
