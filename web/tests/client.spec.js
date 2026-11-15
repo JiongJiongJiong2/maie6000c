@@ -476,13 +476,11 @@ test("changing the screenshot discards an in-flight GIF preparation", async ({
   const pending = page.waitForRequest(`**/saved-assets/${asset}/media`);
   await page.getByRole("button", { name: /Share GIF/ }).click();
   await pending;
-  await page
-    .locator("#file-input")
-    .setInputFiles({
-      name: "replacement.png",
-      mimeType: "image/png",
-      buffer: png,
-    });
+  await page.locator("#file-input").setInputFiles({
+    name: "replacement.png",
+    mimeType: "image/png",
+    buffer: png,
+  });
   await expect(page.locator("#file-name")).toHaveText("replacement.png");
   respond();
   await expect(page.locator(".share-gif")).toHaveCount(0);

@@ -1,4 +1,4 @@
-import { ApiError, sameOriginPath } from "./api.js";
+import { ApiError, combineSignals, sameOriginPath } from "./api.js";
 let signature = "";
 const urls = new Set();
 let observer;
@@ -99,7 +99,7 @@ export function renderMemeResults(container, result, api, signal, callbacks) {
   disposeMemeResults();
   signature = next;
   cardWork = new AbortController();
-  const cardSignal = AbortSignal.any([signal, cardWork.signal]);
+  const cardSignal = combineSignals([signal, cardWork.signal]);
   container.replaceChildren();
   container.classList.add("meme50-grid");
   observer = new IntersectionObserver(

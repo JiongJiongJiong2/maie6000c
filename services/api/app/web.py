@@ -17,6 +17,19 @@ def web_index() -> FileResponse:
 @router.get("/web/{asset}")
 def web_asset(asset: str) -> FileResponse:
     # Expose only shipped browser assets, not tests, guides, or arbitrary paths.
-    if asset not in {"styles.css", "app.js", "api.js", "store.js", "meme50.js"}:
+    media_types = {
+        "styles.css": "text/css",
+        "app.js": "text/javascript",
+        "api.js": "text/javascript",
+        "store.js": "text/javascript",
+        "meme50.js": "text/javascript",
+        "share.js": "text/javascript",
+    }
+    if asset not in media_types or not (WEB_ROOT / asset).is_file():
         raise HTTPException(status_code=404, detail="Asset not found")
-    return FileResponse(WEB_ROOT / asset, headers={"Cache-Control": "no-cache"})
+    # Windows registry associations can identify .js as text/plain, which browsers
+    # reject for ES modules. These shipped assets have known content types.
+    media_type = media_types[asset]
+    return FileResponse(
+        WEB_ROOT / asset, media_type=media_type, headers={"Cache-Control": "no-cache"}
+    )

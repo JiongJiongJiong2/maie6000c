@@ -1,6 +1,6 @@
 import { mountGifShare } from "./share.js";
 import { memeStatus, renderMemeResults, disposeMemeResults } from "./meme50.js";
-import { Api, validAccepted, validStatus } from "./api.js";
+import { Api, combineSignals, validAccepted, validStatus } from "./api.js";
 import {
   loadFavorite,
   saveFavorite,
@@ -289,7 +289,7 @@ function renderCandidates(candidates) {
     disposeCards();
     cardSignature = signature;
     localCards = new AbortController();
-    const signal = AbortSignal.any([localCards.signal, lifetime.signal]);
+    const signal = combineSignals([localCards.signal, lifetime.signal]);
     for (const candidate of [...candidates].sort((a, b) => a.rank - b.rank)) {
       const card = document.createElement("article");
       card.className = "candidate";
