@@ -31,3 +31,22 @@ def test_module_types_do_not_depend_on_windows_registry(client, monkeypatch):
         response = client.get(f"/web/{asset}")
         assert response.status_code == 200
         assert response.headers["content-type"].split(";")[0] == "text/javascript"
+
+
+def test_whatsapp_experiment_assets_have_explicit_types(client, monkeypatch, tmp_path):
+    from services.api.app import web
+
+    for asset, content_type in (
+        ("whatsapp-import.html", "text/html"),
+        ("whatsapp-import.js", "text/javascript"),
+    ):
+        response = client.get(f"/web/{asset}")
+        assert response.status_code == 200
+        assert response.headers["content-type"].split(";")[0] == content_type
+    # A fresh checkout has no generated pack: it must fail cleanly, not with 500.
+    monkeypatch.setattr(web, "WEB_ROOT", tmp_path)
+    assert client.get("/web/whatsapp-demo-pack.json").status_code == 404
+    (tmp_path / "whatsapp-demo-pack.json").write_text("{}", encoding="utf-8")
+    response = client.get("/web/whatsapp-demo-pack.json")
+    assert response.status_code == 200
+    assert response.headers["content-type"].split(";")[0] == "application/json"

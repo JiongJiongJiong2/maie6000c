@@ -24,6 +24,9 @@ def web_asset(asset: str) -> FileResponse:
         "store.js": "text/javascript",
         "meme50.js": "text/javascript",
         "share.js": "text/javascript",
+        "whatsapp-import.html": "text/html",
+        "whatsapp-import.js": "text/javascript",
+        "whatsapp-demo-pack.json": "application/json",
     }
     if asset not in media_types or not (WEB_ROOT / asset).is_file():
         raise HTTPException(status_code=404, detail="Asset not found")
