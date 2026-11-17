@@ -6,12 +6,20 @@ import unicodedata
 from tempfile import SpooledTemporaryFile
 from zipfile import ZIP_STORED, ZipFile
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field, StrictBool, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    StringConstraints,
+    ValidationError,
+    model_validator,
+)
 from sqlalchemy import func, select, text, tuple_
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.datastructures import UploadFile
@@ -80,7 +88,24 @@ class ManifestItem(BaseModel):
     sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
+class ImportBackupAsset(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    sha256: Digest
+    path: str
+    byte_size: int = Field(gt=0, le=MAX_BACKUP_BYTES)
+
+
+class ImportBackup(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    version: int = Field(ge=1, le=1)
+    profile: Literal["original_zip"]
+    assets: list[ImportBackupAsset] = Field(min_length=1, max_length=20)
+
+
 class Manifest(BaseModel):
+    backup: Any = None
     purpose: ImportPurpose = "upload"
     client_batch_key: Key
     items: list[ManifestItem] = Field(min_length=1, max_length=20)
@@ -141,13 +166,47 @@ def batch_receipt(db: Database, batch: ImportBatch) -> dict:
     }
 
 
+def bound_backup(payload: Manifest) -> list[dict] | None:
+    if payload.backup is None:
+        return None
+    try:
+        backup = ImportBackup.model_validate(payload.backup)
+    except ValidationError as exc:
+        raise fail(422, "backup_manifest_invalid", "Invalid backup manifest") from exc
+    assets = {asset.sha256: asset for asset in backup.assets}
+    if (
+        len(assets) != len(backup.assets)
+        or len(assets) != len(payload.items)
+        or set(assets) != {item.sha256 for item in payload.items}
+        or any(
+            item.filename != f"{item.sha256}.gif"
+            or assets[item.sha256].path != f"assets/{item.sha256}.gif"
+            or item.byte_size != assets[item.sha256].byte_size
+            for item in payload.items
+        )
+    ):
+        raise fail(422, "backup_manifest_invalid", "Backup entries do not match import items")
+    return [assets[digest].model_dump() for digest in sorted(assets)]
+
+
 @router.post("/imports")
 def create_import(payload: Manifest, db: Database) -> dict:
     rows = [item.model_dump(mode="json") for item in payload.items]
     for row in rows:
         row["filename"] = display_name(row["filename"])
     normalized = sorted(rows, key=lambda row: row["client_item_id"])
-    digest = sha256(json.dumps(normalized, sort_keys=True).encode())
+    binding = bound_backup(payload)
+    content = (
+        normalized
+        if binding is None
+        else {
+            "format": "backup-import-v1",
+            "purpose": payload.purpose,
+            "items": normalized,
+            "backup": {"version": 1, "profile": "original_zip", "assets": binding},
+        }
+    )
+    digest = sha256(json.dumps(content, sort_keys=True).encode())
     if db.get_bind().dialect.name == "postgresql":
         db.execute(
             text("SELECT pg_advisory_xact_lock(41298, hashtext(:key))"),
@@ -160,6 +219,12 @@ def create_import(payload: Manifest, db: Database) -> dict:
         if batch.manifest_sha != digest or batch.purpose != payload.purpose:
             raise fail(409, "import_key_conflict", "Batch key already binds a different manifest")
         return batch_receipt(db, batch)
+    if payload.purpose == "backup_restore" and binding is None:
+        raise fail(422, "backup_manifest_required", "Select the backup manifest again")
+    if payload.purpose == "upload" and binding is not None:
+        raise fail(
+            422, "backup_manifest_invalid", "Ordinary uploads do not accept a backup manifest"
+        )
     batch = ImportBatch(
         id=str(uuid4()),
         client_batch_key=payload.client_batch_key,

@@ -563,3 +563,155 @@ test("private library splits imports, keeps selection, and downloads a backup", 
     include_annotations: false,
   });
 });
+
+test("backup restore reports each current receipt and only restores successful metadata", async ({
+  page,
+}) => {
+  const { createHash } = await import("node:crypto");
+  const files = ["Large", "Small", "HTTP limit"].map((title, i) => {
+    const bytes = Buffer.concat([gif, Buffer.from([i])]);
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    return {
+      entry: {
+        title,
+        sha256,
+        path: `assets/${sha256}.gif`,
+        byte_size: bytes.length,
+      },
+      upload: { name: `${sha256}.gif`, mimeType: "image/gif", buffer: bytes },
+    };
+  });
+  const manifests = [];
+  const receipts = new Map();
+  const metadata = [];
+  const uploads = [];
+  const historical = {
+    batch_id: "history",
+    items: [
+      {
+        ...files[0].entry,
+        client_item_id: "old",
+        filename: files[0].upload.name,
+        status: "imported",
+        asset_id: "old-asset",
+      },
+    ],
+    counts: { waiting: 0, imported: 1, duplicate: 0, rejected: 0 },
+  };
+  receipts.set("history", historical);
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "private-library-import",
+      JSON.stringify([
+        {
+          manifest: {
+            client_batch_key: "unsubmitted",
+            purpose: "backup_restore",
+            items: [],
+          },
+        },
+        { batch_id: "history" },
+      ]),
+    );
+  });
+  await page.route("**/library/assets", (route) =>
+    route.fulfill({ json: { assets: [] } }),
+  );
+  await page.route("**/library/imports", (route) => {
+    const request = route.request().postDataJSON();
+    if (request.client_batch_key === "unsubmitted")
+      return route.fulfill({
+        status: 422,
+        json: { detail: { code: "backup_manifest_required" } },
+      });
+    manifests.push(request);
+    const batch_id = `current-${manifests.length}`;
+    const items = request.items.map((item) =>
+      item.sha256 === files[0].entry.sha256
+        ? { ...item, status: "rejected", error_code: "file_too_large" }
+        : { ...item, status: "waiting" },
+    );
+    const batch = {
+      batch_id,
+      items,
+      counts: {
+        waiting: items.length - 1,
+        imported: 0,
+        duplicate: 0,
+        rejected: 1,
+      },
+    };
+    receipts.set(batch_id, batch);
+    return route.fulfill({ json: batch });
+  });
+  await page.route(/\/library\/imports\/(?:history|current-\d+)$/, (route) =>
+    route.fulfill({
+      json: receipts.get(route.request().url().split("/").at(-1)),
+    }),
+  );
+  await page.route("**/library/imports/*/items/*", (route) => {
+    const parts = route.request().url().split("/");
+    const batch = receipts.get(parts.at(-3));
+    const item = batch.items.find(
+      (item) => item.client_item_id === parts.at(-1),
+    );
+    uploads.push(item.sha256);
+    if (item.sha256 === files[2].entry.sha256)
+      return route.fulfill({
+        status: 413,
+        json: { detail: { code: "file_too_large" } },
+      });
+    Object.assign(item, { status: "imported", asset_id: "small" });
+    batch.counts.waiting--;
+    batch.counts.imported++;
+    return route.fulfill({ json: item });
+  });
+  await page.route("**/library/restores/metadata", (route) => {
+    const request = route.request().postDataJSON();
+    metadata.push(request.uploaded_sha256);
+    return route.fulfill({
+      json: {
+        items: request.uploaded_sha256.map((sha256) => ({
+          sha256,
+          status: "restored",
+        })),
+      },
+    });
+  });
+  await fixtures(page);
+  await page.getByText("我的表情库", { exact: true }).click();
+  await expect(page.getByText(/旧还原请求未建立/)).toBeVisible();
+  await expect(page.getByText(/\.gif — 已导入/)).toBeVisible();
+  await page.getByText("从原 GIF 备份还原", { exact: true }).click();
+  await page.locator("#library-backup-manifest").setInputFiles({
+    name: "manifest.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        version: 1,
+        profile: "original_zip",
+        assets: files.map(({ entry }) => entry),
+      }),
+    ),
+  });
+  const restore = page.getByRole("button", { name: "校验并还原" });
+  await page
+    .locator("#library-files")
+    .setInputFiles(files.map(({ upload }) => upload));
+  await restore.click();
+  const results = page.locator("[data-restore-results]");
+  await expect(results.getByText("Small — 已还原")).toBeVisible();
+  await expect(results.getByText("Large — 超过目标库单文件上限")).toBeVisible();
+  await expect(
+    results.getByText("HTTP limit — 超过目标库单文件上限"),
+  ).toBeVisible();
+  expect(manifests[0].backup.assets).toHaveLength(3);
+  expect(metadata).toEqual([[files[1].entry.sha256]]);
+  expect(uploads).not.toContain(files[0].entry.sha256);
+
+  await page.locator("#library-files").setInputFiles(files[0].upload);
+  await restore.click();
+  await expect(results.getByText("Small — 缺少原 GIF")).toBeVisible();
+  await expect(results.getByText("Large — 超过目标库单文件上限")).toBeVisible();
+  expect(metadata).toHaveLength(1);
+});

@@ -72,7 +72,7 @@ export function mountLibrary(api, newKey) {
       const items = element("ul");
       for (const item of batch.items) {
         const label =
-          errors.get(item.client_item_id) ||
+          errors.get(item.client_item_id)?.label ||
           (item.error_code === "file_too_large"
             ? "文件超过大小限制"
             : statusLabels[item.status]);
@@ -96,6 +96,7 @@ export function mountLibrary(api, newKey) {
   }
 
   async function restore() {
+    let needsManifest = false;
     const stored = JSON.parse(localStorage.getItem(storageKey) || "null");
     states = Array.isArray(stored) ? stored : stored ? [stored] : [];
     batches = [];
@@ -103,24 +104,38 @@ export function mountLibrary(api, newKey) {
       try {
         batches.push(await resolveBatch(state));
       } catch (error) {
-        if (error.code !== "import_not_found") throw error;
+        if (error.code === "backup_manifest_required") needsManifest = true;
+        else if (error.code !== "import_not_found") throw error;
         states = states.filter((entry) => entry !== state);
         saveState();
       }
       renderReceipts();
     }
-    if (batches.some((batch) => batch.counts.waiting))
+    if (needsManifest) report("旧还原请求未建立。请重新选择备份清单。");
+    else if (batches.some((batch) => batch.counts.waiting))
       report("请重新选择尚未上传的 GIF，再点继续上传。");
   }
 
-  async function beginImport(selected, purpose = "upload") {
+  async function beginImport(selected, backup = null) {
     const pending = [];
     for (let offset = 0; offset < selected.length; offset += 20) {
+      const items = selected.slice(offset, offset + 20).map(({ item }) => item);
       pending.push({
         manifest: {
           client_batch_key: newKey(),
-          purpose,
-          items: selected.slice(offset, offset + 20).map(({ item }) => item),
+          purpose: backup ? "backup_restore" : "upload",
+          items,
+          ...(backup && {
+            backup: {
+              version: backup.version,
+              profile: backup.profile,
+              assets: items.map(({ sha256, byte_size }) => ({
+                sha256,
+                byte_size,
+                path: `assets/${sha256}.gif`,
+              })),
+            },
+          }),
         },
       });
     }
@@ -130,6 +145,7 @@ export function mountLibrary(api, newKey) {
       batches.push(await resolveBatch(state));
       renderReceipts();
     }
+    return new Set(pending.map(({ batch_id }) => batch_id));
   }
 
   function updateSelection() {
@@ -435,7 +451,14 @@ export function mountLibrary(api, newKey) {
           batch.counts[item.status]++;
           errors.delete(item.client_item_id);
         } catch (error) {
-          errors.set(item.client_item_id, `暂时失败，可重试（${error.code}）`);
+          const tooLarge =
+            error.status === 413 || error.code === "file_too_large";
+          errors.set(item.client_item_id, {
+            tooLarge,
+            label: tooLarge
+              ? "超过目标库单文件上限"
+              : `暂时失败，可重试（${error.code}）`,
+          });
         }
         renderReceipts();
       }
@@ -510,22 +533,30 @@ export function mountLibrary(api, newKey) {
       showResults();
       if (!valid.length) return;
       await restore();
-      await beginImport(valid, "backup_restore");
+      const currentBatches = await beginImport(valid, manifest);
       await transfer(valid);
-      const completed = new Set(
-        batches.flatMap((batch) =>
-          batch.items
-            .filter(
-              (item) =>
-                item.asset_id &&
-                ["imported", "duplicate"].includes(item.status),
-            )
-            .map((item) => item.sha256),
-        ),
-      );
-      const uploaded_sha256 = valid
-        .map(({ item }) => item.sha256)
-        .filter((sha) => completed.has(sha));
+      const uploaded_sha256 = [];
+      for (const batch of batches) {
+        if (!currentBatches.has(batch.batch_id)) continue;
+        for (const item of batch.items) {
+          const row = rows.get(item.sha256);
+          const error = errors.get(item.client_item_id);
+          if (
+            item.asset_id &&
+            ["imported", "duplicate"].includes(item.status)
+          ) {
+            uploaded_sha256.push(item.sha256);
+            row.status = "已保存 GIF，待还原元数据";
+          } else if (item.error_code === "file_too_large" || error?.tooLarge) {
+            row.status = "超过目标库单文件上限";
+          } else if (item.status === "rejected") {
+            row.status = `还原失败（${item.error_code}）`;
+          } else if (error) {
+            row.status = "暂时失败，可继续上传";
+          }
+        }
+      }
+      showResults();
       if (!uploaded_sha256.length) return;
       const result = await json("/library/restores/metadata", "POST", {
         manifest,

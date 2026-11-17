@@ -506,6 +506,21 @@ def test_backup_round_trip_into_clean_library(client, db_session, monkeypatch, t
     engine.dispose()
 
 
+def backup_projection(items):
+    return {
+        "version": 1,
+        "profile": "original_zip",
+        "assets": [
+            {
+                "sha256": item["sha256"],
+                "byte_size": item["byte_size"],
+                "path": f"assets/{item['sha256']}.gif",
+            }
+            for item in items
+        ],
+    }
+
+
 def test_restore_uses_stored_purpose_for_manifest_and_body(client, monkeypatch):
     from services.api.app.library import file_limit
 
@@ -528,14 +543,19 @@ def test_restore_uses_stored_purpose_for_manifest_and_body(client, monkeypatch):
     assert len(large) == restore_limit
     entries = [
         manifest_item("large.gif", large),
-        {**manifest_item("over.gif", body), "byte_size": restore_limit + 1},
-        {**manifest_item("ordinary-boundary.gif", body), "byte_size": ordinary_limit},
+        {**manifest_item("over.gif", b"over"), "byte_size": restore_limit + 1},
+        {**manifest_item("ordinary-boundary.gif", b"boundary"), "byte_size": ordinary_limit},
     ]
+
+    for item in entries:
+        item["filename"] = f"{item['sha256']}.gif"
 
     def create(key, purpose=None):
         payload = {"client_batch_key": key, "items": entries}
         if purpose is not None:
             payload["purpose"] = purpose
+        if purpose == "backup_restore":
+            payload["backup"] = backup_projection(entries)
         return client.post("/library/imports", headers=auth, json=payload)
 
     ordinary = create("ordinary").json()
@@ -561,3 +581,96 @@ def test_restore_uses_stored_purpose_for_manifest_and_body(client, monkeypatch):
         upload(create("restore-again", "backup_restore").json(), large).json()["asset_id"]
         == saved["asset_id"]
     )
+
+
+def test_backup_manifest_binding_and_legacy_replay(client, db_session, monkeypatch):
+    import copy
+    import json
+
+    from sqlalchemy import select
+
+    from services.common.library_models import ImportBatch, ImportItem
+
+    auth = enable(monkeypatch)
+    data = gif()
+    items = [manifest_item("a.gif", data), manifest_item("b.gif", gif("green"))]
+    for item in items:
+        item["filename"] = f"{item['sha256']}.gif"
+    payload = {
+        "client_batch_key": "bound",
+        "purpose": "backup_restore",
+        "items": items,
+        "backup": backup_projection(items),
+    }
+
+    def create(body):
+        return client.post("/library/imports", headers=auth, json=body)
+
+    def without_backup(body):
+        body.pop("backup")
+
+    missing = copy.deepcopy(payload)
+    without_backup(missing)
+    assert create(missing).json()["detail"]["code"] == "backup_manifest_required"
+    for change in [
+        lambda p: p["backup"].update(version=True),
+        lambda p: p["backup"].update(version=2),
+        lambda p: p["backup"].update(profile="other"),
+        lambda p: p["backup"]["assets"].append(p["backup"]["assets"][0]),
+        lambda p: p["backup"]["assets"][0].update(path="../foo.gif"),
+        lambda p: p["items"][0].update(filename="../" + p["items"][0]["filename"]),
+        lambda p: p["backup"]["assets"].pop(),
+        lambda p: p["items"].pop(),
+        lambda p: p["backup"]["assets"][0].update(sha256="0" * 64),
+        lambda p: p["backup"]["assets"][0].update(byte_size=999),
+    ]:
+        invalid = copy.deepcopy(payload)
+        change(invalid)
+        response = create(invalid)
+        assert response.status_code == 422
+        assert response.json()["detail"]["code"] == "backup_manifest_invalid"
+    assert not list(db_session.scalars(select(ImportBatch)))
+    assert not list(db_session.scalars(select(ImportItem)))
+
+    first = create(payload).json()
+    reordered = copy.deepcopy(payload)
+    reordered["items"].reverse()
+    reordered["backup"]["assets"].reverse()
+    assert create(reordered).json() == first
+    assert create(missing).status_code == 409
+    assert create({**payload, "purpose": "upload"}).status_code == 409
+    assert (
+        create({**payload, "items": items[:1], "backup": backup_projection(items[:1])}).status_code
+        == 409
+    )
+
+    # Seed exactly the digest and row shape written by e015921.
+    for purpose in ("upload", "backup_restore"):
+        old = {**items[0], "filename": "legacy.gif"}
+        batch_id = str(uuid4())
+        key = f"legacy-{purpose}"
+        db_session.add(
+            ImportBatch(
+                id=batch_id,
+                client_batch_key=key,
+                purpose=purpose,
+                manifest_sha=sha256(json.dumps([old], sort_keys=True).encode()),
+            )
+        )
+        db_session.flush()
+        db_session.add(ImportItem(batch_id=batch_id, position=0, **old))
+        db_session.commit()
+        original = {"client_batch_key": key, "items": [old]}
+        if purpose == "backup_restore":
+            original["purpose"] = purpose
+        assert create(original).json()["batch_id"] == batch_id
+        changed = {**original, "items": [{**old, "byte_size": len(data) + 1}]}
+        assert create(changed).status_code == 409
+        path = f"/library/imports/{batch_id}/items/{old['client_item_id']}"
+        assert (
+            client.put(path, headers=auth, files={"file": ("legacy.gif", data[:-1])}).status_code
+            == 409
+        )
+        exact = client.put(path, headers=auth, files={"file": ("legacy.gif", data)})
+        assert exact.json()["status"] in {"imported", "duplicate"}
+        assert create(original).json()["items"][0] == exact.json()
