@@ -62,8 +62,12 @@ router = APIRouter(prefix="/library", dependencies=[Depends(require_library), De
 Key = Annotated[str, StringConstraints(min_length=1, max_length=128, pattern=r"^\S+$")]
 
 
-def file_limit() -> int:
-    return min(10 * 1024 * 1024, get_settings().max_candidate_bytes)
+ImportPurpose = Literal["upload", "backup_restore"]
+
+
+def file_limit(purpose: ImportPurpose) -> int:
+    saved_limit = get_settings().max_candidate_bytes
+    return saved_limit if purpose == "backup_restore" else min(10 * 1024 * 1024, saved_limit)
 
 
 ItemKey = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
@@ -77,6 +81,7 @@ class ManifestItem(BaseModel):
 
 
 class Manifest(BaseModel):
+    purpose: ImportPurpose = "upload"
     client_batch_key: Key
     items: list[ManifestItem] = Field(min_length=1, max_length=20)
 
@@ -127,6 +132,7 @@ def batch_receipt(db: Database, batch: ImportBatch) -> dict:
     ]
     return {
         "batch_id": batch.id,
+        "purpose": batch.purpose,
         "items": items,
         "counts": {
             status: sum(item["status"] == status for item in items)
@@ -151,16 +157,20 @@ def create_import(payload: Manifest, db: Database) -> dict:
         select(ImportBatch).where(ImportBatch.client_batch_key == payload.client_batch_key)
     )
     if batch is not None:
-        if batch.manifest_sha != digest:
+        if batch.manifest_sha != digest or batch.purpose != payload.purpose:
             raise fail(409, "import_key_conflict", "Batch key already binds a different manifest")
         return batch_receipt(db, batch)
     batch = ImportBatch(
-        id=str(uuid4()), client_batch_key=payload.client_batch_key, manifest_sha=digest
+        id=str(uuid4()),
+        client_batch_key=payload.client_batch_key,
+        manifest_sha=digest,
+        purpose=payload.purpose,
     )
     db.add(batch)
     db.flush()
+    limit = file_limit(batch.purpose)
     for position, row in enumerate(rows):
-        oversized = row["byte_size"] > file_limit()
+        oversized = row["byte_size"] > limit
         db.add(
             ImportItem(
                 batch_id=batch.id,
@@ -182,8 +192,16 @@ def read_import(batch_id: UUID, db: Database) -> dict:
     return batch_receipt(db, batch)
 
 
-async def bounded_file(request: Request) -> bytes:
-    limit = file_limit()
+def stored_batch_limit(batch_id: UUID, db: Database) -> int:
+    purpose = db.scalar(select(ImportBatch.purpose).where(ImportBatch.id == str(batch_id)))
+    if purpose is None:
+        raise fail(404, "import_not_found", "Batch not found")
+    return file_limit(purpose)
+
+
+async def bounded_file(
+    request: Request, limit: Annotated[int, Depends(stored_batch_limit)]
+) -> bytes:
     if request.headers.get("content-type", "").split(";", 1)[0].strip() != "multipart/form-data":
         raise fail(415, "multipart_required", "Upload a multipart file")
     body = bytearray()

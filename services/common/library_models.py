@@ -19,6 +19,10 @@ class ImportBatch(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     client_batch_key: Mapped[str] = mapped_column(String(128), unique=True)
     manifest_sha: Mapped[str] = mapped_column(String(64))
+    purpose: Mapped[str] = mapped_column(String(16), server_default="upload")
+    __table_args__ = (
+        CheckConstraint("purpose IN ('upload', 'backup_restore')", name="ck_import_batch_purpose"),
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 

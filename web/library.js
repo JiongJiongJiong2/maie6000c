@@ -113,12 +113,13 @@ export function mountLibrary(api, newKey) {
       report("请重新选择尚未上传的 GIF，再点继续上传。");
   }
 
-  async function beginImport(selected) {
+  async function beginImport(selected, purpose = "upload") {
     const pending = [];
     for (let offset = 0; offset < selected.length; offset += 20) {
       pending.push({
         manifest: {
           client_batch_key: newKey(),
+          purpose,
           items: selected.slice(offset, offset + 20).map(({ item }) => item),
         },
       });
@@ -509,7 +510,7 @@ export function mountLibrary(api, newKey) {
       showResults();
       if (!valid.length) return;
       await restore();
-      await beginImport(valid);
+      await beginImport(valid, "backup_restore");
       await transfer(valid);
       const completed = new Set(
         batches.flatMap((batch) =>

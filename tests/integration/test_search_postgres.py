@@ -475,3 +475,29 @@ def test_private_import_and_candidate_save_share_one_asset(postgres_backend):
         saved = db.scalar(select(SavedAsset).where(SavedAsset.sha256 == sha256(data)))
         assert saved.id == results[0][0]
         assert (get_settings().media_root / saved.gif_path).read_bytes() == data
+
+
+def test_upgrade_backfills_existing_import_batches_without_changing_replay(postgres_backend):
+    from services.api.app.library import Manifest, create_import
+    from services.common.library_models import ImportBatch
+
+    engine, factory, config = postgres_backend
+    payload = Manifest(
+        client_batch_key="legacy-replay",
+        items=[{
+            "client_item_id": "pending",
+            "filename": "old.gif",
+            "byte_size": 42,
+            "sha256": "a" * 64,
+        }],
+    )
+    with factory() as db:
+        initial = create_import(payload, db)
+    command.downgrade(config, "20261117_0006")
+    assert "purpose" not in {
+        column["name"] for column in inspect(engine).get_columns("library_import_batches")
+    }
+    command.upgrade(config, "head")
+    with factory() as db:
+        assert db.get(ImportBatch, initial["batch_id"]).purpose == "upload"
+        assert create_import(payload, db) == initial

@@ -504,3 +504,60 @@ def test_backup_round_trip_into_clean_library(client, db_session, monkeypatch, t
         finally:
             app.dependency_overrides[get_db] = previous
     engine.dispose()
+
+
+def test_restore_uses_stored_purpose_for_manifest_and_body(client, monkeypatch):
+    from services.api.app.library import file_limit
+
+    auth = enable(monkeypatch)
+    monkeypatch.setenv("MAX_CANDIDATE_BYTES", str(11 * 1024**2))
+    get_settings.cache_clear()
+    ordinary_limit = 10 * 1024**2
+    restore_limit = 11 * 1024**2
+    assert file_limit("upload") == ordinary_limit
+    body = gif()
+    # Legal GIF comment sub-blocks keep the complete animation intact.
+    remaining = restore_limit - len(body) - 3
+    comment = bytearray(b"\x21\xfe")
+    while remaining:
+        count = min(255, remaining - 1)
+        assert count
+        comment.extend(bytes([count]) + b"x" * count)
+        remaining -= count + 1
+    large = body[:-1] + comment + b"\x00;"
+    assert len(large) == restore_limit
+    entries = [
+        manifest_item("large.gif", large),
+        {**manifest_item("over.gif", body), "byte_size": restore_limit + 1},
+        {**manifest_item("ordinary-boundary.gif", body), "byte_size": ordinary_limit},
+    ]
+
+    def create(key, purpose=None):
+        payload = {"client_batch_key": key, "items": entries}
+        if purpose is not None:
+            payload["purpose"] = purpose
+        return client.post("/library/imports", headers=auth, json=payload)
+
+    ordinary = create("ordinary").json()
+    backup = create("restore", "backup_restore").json()
+    assert ordinary["purpose"] == "upload"
+    assert [i["status"] for i in ordinary["items"]] == ["rejected", "rejected", "waiting"]
+    assert [i["status"] for i in backup["items"]] == ["waiting", "rejected", "waiting"]
+    assert create("ordinary", "upload").json() == ordinary
+    assert create("ordinary", "backup_restore").status_code == 409
+    assert create("restore").status_code == 409
+
+    def upload(batch, data):
+        path = f"/library/imports/{batch['batch_id']}/items/{entries[0]['client_item_id']}"
+        return client.put(path, headers=auth, files={"file": ("large.gif", data)})
+
+    assert upload(ordinary, large).status_code == 413
+    assert upload(backup, large + b"x").status_code == 413
+    assert upload(backup, large + b"x" * (17 * 1024)).status_code == 413
+    saved = upload(backup, large).json()
+    assert saved["status"] == "imported"
+    assert upload(backup, large).json() == saved
+    assert (
+        upload(create("restore-again", "backup_restore").json(), large).json()["asset_id"]
+        == saved["asset_id"]
+    )
