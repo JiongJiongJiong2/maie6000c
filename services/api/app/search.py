@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,7 @@ from services.common.config import get_settings
 from services.common.db import get_db
 from services.common.library_models import LibraryActivation
 from services.common.models import utcnow
+from services.common.saved_publish import lock_saved_digest
 from services.common.search_models import (
     Candidate,
     CandidateSave,
@@ -346,9 +347,7 @@ def publish_saved_gif(
     image_url: str = "",
 ) -> tuple[SavedAsset, bool]:
     digest = sha256(data)
-    if db.get_bind().dialect.name == "postgresql":
-        lock_key = int.from_bytes(bytes.fromhex(digest[:16]), "big", signed=True)
-        db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": lock_key})
+    lock_saved_digest(db, digest)
     asset = db.scalar(select(SavedAsset).where(SavedAsset.sha256 == digest))
     if asset is not None:
         verify_saved_asset_media(asset)

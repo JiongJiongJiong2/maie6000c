@@ -26,7 +26,7 @@ def upgrade():
         sa.Column(
             "batch_id", sa.String(36), sa.ForeignKey("library_import_batches.id"), primary_key=True
         ),
-        sa.Column("client_item_id", sa.String(36), primary_key=True),
+        sa.Column("client_item_id", sa.String(128), primary_key=True),
         sa.Column("position", sa.Integer(), nullable=False),
         sa.Column("filename", sa.String(200), nullable=False),
         sa.Column("byte_size", sa.Integer(), nullable=False),

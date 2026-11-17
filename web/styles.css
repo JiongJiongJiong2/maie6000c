@@ -2009,3 +2009,45 @@ label[for="search-mode"] {
     grid-template-columns: 1fr;
   }
 }
+
+#private-library {
+  display: block;
+  margin-inline: auto;
+  max-width: min(100% - 2rem, 70rem);
+  padding: 1rem;
+}
+
+#private-library summary {
+  cursor: pointer;
+}
+
+#private-library [data-assets] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+#private-library [data-assets] > li {
+  border: 1px solid currentColor;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#private-library img,
+#private-library input {
+  max-width: 100%;
+}
+
+#private-library form label {
+  display: block;
+}
+
+#private-library [data-assets] img {
+  display: block;
+  max-height: 18rem;
+  object-fit: contain;
+}
