@@ -8,7 +8,8 @@ from sqlalchemy import func, select, tuple_, update
 
 from services.common.library_metadata import Annotation, annotation_version
 from services.common.library_models import AssetMetadata, LibraryActivation, SimilarityScan
-from services.common.media import inspect_media, representative_frames
+from services.common.library_frames import annotation_frames
+from services.common.media import inspect_media
 from services.common.models import utcnow
 from services.common.search_models import SavedAsset
 from services.retrieval.dedup import fingerprint, same_animation
@@ -68,7 +69,7 @@ def annotate(asset, settings):
         raise PipelineError("annotation_unconfigured")
     if not re.fullmatch(r"[a-zA-Z0-9.\-]{1,100}", settings.hkust_model):
         raise PipelineError("visual_model_config")
-    frames, records = representative_frames(read_saved_gif(asset), count=4)
+    frames, records = annotation_frames(read_saved_gif(asset))
     ledger = Ledger(settings.model_copy(update={"timeout_seconds": settings.call_timeout_seconds}))
     ledger.take("model_calls")
     vision = HKUSTVision(settings, ledger)

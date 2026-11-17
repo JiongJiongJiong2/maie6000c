@@ -32,7 +32,7 @@ class MetadataEdit(BaseModel):
 
 
 def annotation_version(model: str) -> str:
-    return f"hkust/{model}/library-prompt-v1/playback-midpoints-v1"
+    return f"hkust/{model}/library-prompt-v1/playback-tail-v2"
 
 
 def effective_labels(manual: dict, annotation: dict) -> dict:

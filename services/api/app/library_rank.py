@@ -14,6 +14,8 @@ CONCEPTS = {
     },
     "action_tags": {
         "鼓掌": ("鼓掌", "拍手", "applaud", "clap", "clapping"),
+        "托腮": ("托腮", "托着下巴", "托下巴", "撑着下巴", "chin in hand"),
+        "思考": ("思考", "想事情", "想问题", "沉思", "ponder", "thinking"),
         "摇头": ("摇头", "shake head", "shaking head"),
         "点头": ("点头", "nod", "nodding"),
         "翻白眼": ("翻白眼", "roll eyes", "eye roll"),
@@ -78,7 +80,7 @@ def rank(prepared, title: str, manual: dict, annotation: dict):
     reasons = []
     exact = [term for term in quoted if contains(ocr, term) or any(contains(t, term) for t in tags)]
     reasons.extend(f"文字「{term}」" for term in exact)
-    groups = 0
+    groups = coverage = 0
     for category, names in concepts.items():
         matches = [
             name
@@ -91,6 +93,7 @@ def rank(prepared, title: str, manual: dict, annotation: dict):
         ]
         if matches:
             groups += 1
+            coverage += len(matches)
             reasons.extend(matches)
     fields = [(title, 8, "标题"), (ocr, 7, "文字"), (captions, 2, "描述")]
     fields.extend((tag, 9, "手动标签") for tag in tags)
@@ -106,4 +109,4 @@ def rank(prepared, title: str, manual: dict, annotation: dict):
         reasons.extend(
             field for value, weight, field in fields if weight == direct and contains(value, query)
         )
-    return (len(exact), groups, direct, sum(hits.values())), list(dict.fromkeys(reasons))
+    return (len(exact), groups, coverage, direct, sum(hits.values())), list(dict.fromkeys(reasons))
