@@ -73,7 +73,7 @@
       <details id="private-library" class="connection-panel">
         <summary>我的表情库</summary>
         <p role="status"></p>
-        <label for="library-files">选择 GIF（每批最多 20 个）</label>
+        <label for="library-files">选择 GIF（最多 60 个，自动分批）</label>
         <input
           id="library-files"
           type="file"
@@ -86,6 +86,38 @@
           <button type="button" data-refresh>刷新</button>
         </div>
         <ul data-receipts></ul>
+        <details>
+          <summary>从原 GIF 备份还原</summary>
+          <p>
+            在本机解压 ZIP，选择 manifest.json，再用上面的 GIF
+            选择器选取解压后的文件。
+          </p>
+          <label for="library-backup-manifest">备份清单</label>
+          <input
+            id="library-backup-manifest"
+            type="file"
+            accept=".json,application/json"
+          />
+          <button type="button" data-restore-backup>校验并还原</button>
+          <ul data-restore-results></ul>
+        </details>
+        <form data-filters>
+          <label>标题 <input name="title" maxlength="200" /></label>
+          <label>标签 <input name="tag" maxlength="40" /></label>
+          <label
+            >状态
+            <select name="state">
+              <option value="">全部</option>
+              <option value="index:pending">索引待处理</option>
+              <option value="index:ready">索引已就绪</option>
+              <option value="index:failed">索引失败</option>
+              <option value="ai:not_requested">未申请识别</option>
+              <option value="ai:ready">识别已就绪</option>
+              <option value="ai:failed">识别失败</option>
+            </select>
+          </label>
+          <button type="submit">筛选</button>
+        </form>
         <form data-search>
           <label for="library-query">搜索我的表情</label>
           <input
@@ -100,6 +132,25 @@
         <button type="button" data-annotate>
           AI 识别所选 GIF 的文字与情绪
         </button>
+        <form data-bulk-tags>
+          <label
+            >给所选 GIF 加标签
+            <input name="tags" maxlength="327" placeholder="用顿号分隔"
+          /></label>
+          <button type="submit">批量加标签</button>
+        </form>
+        <div>
+          <label
+            ><input type="checkbox" data-export-manual />
+            包含人工标签和文字修正</label
+          >
+          <label
+            ><input type="checkbox" data-export-annotations /> 包含已保存的 AI
+            识别结果</label
+          >
+          <button type="button" data-export>备份所选原 GIF</button>
+          <span data-selection aria-live="polite"></span>
+        </div>
         <ul data-assets></ul>
         <button type="button" data-more hidden>加载更多</button>
       </details>

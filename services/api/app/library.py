@@ -3,20 +3,42 @@ from __future__ import annotations
 import heapq
 import json
 import unicodedata
+from tempfile import SpooledTemporaryFile
+from zipfile import ZIP_STORED, ZipFile
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, Path, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, StrictBool, StringConstraints, model_validator
-from sqlalchemy import select, text, tuple_
+from sqlalchemy import func, select, text, tuple_
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.datastructures import UploadFile
 
 from services.api.app.library_rank import prepare_query, rank
-from services.api.app.search import Database, authorize, fail, publish_saved_gif
+from services.api.app.search import (
+    Database,
+    authorize,
+    fail,
+    publish_saved_gif,
+    verify_saved_asset_media,
+)
 from services.common.config import get_settings
-from services.common.library_metadata import MetadataEdit, annotation_version, effective_labels
+from services.common.library_backup import (
+    MAX_BACKUP_BYTES,
+    MAX_BACKUP_ITEMS,
+    BackupEntry,
+    BackupManifest,
+    BackupSource,
+    Digest,
+)
+from services.common.library_metadata import (
+    MetadataEdit,
+    Tags,
+    annotation_version,
+    effective_labels,
+)
 from services.common.library_models import (
     AssetMetadata,
     ImportBatch,
@@ -280,6 +302,9 @@ def list_assets(
     db: Database,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     cursor: Annotated[str | None, Query(max_length=90)] = None,
+    title: Annotated[str | None, Query(max_length=200)] = None,
+    tag: Annotated[str | None, Query(max_length=40)] = None,
+    state: Annotated[str | None, Query(pattern=r"^(index|ai):[a-z_]{1,20}$")] = None,
 ) -> dict:
     statement = asset_rows()
     if cursor:
@@ -289,7 +314,29 @@ def list_assets(
         except ValueError as exc:
             raise fail(422, "invalid_cursor", "Invalid library cursor") from exc
         statement = statement.where(tuple_(SavedAsset.created_at, SavedAsset.id) < after)
-    assets = list(db.execute(statement.limit(limit + 1)))
+    if title and title.strip():
+        statement = statement.where(
+            func.lower(func.coalesce(AssetMetadata.title, SavedAsset.title)).contains(
+                title.strip().lower(), autoescape=True
+            )
+        )
+    if state:
+        domain, value = state.split(":", 1)
+        column = (
+            SavedAsset.index_status
+            if domain == "index"
+            else func.coalesce(AssetMetadata.annotation_status, "not_requested")
+        )
+        statement = statement.where(column == value)
+    if tag and tag.strip():
+        assets = []
+        for row in db.execute(statement.execution_options(yield_per=50)):
+            if tag.strip().casefold() in {label.casefold() for label in asset_card(*row)["tags"]}:
+                assets.append(row)
+                if len(assets) == limit + 1:
+                    break
+    else:
+        assets = list(db.execute(statement.limit(limit + 1)))
     page = assets[:limit]
     next_cursor = None
     if len(assets) > limit:
@@ -398,3 +445,167 @@ def search_library(payload: LibraryQuery, db: Database) -> dict:
             else:
                 heapq.heappushpop(top, result)
     return {"assets": [value for _, value in sorted(top, reverse=True)]}
+
+
+@router.get("/assets/{asset_id}")
+def read_asset(asset_id: UUID, db: Database) -> dict:
+    row = db.execute(asset_rows().where(SavedAsset.id == str(asset_id))).one_or_none()
+    if row is None:
+        raise fail(404, "asset_not_found", "Saved GIF not found")
+    return asset_card(*row)
+
+
+class AssetSelection(BaseModel):
+    asset_ids: list[UUID] = Field(min_length=1, max_length=MAX_BACKUP_ITEMS)
+
+
+class AddTagsRequest(AssetSelection):
+    tags: Tags = Field(min_length=1, max_length=8)
+
+
+@router.post("/assets/bulk-tags")
+def add_tags(payload: AddTagsRequest, db: Database) -> dict:
+    plans = []
+    for asset_id in sorted(set(payload.asset_ids)):
+        asset = lock_asset(db, asset_id)
+        metadata = metadata_for_edit(db, asset)
+        tags = list(dict.fromkeys([*metadata.manual.get("tags", []), *payload.tags]))
+        if len(tags) > 8:
+            db.rollback()
+            raise fail(409, "tag_limit_exceeded", "A GIF can have at most eight manual tags")
+        plans.append((metadata, tags))
+    for metadata, tags in plans:
+        metadata.manual = {**metadata.manual, "tags": tags}
+        metadata.updated_at = utcnow()
+    commit(db)
+    return {"updated": len(plans)}
+
+
+class ExportRequest(AssetSelection):
+    profile: Literal["original_zip"] = "original_zip"
+    include_manual: StrictBool = False
+    include_annotations: StrictBool = False
+
+
+@router.post("/exports")
+def export_originals(payload: ExportRequest, db: Database) -> StreamingResponse:
+    selected = {str(asset_id) for asset_id in payload.asset_ids}
+    rows = list(db.execute(asset_rows().where(SavedAsset.id.in_(selected))))
+    if len(rows) != len(selected):
+        raise fail(404, "asset_not_found", "Selected GIF not found")
+    spool = SpooledTemporaryFile(max_size=8 * 1024 * 1024)
+    entries = []
+    written = 0
+    try:
+        with ZipFile(spool, mode="w", compression=ZIP_STORED) as archive:
+            for asset, metadata, _ in rows:
+                data = verify_saved_asset_media(asset)
+                written += len(data)
+                if written > MAX_BACKUP_BYTES:
+                    raise fail(413, "backup_too_large", "Backup exceeds 256 MiB of original GIFs")
+                digest = asset.sha256
+                path = f"assets/{digest}.gif"
+                # Invalid legacy source links must not prevent original bytes from being backed up.
+                source = {}
+                for field in ("source_url", "image_url"):
+                    value = getattr(asset, field)
+                    try:
+                        source[field] = BackupSource.safe_url(value)
+                    except ValueError:
+                        source[field] = ""
+                entry = BackupEntry(
+                    sha256=digest,
+                    path=path,
+                    byte_size=len(data),
+                    frame_count=asset.frame_count,
+                    title=(metadata.title if metadata else None) or asset.title,
+                    source=BackupSource(provider=asset.provider, **source),
+                    manual=metadata.manual if metadata and payload.include_manual else None,
+                    annotation=metadata.annotation
+                    if metadata
+                    and payload.include_annotations
+                    and (metadata.annotation or {}).get("sha256") == digest
+                    else None,
+                )
+                archive.writestr(path, data)
+                entries.append(entry)
+            manifest = BackupManifest(version=1, profile="original_zip", assets=entries)
+            archive.writestr("manifest.json", manifest.model_dump_json(exclude_none=True))
+        size = spool.tell()
+        spool.seek(0)
+    except BaseException:
+        spool.close()
+        raise
+
+    def chunks():
+        with spool:
+            while chunk := spool.read(1024 * 1024):
+                yield chunk
+
+    return StreamingResponse(
+        chunks(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": 'attachment; filename="private-gifs.zip"',
+            "Content-Length": str(size),
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+class RestoreRequest(BaseModel):
+    manifest: BackupManifest
+    uploaded_sha256: list[Digest] = Field(min_length=1, max_length=MAX_BACKUP_ITEMS)
+
+
+@router.post("/restores/metadata")
+def restore_metadata(payload: RestoreRequest, db: Database) -> dict:
+    uploaded = set(payload.uploaded_sha256)
+    entries = {entry.sha256: entry for entry in payload.manifest.assets}
+    if not uploaded <= entries.keys():
+        raise fail(422, "backup_mismatch", "Uploaded GIF is not listed in the backup")
+    results = []
+    for digest in sorted(uploaded):
+        entry = entries[digest]
+        asset = db.scalar(select(SavedAsset).where(SavedAsset.sha256 == digest).with_for_update())
+        result = {"sha256": digest, "status": "rejected"}
+        results.append(result)
+        if asset is None:
+            result["error_code"] = "backup_asset_missing"
+            continue
+        try:
+            size = len(verify_saved_asset_media(asset))
+        except HTTPException as exc:
+            result["error_code"] = exc.detail["code"]
+            continue
+        if asset.frame_count != entry.frame_count or size != entry.byte_size:
+            result["error_code"] = "backup_mismatch"
+            continue
+        metadata = metadata_for_edit(db, asset)
+        if metadata.title is None:
+            metadata.title = entry.title
+        if entry.manual is not None:
+            metadata.manual = {
+                **entry.manual.model_dump(exclude_unset=True, exclude_none=True, exclude={"title"}),
+                **metadata.manual,
+            }
+        if (
+            entry.annotation is not None
+            and metadata.annotation is None
+            and metadata.annotation_status == "not_requested"
+        ):
+            metadata.annotation = entry.annotation.model_dump()
+            metadata.annotation_sha = digest
+            metadata.annotation_version = entry.annotation.version
+            metadata.annotation_status = "ready"
+        if entry.source and asset.provider == "local_upload":
+            if not asset.source_url and not asset.image_url:
+                asset.provider = entry.source.provider
+            if not asset.source_url:
+                asset.source_url = entry.source.source_url
+            if not asset.image_url:
+                asset.image_url = entry.source.image_url
+        metadata.updated_at = utcnow()
+        result.update(status="restored", asset_id=asset.id)
+    commit(db)
+    return {"items": results}

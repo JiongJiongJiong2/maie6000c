@@ -457,3 +457,109 @@ test("private library resumes waiting GIFs and requires consent for vision", asy
   await page.locator("#library-query").press("Enter");
   await expect(page.getByText(/未找到匹配项/)).toBeVisible();
 });
+
+test("private library splits imports, keeps selection, and downloads a backup", async ({
+  page,
+}) => {
+  const manifests = [];
+  const batches = new Map();
+  let exported;
+  let added;
+  const names = ["Sample one", "Sample two"];
+  const ids = [candidateId, requestId];
+  const cards = ids.map((asset_id, index) => ({
+    asset_id,
+    title: names[index],
+    frame_count: 2,
+    index_status: "pending",
+    annotation_status: "not_requested",
+    media_url: `/saved-assets/${asset_id}/media`,
+  }));
+  await page.route(/\/library\/assets(?:\?|$)/, (route) => {
+    const filtered = new URL(route.request().url()).searchParams.get("tag");
+    return route.fulfill({
+      json: { assets: filtered ? cards.slice(1) : cards },
+    });
+  });
+  await page.route("**/library/imports", (route) => {
+    const manifest = route.request().postDataJSON();
+    manifests.push(manifest.items.length);
+    const batch_id = `batch-${manifests.length}`;
+    const items = manifest.items.map((item) => ({
+      ...item,
+      status: "waiting",
+    }));
+    const counts = {
+      waiting: items.length,
+      imported: 0,
+      duplicate: 0,
+      rejected: 0,
+    };
+    const batch = { items, batch_id, counts };
+    batches.set(batch_id, batch);
+    return route.fulfill({ json: batch });
+  });
+  await page.route(/\/library\/imports\/batch-[0-9]+$/, (route) =>
+    route.fulfill({
+      json: batches.get(route.request().url().split("/").at(-1)),
+    }),
+  );
+  await page.route("**/library/imports/*/items/*", (route) => {
+    const parts = route.request().url().split("/");
+    const batch = batches.get(parts.at(-3));
+    const item = batch.items.find(
+      (item) => item.client_item_id === parts.at(-1),
+    );
+    item.status = "imported";
+    batch.counts.imported++;
+    batch.counts.waiting--;
+    return route.fulfill({ json: item });
+  });
+  await page.route("**/library/assets/bulk-tags", (route) => {
+    added = route.request().postDataJSON();
+    return route.fulfill({ json: { updated: 2 } });
+  });
+  await page.route("**/library/exports", (route) => {
+    exported = route.request().postDataJSON();
+    return route.fulfill({
+      contentType: "application/zip",
+      body: "mock archive",
+    });
+  });
+
+  await fixtures(page);
+  await page.getByText("我的表情库", { exact: true }).click();
+  await page.getByText("Sample one", { exact: true }).waitFor();
+  await page.locator("#library-files").setInputFiles(
+    Array.from({ length: 21 }, (_, index) => ({
+      name: `batch-file-${index}.gif`,
+      mimeType: "image/gif",
+      buffer: Buffer.concat([gif, Buffer.from([index])]),
+    })),
+  );
+  await page.getByRole("button", { name: "导入新批次" }).click();
+  await expect(page.getByText("batch-file-20.gif — 已导入")).toBeVisible();
+  expect(manifests).toEqual([20, 1]);
+
+  for (const name of names)
+    await page.getByRole("checkbox", { name: `选择 ${name}` }).check();
+  await page.locator("[data-filters] input[name=tag]").fill("归档");
+  await page.getByRole("button", { name: "筛选", exact: true }).click();
+  await expect(page.getByText("Sample one", { exact: true })).toBeHidden();
+  await expect(page.getByText("已选 2 张")).toBeVisible();
+  await page.locator("[data-bulk-tags] input").fill("归档、保留");
+  await page.getByRole("button", { name: "批量加标签" }).click();
+  await expect(page.getByText("已为 2 张 GIF 更新标签。")).toBeVisible();
+  expect(added).toEqual({ asset_ids: ids, tags: ["归档", "保留"] });
+
+  await page.locator("[data-export-manual]").check();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "备份所选原 GIF" }).click();
+  expect((await download).suggestedFilename()).toBe("private-gifs.zip");
+  expect(exported).toEqual({
+    asset_ids: ids,
+    profile: "original_zip",
+    include_manual: true,
+    include_annotations: false,
+  });
+});

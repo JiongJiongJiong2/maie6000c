@@ -13,7 +13,12 @@ const element = (tag, text = "") => {
 
 export function mountLibrary(api, newKey) {
   const panel = document.querySelector("#private-library");
-  const picker = panel.querySelector("input[type=file]");
+  const picker = panel.querySelector("#library-files");
+  const backupPicker = panel.querySelector("#library-backup-manifest");
+  const backupFeedback = panel.querySelector("[data-restore-results]");
+  const filterForm = panel.querySelector("[data-filters]");
+  let filters = new URLSearchParams();
+  const selection = new Set();
   const submit = panel.querySelector("[data-import]");
   const resume = panel.querySelector("[data-resume]");
   const refresh = panel.querySelector("[data-refresh]");
@@ -27,7 +32,8 @@ export function mountLibrary(api, newKey) {
   const scanLabels = ["角色", "动作", "情绪", "语气"];
   let submittedQuery = "";
   let active = false;
-  let batch = null;
+  let batches = [];
+  let states = [];
   let cursor = null;
   let media = new AbortController();
   const urls = new Set();
@@ -52,33 +58,122 @@ export function mountLibrary(api, newKey) {
     feedback.textContent = message;
   }
 
-  function saveState(state) {
-    localStorage.setItem(storageKey, JSON.stringify(state));
+  function saveState() {
+    localStorage.setItem(storageKey, JSON.stringify(states));
   }
 
   function renderReceipts() {
-    const rows = (batch?.items || []).map((item) => {
-      const label =
-        errors.get(item.client_item_id) ||
-        (item.error_code === "file_too_large"
-          ? "文件超过大小限制"
-          : statusLabels[item.status]);
-      return element("li", `${item.filename} — ${label}`);
+    const groups = batches.map((batch, index) => {
+      const counts = batch.counts;
+      const group = element(
+        "li",
+        `批次 ${index + 1}：成功 ${counts.imported}、重复 ${counts.duplicate}、拒绝 ${counts.rejected}、待续传 ${counts.waiting}`,
+      );
+      const items = element("ul");
+      for (const item of batch.items) {
+        const label =
+          errors.get(item.client_item_id) ||
+          (item.error_code === "file_too_large"
+            ? "文件超过大小限制"
+            : statusLabels[item.status]);
+        items.append(element("li", `${item.filename} — ${label}`));
+      }
+      group.append(items);
+      return group;
     });
-    receipts.replaceChildren(...rows);
-    resume.hidden = !batch?.counts.waiting;
+    receipts.replaceChildren(...groups);
+    resume.hidden = !batches.some((batch) => batch.counts.waiting);
+  }
+
+  async function resolveBatch(state) {
+    const receipt = state.batch_id
+      ? await api.request(`/library/imports/${state.batch_id}`)
+      : await json("/library/imports", "POST", state.manifest);
+    state.batch_id = receipt.batch_id;
+    delete state.manifest;
+    saveState();
+    return receipt;
   }
 
   async function restore() {
     const stored = JSON.parse(localStorage.getItem(storageKey) || "null");
-    if (!stored) return;
-    batch = stored.batch_id
-      ? await api.request(`/library/imports/${stored.batch_id}`)
-      : await json("/library/imports", "POST", stored.manifest);
-    saveState({ batch_id: batch.batch_id });
-    renderReceipts();
-    if (batch.counts.waiting)
+    states = Array.isArray(stored) ? stored : stored ? [stored] : [];
+    batches = [];
+    for (const state of [...states]) {
+      try {
+        batches.push(await resolveBatch(state));
+      } catch (error) {
+        if (error.code !== "import_not_found") throw error;
+        states = states.filter((entry) => entry !== state);
+        saveState();
+      }
+      renderReceipts();
+    }
+    if (batches.some((batch) => batch.counts.waiting))
       report("请重新选择尚未上传的 GIF，再点继续上传。");
+  }
+
+  async function beginImport(selected) {
+    const pending = [];
+    for (let offset = 0; offset < selected.length; offset += 20) {
+      pending.push({
+        manifest: {
+          client_batch_key: newKey(),
+          items: selected.slice(offset, offset + 20).map(({ item }) => item),
+        },
+      });
+    }
+    states.push(...pending);
+    saveState();
+    for (const state of pending) {
+      batches.push(await resolveBatch(state));
+      renderReceipts();
+    }
+  }
+
+  function updateSelection() {
+    panel.querySelector("[data-selection]").textContent = selection.size
+      ? `已选 ${selection.size} 张`
+      : "";
+  }
+
+  function previewMatches(parent, asset) {
+    const button = element(
+      "button",
+      `查看可能重复的 ${asset.possible_duplicates.length} 张 GIF`,
+    );
+    button.type = "button";
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      const { signal } = media;
+      try {
+        for (const id of asset.possible_duplicates) {
+          const match = await api.request(
+            `/library/assets/${encodeURIComponent(id)}`,
+            { signal },
+          );
+          const blob = await api.request(match.media_url, {
+            media: true,
+            signal,
+          });
+          if (signal.aborted) return;
+          const url = URL.createObjectURL(blob);
+          urls.add(url);
+          const photo = element("img");
+          photo.src = url;
+          photo.alt = match.title;
+          const figure = element("figure");
+          figure.append(photo, element("figcaption", match.title));
+          parent.append(figure);
+        }
+        button.hidden = true;
+      } catch (error) {
+        if (!signal.aborted) report(errorMessage(error));
+      } finally {
+        button.disabled = false;
+      }
+    });
+    parent.append(button);
   }
 
   function card(asset) {
@@ -118,6 +213,12 @@ export function mountLibrary(api, newKey) {
     const select = element("input");
     select.type = "checkbox";
     select.value = asset.asset_id;
+    select.checked = selection.has(asset.asset_id);
+    select.addEventListener("change", () => {
+      if (select.checked) selection.add(asset.asset_id);
+      else selection.delete(asset.asset_id);
+      updateSelection();
+    });
     const selectLabel = element("label");
     selectLabel.append(select, document.createTextNode(` 选择 ${asset.title}`));
     li.append(title, state, selectLabel, show);
@@ -138,11 +239,7 @@ export function mountLibrary(api, newKey) {
       li.append(
         element("p", `识别失败 · ${asset.annotation_error}。可选中后重试。`),
       );
-    if (asset.possible_duplicates?.length) {
-      li.append(
-        element("p", `可能重复（${asset.possible_duplicates.length} 张）`),
-      );
-    }
+    if (asset.possible_duplicates?.length) previewMatches(li, asset);
     if (asset.ocr_text || asset.ocr_uncertain) {
       li.append(
         element(
@@ -223,7 +320,9 @@ export function mountLibrary(api, newKey) {
     if (!panel.open) return;
     if (!append) dispose();
     const { signal } = media;
-    const path = append ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    const params = new URLSearchParams(filters);
+    if (append && cursor) params.set("cursor", cursor);
+    const path = params.size ? `?${params}` : "";
     const result = submittedQuery
       ? await api.request("/library/search", {
           method: "POST",
@@ -280,8 +379,8 @@ export function mountLibrary(api, newKey) {
   async function selectedFiles() {
     if (!crypto.subtle) throw new Error("导入需要 HTTPS 或 localhost。");
     const files = Array.from(picker.files);
-    if (!files.length || files.length > 20) {
-      throw new Error("请选择 1–20 个 GIF。");
+    if (!files.length || files.length > 60) {
+      throw new Error("请选择 1–60 个 GIF。");
     }
     const selected = [];
     for (const file of files) {
@@ -306,18 +405,23 @@ export function mountLibrary(api, newKey) {
   }
 
   async function transfer(selected) {
-    const waiting = batch.items.filter((item) => item.status === "waiting");
-    const pending = waiting.flatMap((item) => {
-      const found = selected.find(
-        (entry) =>
-          entry.item.sha256 === item.sha256 &&
-          entry.item.byte_size === item.byte_size,
-      );
-      return found ? [{ item, file: found.file }] : [];
-    });
+    const available = new Map(
+      selected.map(({ item, file }) => [
+        `${item.sha256}:${item.byte_size}`,
+        file,
+      ]),
+    );
+    const pending = [];
+    for (const batch of batches) {
+      for (const item of batch.items) {
+        const file = available.get(`${item.sha256}:${item.byte_size}`);
+        if (item.status === "waiting" && file)
+          pending.push({ batch, item, file });
+      }
+    }
     async function worker() {
       while (pending.length) {
-        const { item, file } = pending.shift();
+        const { batch, item, file } = pending.shift();
         const form = new FormData();
         form.append("file", file);
         try {
@@ -325,7 +429,9 @@ export function mountLibrary(api, newKey) {
             `/library/imports/${batch.batch_id}/items/${item.client_item_id}`,
             { method: "PUT", body: form },
           );
+          batch.counts[item.status]--;
           Object.assign(item, receipt);
+          batch.counts[item.status]++;
           errors.delete(item.client_item_id);
         } catch (error) {
           errors.set(item.client_item_id, `暂时失败，可重试（${error.code}）`);
@@ -334,27 +440,15 @@ export function mountLibrary(api, newKey) {
       }
     }
     await Promise.all([worker(), worker()]);
-    batch = await api.request(`/library/imports/${batch.batch_id}`);
-    renderReceipts();
-    if (batch.counts.waiting)
-      report("仍有等待项。请选择与原文件 SHA 一致的 GIF，再继续上传。");
+    await restore();
     await loadAssets();
   }
 
   submit.addEventListener("click", () =>
     run(async () => {
       const selected = await selectedFiles();
-      if (batch?.counts.waiting && !window.confirm("改为显示新批次的回执？"))
-        return;
-      errors.clear();
-      const manifest = {
-        client_batch_key: newKey(),
-        items: selected.map(({ item }) => item),
-      };
-      saveState({ manifest });
-      batch = await json("/library/imports", "POST", manifest);
-      saveState({ batch_id: batch.batch_id });
-      renderReceipts();
+      await restore();
+      await beginImport(selected);
       await transfer(selected);
     }),
   );
@@ -364,6 +458,145 @@ export function mountLibrary(api, newKey) {
       await transfer(await selectedFiles());
     }),
   );
+
+  panel.querySelector("[data-restore-backup]").addEventListener("click", () =>
+    run(async () => {
+      const manifestFile = backupPicker.files[0];
+      if (!manifestFile || manifestFile.size > 1024 * 1024)
+        throw new Error("请选择大小不超过 1 MiB 的 manifest.json。");
+      const manifest = JSON.parse(await manifestFile.text());
+      if (
+        manifest.version !== 1 ||
+        manifest.profile !== "original_zip" ||
+        !Array.isArray(manifest.assets) ||
+        !manifest.assets.length ||
+        manifest.assets.length > 60 ||
+        new Set(manifest.assets.map((asset) => asset.sha256)).size !==
+          manifest.assets.length ||
+        !manifest.assets.every(
+          (asset) =>
+            /^[0-9a-f]{64}$/.test(asset.sha256) &&
+            asset.path === `assets/${asset.sha256}.gif`,
+        )
+      )
+        throw new Error("不支持此备份清单。");
+      const selected = await selectedFiles();
+      const byName = new Map(selected.map((entry) => [entry.file.name, entry]));
+      const valid = [];
+      const rows = new Map();
+      for (const entry of manifest.assets) {
+        const picked = byName.get(`${entry.sha256}.gif`);
+        let status = "缺少原 GIF";
+        if (picked) {
+          status = "文件字节或 SHA 不一致";
+          if (
+            picked.item.sha256 === entry.sha256 &&
+            picked.item.byte_size === entry.byte_size
+          ) {
+            status = "待还原";
+            valid.push(picked);
+          }
+        }
+        rows.set(entry.sha256, { title: entry.title, status });
+      }
+      function showResults() {
+        backupFeedback.replaceChildren(
+          ...[...rows.values()].map(({ title, status }) =>
+            element("li", `${title} — ${status}`),
+          ),
+        );
+      }
+      showResults();
+      if (!valid.length) return;
+      await restore();
+      await beginImport(valid);
+      await transfer(valid);
+      const completed = new Set(
+        batches.flatMap((batch) =>
+          batch.items
+            .filter(
+              (item) =>
+                item.asset_id &&
+                ["imported", "duplicate"].includes(item.status),
+            )
+            .map((item) => item.sha256),
+        ),
+      );
+      const uploaded_sha256 = valid
+        .map(({ item }) => item.sha256)
+        .filter((sha) => completed.has(sha));
+      if (!uploaded_sha256.length) return;
+      const result = await json("/library/restores/metadata", "POST", {
+        manifest,
+        uploaded_sha256,
+      });
+      for (const item of result.items)
+        rows.get(item.sha256).status =
+          item.status === "restored"
+            ? "已还原"
+            : `还原失败（${item.error_code}）`;
+      showResults();
+      await loadAssets();
+    }),
+  );
+
+  panel.querySelector("[data-export]").addEventListener("click", () =>
+    run(async () => {
+      if (!selection.size || selection.size > 60)
+        throw new Error("请选择 1–60 张 GIF。");
+      const blob = await api.request("/library/exports", {
+        method: "POST",
+        binary: true,
+        timeout: 120000,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          asset_ids: [...selection],
+          profile: "original_zip",
+          include_manual: panel.querySelector("[data-export-manual]").checked,
+          include_annotations: panel.querySelector("[data-export-annotations]")
+            .checked,
+        }),
+      });
+      const url = URL.createObjectURL(blob);
+      const link = element("a");
+      link.href = url;
+      link.download = "private-gifs.zip";
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }),
+  );
+
+  panel
+    .querySelector("[data-bulk-tags]")
+    .addEventListener("submit", (event) => {
+      event.preventDefault();
+      const tags = event.currentTarget.elements.tags.value
+        .split(/[、,，]/)
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+      run(async () => {
+        if (!selection.size || selection.size > 60)
+          throw new Error("请选择 1–60 张 GIF。");
+        if (!tags.length || tags.length > 8)
+          throw new Error("请输入 1–8 个标签。");
+        const result = await json("/library/assets/bulk-tags", "POST", {
+          asset_ids: [...selection],
+          tags,
+        });
+        await loadAssets();
+        report(`已为 ${result.updated} 张 GIF 更新标签。`);
+      });
+    });
+
+  filterForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    filters = new URLSearchParams(
+      [...new FormData(filterForm)].filter(([, value]) => value.trim()),
+    );
+    submittedQuery = "";
+    query.value = "";
+    run(() => loadAssets());
+  });
   const reload = () =>
     run(async () => {
       await loadAssets();
@@ -385,9 +618,7 @@ export function mountLibrary(api, newKey) {
   });
   annotate.addEventListener("click", () =>
     run(async () => {
-      const asset_ids = [
-        ...assets.querySelectorAll("input[type=checkbox]:checked"),
-      ].map((input) => input.value);
+      const asset_ids = [...selection];
       if (!asset_ids.length || asset_ids.length > 20) {
         report("请选择 1–20 张 GIF。");
         return;
@@ -419,7 +650,10 @@ export function mountLibrary(api, newKey) {
     dispose();
     receipts.replaceChildren();
     errors.clear();
-    batch = null;
+    batches = [];
+    states = [];
+    selection.clear();
+    updateSelection();
     if (panel.open) reload();
   };
 }

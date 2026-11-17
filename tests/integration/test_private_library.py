@@ -351,3 +351,156 @@ def test_library_search_covers_old_pages(client, db_session, monkeypatch):
     for _ in range(2):
         result = client.post("/library/search", headers=auth, json={"query": "无奈的鸭子"}).json()
         assert [asset["asset_id"] for asset in result["assets"]] == [old.id]
+
+
+def test_backup_round_trip_into_clean_library(client, db_session, monkeypatch, tmp_path):
+    from zipfile import ZipFile
+
+    from services.api.app.main import app
+    from services.common.db import Base, get_db, make_engine, make_session_factory
+    from services.common.library_models import AssetMetadata
+
+    auth = enable(monkeypatch)
+
+    def send_batch(key, files):
+        manifest = [manifest_item(name, data) for name, data in files]
+        result = client.post(
+            "/library/imports", headers=auth, json={"client_batch_key": key, "items": manifest}
+        )
+        assert result.status_code == 200, result.text
+        batch_id = result.json()["batch_id"]
+        for entry, (name, data) in zip(manifest, files, strict=True):
+            item_id = entry["client_item_id"]
+            sent = client.put(
+                f"/library/imports/{batch_id}/items/{item_id}",
+                headers=auth,
+                files={"file": (name, data)},
+            )
+            assert sent.status_code == 200, sent.text
+        return client.get(f"/library/imports/{batch_id}", headers=auth).json()
+
+    originals = [("same-name.gif", gif((i * 7, 20, 80))) for i in range(28)]
+    source_batches = [
+        send_batch("source-1", originals[:20]),
+        send_batch("source-2", [*originals[20:], originals[0], ("broken.gif", b"GIF89a")]),
+    ]
+    assert [batch["counts"] for batch in source_batches] == [
+        {"imported": 20, "duplicate": 0, "rejected": 0, "waiting": 0},
+        {"imported": 8, "duplicate": 1, "rejected": 1, "waiting": 0},
+    ]
+    ids = [
+        item["asset_id"]
+        for batch in source_batches
+        for item in batch["items"]
+        if item["status"] == "imported"
+    ]
+    assert len(ids) == 28
+    applied = client.post(
+        "/library/assets/bulk-tags",
+        headers=auth,
+        json={"asset_ids": ids, "tags": ["项目", "备份", "项目"]},
+    )
+    assert applied.json() == {"updated": 28}
+    edited = client.patch(
+        f"/library/assets/{ids[0]}", headers=auth, json={"title": "手工标题", "ocr_text": "原文"}
+    )
+    assert edited.status_code == 200
+    meta = db_session.get(AssetMetadata, ids[0])
+    meta.annotation = {
+        "ocr_text": "AI 原文",
+        "caption_zh": "描述",
+        "subject_tags": [],
+        "action_tags": [],
+        "emotion_tags": ["好奇"],
+        "version": "hkust/demo/test",
+        "sha256": sha256(originals[0][1]),
+        "sampled_frames": [{"frame_index": 1, "time_ms": 100}],
+    }
+    meta.annotation_version = meta.annotation["version"]
+    meta.annotation_sha = meta.annotation["sha256"]
+    meta.annotation_status = "ready"
+    db_session.commit()
+    filtered = client.get(
+        "/library/assets",
+        headers=auth,
+        params={
+            "tag": "备份",
+            "title": "手工",
+            "state": "ai:ready",
+        },
+    ).json()
+    assert [item["asset_id"] for item in filtered["assets"]] == [ids[0]]
+    assert client.get(f"/library/assets/{ids[0]}", headers=auth).json()["title"] == "手工标题"
+
+    payload = {
+        "asset_ids": ids,
+        "profile": "original_zip",
+        "include_manual": True,
+        "include_annotations": True,
+    }
+    assert client.post("/library/exports", json=payload).status_code == 401
+    exported = client.post("/library/exports", headers=auth, json=payload)
+    assert exported.status_code == 200, exported.text
+    assert exported.headers["content-type"] == "application/zip"
+    with ZipFile(io.BytesIO(exported.content)) as archive:
+        import json
+
+        manifest = json.loads(archive.read("manifest.json"))
+        assert len(manifest["assets"]) == 28
+        files = {entry["sha256"]: archive.read(entry["path"]) for entry in manifest["assets"]}
+        assert set(archive.namelist()) == {
+            "manifest.json",
+            *[f"assets/{digest}.gif" for digest in files],
+        }
+        assert files == {sha256(data): data for _, data in originals}
+    primary = next(entry for entry in manifest["assets"] if entry["title"] == "手工标题")
+    assert primary["manual"]["tags"] == ["项目", "备份"]
+    assert primary["annotation"]["sampled_frames"] == [{"frame_index": 1, "time_ms": 100}]
+
+    engine = make_engine(f"sqlite:///{tmp_path / 'backup-destination.db'}")
+    Base.metadata.create_all(engine)
+    previous = app.dependency_overrides[get_db]
+    with make_session_factory(engine)() as dest:
+        app.dependency_overrides[get_db] = lambda: dest
+        try:
+            monkeypatch.setenv("MEDIA_ROOT", str(tmp_path / "backup-destination-media"))
+            get_settings.cache_clear()
+            assert not client.get("/library/assets", headers=auth).json()["assets"]
+            restore_files = [(f"{digest}.gif", data) for digest, data in files.items()]
+            batches = [restore_files[:20], restore_files[20:]]
+            first = send_batch("restore-1", batches[0])
+            assert first["counts"]["imported"] == 20
+            absent = sha256(batches[1][0][1])
+            request = {"manifest": manifest, "uploaded_sha256": list(files)}
+            partial = client.post("/library/restores/metadata", headers=auth, json=request)
+            assert partial.status_code == 200, partial.text
+            assert sum(item["status"] == "restored" for item in partial.json()["items"]) == 20
+            assert (
+                next(item for item in partial.json()["items"] if item["sha256"] == absent)[
+                    "error_code"
+                ]
+                == "backup_asset_missing"
+            )
+            assert send_batch("restore-2", batches[1])["counts"]["imported"] == 8
+            restored = client.post("/library/restores/metadata", headers=auth, json=request)
+            assert all(item["status"] == "restored" for item in restored.json()["items"])
+            assert client.post("/library/restores/metadata", headers=auth, json=request).json() == (
+                restored.json()
+            )
+            by_digest = {item["sha256"]: item["asset_id"] for item in restored.json()["items"]}
+            for digest, asset_id in by_digest.items():
+                asset = client.get(f"/library/assets/{asset_id}", headers=auth).json()
+                response = client.get(asset["media_url"], headers=auth)
+                assert response.content == files[digest]
+                assert asset["frame_count"] == 2
+                assert asset["manual"]["tags"] == ["项目", "备份"]
+            asset_id = by_digest[primary["sha256"]]
+            restored_primary = client.get(f"/library/assets/{asset_id}", headers=auth).json()
+            assert restored_primary["ocr_text"] == "原文"
+            assert restored_primary["annotation_status"] == "ready"
+            assert restored_primary["annotation_result_version"] == "hkust/demo/test"
+            assert send_batch("restore-repeat", batches[1])["counts"]["duplicate"] == 8
+            assert len(client.get("/library/assets?limit=100", headers=auth).json()["assets"]) == 28
+        finally:
+            app.dependency_overrides[get_db] = previous
+    engine.dispose()
