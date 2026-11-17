@@ -18,7 +18,7 @@ from sqlalchemy import create_engine, func, inspect, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 
-from services.api.app.search import create_review, create_search, retry_search
+from services.api.app.search import create_review, create_search, retry_search, save_candidate
 from services.common.config import get_settings
 from services.common.db import make_session_factory
 from services.common.models import utcnow
@@ -29,7 +29,8 @@ from services.common.search_models import (
     SearchJob,
     SearchRequest,
 )
-from services.common.search_schemas import RetryCreate, ReviewCreate
+from services.common.search_schemas import RetryCreate, ReviewCreate, SaveCreate
+from services.common.storage import atomic_write, sha256
 from services.worker.app.search_worker import claim_next_search_job
 
 
@@ -364,3 +365,139 @@ def test_meme50_upgrade_preserves_old_review_fk_and_accepts_fifty_static(postgre
         command.downgrade(config, "20261109_0003")
     assert "meme_candidate_drafts" in inspect(engine).get_table_names()
     command.check(config)
+
+
+def test_save_first_gif_and_replay_with_immediate_foreign_keys(postgres_backend):
+    _, factory, _ = postgres_backend
+    gif = io.BytesIO()
+    Image.new("RGB", (12, 12), "red").save(
+        gif, format="GIF", save_all=True, append_images=[Image.new("RGB", (12, 12), "blue")]
+    )
+    data = gif.getvalue()
+    atomic_write(get_settings().media_root, "candidate.gif", data)
+    with factory() as db:
+        job = SearchJob(
+            request_id=new_request(db).id, job_kind="web",
+            status="completed", result_kind="candidates",
+            started_at=utcnow(), finished_at=utcnow(),
+        )
+        db.add(job)
+        db.flush()
+        candidate = Candidate(
+            job_id=job.id, rank=1, similarity_score=0.95, frame_count=2,
+            source_url="https://example.org/gif", local_cache_path="candidate.gif",
+            media_sha256=sha256(data), cache_expires_at=utcnow() + timedelta(hours=1),
+        )
+        db.add(candidate)
+        db.commit()
+        candidate_id = UUID(candidate.id)
+        create_review(
+            UUID(job.id),
+            ReviewCreate(candidate_id=candidate_id, decision="accept", client_review_key="review"),
+            db,
+        )
+        payload = SaveCreate(client_save_key="save")
+        saved = save_candidate(candidate_id, payload, db)
+        assert saved.index_status == "pending"
+        assert save_candidate(candidate_id, payload, db).asset_id == saved.asset_id
+        assert db.get(Candidate, str(candidate_id)).saved_asset_id == str(saved.asset_id)
+
+
+def test_private_import_and_candidate_save_share_one_asset(postgres_backend):
+    from services.api.app.library import Manifest, create_import, upload_item
+    from services.common.search_models import SavedAsset
+
+    _, factory, config = postgres_backend
+    command.downgrade(config, "20261111_0004")
+    buffer = io.BytesIO()
+    Image.new("RGB", (12, 12), "green").save(
+        buffer, format="GIF", save_all=True, append_images=[Image.new("RGB", (12, 12), "blue")]
+    )
+    legacy = buffer.getvalue()
+    path = f"saved/{sha256(legacy)}.gif"
+    atomic_write(get_settings().media_root, path, legacy)
+    with factory() as db:
+        old = SavedAsset(sha256=sha256(legacy), title="Legacy", source_url="", image_url="",
+                         provider="test", gif_path=path, frame_count=2, index_status="ready")
+        db.add(old)
+        db.commit()
+        old_id = old.id
+
+    command.upgrade(config, "head")
+    buffer = io.BytesIO()
+    Image.new("RGB", (12, 12), "red").save(
+        buffer, format="GIF", save_all=True, append_images=[Image.new("RGB", (12, 12), "blue")]
+    )
+    data = buffer.getvalue()
+    atomic_write(get_settings().media_root, "candidate.gif", data)
+    with factory() as db:
+        assert db.get(SavedAsset, old_id).index_status == "ready"
+        assert (get_settings().media_root / path).read_bytes() == legacy
+        job = SearchJob(request_id=new_request(db).id, job_kind="web", status="completed",
+                        result_kind="candidates", started_at=utcnow(), finished_at=utcnow())
+        db.add(job)
+        db.flush()
+        candidate = Candidate(
+            job_id=job.id, rank=1, similarity_score=0.95, frame_count=2,
+            source_url="https://example.org/gif", local_cache_path="candidate.gif",
+            media_sha256=sha256(data), cache_expires_at=utcnow() + timedelta(hours=1),
+        )
+        db.add(candidate)
+        db.commit()
+        candidate_id = UUID(candidate.id)
+        create_review(UUID(job.id), ReviewCreate(candidate_id=candidate_id, decision="accept",
+                      client_review_key="library-race-review"), db)
+        batches = []
+        for _ in range(2):
+            item_id = str(uuid4())
+            batch = create_import(Manifest(client_batch_key=str(uuid4()), items=[{
+                "client_item_id": item_id, "filename": "same.gif",
+                "byte_size": len(data), "sha256": sha256(data),
+            }]), db)
+            batches.append((UUID(batch["batch_id"]), item_id))
+
+    barrier = Barrier(3)
+
+    def run(index):
+        with factory() as db:
+            barrier.wait(timeout=5)
+            if index == 2:
+                asset = save_candidate(candidate_id, SaveCreate(client_save_key="library-race"), db)
+                return str(asset.asset_id), "saved"
+            receipt = upload_item(*batches[index], db, data)
+            return receipt["asset_id"], receipt["status"]
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        results = list(executor.map(run, range(3)))
+    assert len({asset_id for asset_id, _ in results}) == 1
+    assert {status for _, status in results[:2]} <= {"imported", "duplicate"}
+    with factory() as db:
+        saved = db.scalar(select(SavedAsset).where(SavedAsset.sha256 == sha256(data)))
+        assert saved.id == results[0][0]
+        assert (get_settings().media_root / saved.gif_path).read_bytes() == data
+
+
+def test_upgrade_backfills_existing_import_batches_without_changing_replay(postgres_backend):
+    from services.api.app.library import Manifest, create_import
+    from services.common.library_models import ImportBatch
+
+    engine, factory, config = postgres_backend
+    payload = Manifest(
+        client_batch_key="legacy-replay",
+        items=[{
+            "client_item_id": "pending",
+            "filename": "old.gif",
+            "byte_size": 42,
+            "sha256": "a" * 64,
+        }],
+    )
+    with factory() as db:
+        initial = create_import(payload, db)
+    command.downgrade(config, "20261117_0006")
+    assert "purpose" not in {
+        column["name"] for column in inspect(engine).get_columns("library_import_batches")
+    }
+    command.upgrade(config, "head")
+    with factory() as db:
+        assert db.get(ImportBatch, initial["batch_id"]).purpose == "upload"
+        assert create_import(payload, db) == initial

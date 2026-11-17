@@ -2,21 +2,28 @@ import { ApiError, sameOriginPath } from "./api.js";
 let signature = "";
 const urls = new Set();
 let observer;
+let cardWork;
 
 export function disposeMemeResults() {
   observer?.disconnect();
+  cardWork?.abort();
   for (const url of urls) URL.revokeObjectURL(url);
   urls.clear();
   signature = "";
 }
 
-export async function memeStatus(api, accepted, state, signal) {
-  const job = await api.request(`/search-jobs/${accepted.job_id}`, { signal });
+export async function memeStatus(api, accepted, state, signal, summary) {
+  const job =
+    summary ||
+    (await api.request(`/search-jobs/${accepted.job_id}`, { signal }));
   if (
     job.job_id !== accepted.job_id ||
     job.request_id !== accepted.request_id ||
     job.search_profile !== "meme50-v2" ||
     job.contract_version !== 2 ||
+    (accepted.job_kind === "web"
+      ? job.job_kind !== "web"
+      : job.job_kind && job.job_kind !== "web") ||
     !["pending", "running", "completed", "failed"].includes(job.status)
   ) {
     throw new ApiError("Invalid image-search response.", 0, "invalid_response");
@@ -79,8 +86,7 @@ function button(label, handler, name = "secondary") {
   return node;
 }
 
-export function renderMemeResults(result, api, signal, callbacks) {
-  const container = document.getElementById("candidates");
+export function renderMemeResults(container, result, api, signal, callbacks) {
   const provisional = result.status !== "completed";
   const items = provisional ? result.previewItems || [] : result.candidates;
   const next = JSON.stringify([
@@ -92,6 +98,8 @@ export function renderMemeResults(result, api, signal, callbacks) {
   if (next === signature) return;
   disposeMemeResults();
   signature = next;
+  cardWork = new AbortController();
+  const cardSignal = AbortSignal.any([signal, cardWork.signal]);
   container.replaceChildren();
   container.classList.add("meme50-grid");
   observer = new IntersectionObserver(
@@ -132,11 +140,11 @@ export function renderMemeResults(result, api, signal, callbacks) {
     let animated;
     let requested = false;
     card.loadPoster = async () => {
-      if (requested || signal.aborted) return;
+      if (requested || cardSignal.aborted) return;
       requested = true;
       try {
-        const blob = await api.media(item.preview_url, signal);
-        if (signal.aborted || !card.isConnected) return;
+        const blob = await api.media(item.preview_url, cardSignal);
+        if (cardSignal.aborted || !card.isConnected) return;
         poster = URL.createObjectURL(blob);
         urls.add(poster);
         image.src = poster;
@@ -151,8 +159,8 @@ export function renderMemeResults(result, api, signal, callbacks) {
         return;
       }
       try {
-        const blob = await api.media(item.media_url, signal);
-        if (signal.aborted || !card.isConnected) return;
+        const blob = await api.media(item.media_url, cardSignal);
+        if (cardSignal.aborted || !card.isConnected) return;
         animated = URL.createObjectURL(blob);
         urls.add(animated);
         image.src = animated;
@@ -174,7 +182,16 @@ export function renderMemeResults(result, api, signal, callbacks) {
     body.append(score);
     if (!provisional) {
       if (item.media_kind === "animated") body.append(play);
-      body.append(button("Download image ↓", () => callbacks.download(item)));
+      const download = button("Download image ↓", () =>
+        callbacks.download({
+          ...item,
+          media_url: download.dataset.mediaUrl || item.media_url,
+        }),
+      );
+      body.append(download);
+      if (item.media_format === "GIF" && item.frame_count > 1) {
+        callbacks.favorite(result.job_id, item, body, download, cardSignal);
+      }
       if (item.source_url) {
         const link = document.createElement("a");
         link.href = item.source_url;

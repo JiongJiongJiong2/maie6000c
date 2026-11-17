@@ -347,3 +347,371 @@ test("mobile layout fits, controls are labeled, and errors are not HTML", async 
   ).toBe(true);
   await expect(page.getByLabel("Choose screenshot")).toBeVisible();
 });
+
+test("private library resumes waiting GIFs and requires consent for vision", async ({
+  page,
+}) => {
+  const asset = {
+    asset_id: candidateId,
+    title: "旧收藏",
+    frame_count: 2,
+    media_url: `/saved-assets/${candidateId}/media`,
+    index_status: "ready",
+    annotation_status: "not_requested",
+    tags: [],
+  };
+  const batchId = "40000000-0000-4000-8000-000000000003";
+  const uploads = [];
+  const requests = [];
+  let items = [];
+  let interrupt = true;
+  const receipt = () => ({
+    batch_id: batchId,
+    items,
+    counts: {
+      waiting: items.filter((item) => item.status === "waiting").length,
+    },
+  });
+  await page.route("**/library/assets", (route) =>
+    route.fulfill({ json: { assets: [asset], next_cursor: null } }),
+  );
+  await page.route("**/library/imports", (route) => {
+    items = route
+      .request()
+      .postDataJSON()
+      .items.map((item) => ({ ...item, status: "waiting" }));
+    return route.fulfill({ json: receipt() });
+  });
+  await page.route(`**/library/imports/${batchId}`, (route) =>
+    route.fulfill({ json: receipt() }),
+  );
+  await page.route("**/library/imports/*/items/*", (route) => {
+    const item = items.find((item) =>
+      route.request().url().endsWith(item.client_item_id),
+    );
+    uploads.push(item.filename);
+    if (item.filename === "resume.gif" && interrupt) return route.abort();
+    item.status = "imported";
+    return route.fulfill({ json: item });
+  });
+  await page.route("**/library/annotations", (route) => {
+    requests.push(route.request().postDataJSON());
+    return route.fulfill({
+      json: { assets: [{ ...asset, annotation_status: "pending" }] },
+    });
+  });
+  await page.route("**/library/search", (route) =>
+    route.fulfill({
+      json: {
+        assets:
+          route.request().postDataJSON().query === "猫"
+            ? [{ ...asset, match_reasons: ["猫"] }]
+            : [],
+      },
+    }),
+  );
+  await fixtures(page);
+  const openLibrary = async () => {
+    await page.getByText("我的表情库", { exact: true }).click();
+    await expect(page.getByText("旧收藏", { exact: true })).toBeVisible();
+  };
+  const files = [
+    { name: "saved.gif", mimeType: "image/gif", buffer: gif },
+    {
+      name: "resume.gif",
+      mimeType: "image/gif",
+      buffer: Buffer.concat([gif, gif]),
+    },
+  ];
+  await openLibrary();
+  await page.locator("#library-files").setInputFiles(files);
+  await page.getByRole("button", { name: "导入新批次" }).click();
+  await expect(page.getByText(/resume.gif — 暂时失败/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "继续上传" })).toBeEnabled();
+
+  await page.reload();
+  await openLibrary();
+  await expect(page.getByRole("button", { name: "继续上传" })).toBeVisible();
+  interrupt = false;
+  await page.locator("#library-files").setInputFiles(files);
+  await page.getByRole("button", { name: "继续上传" }).click();
+  await expect(page.getByText("resume.gif — 已导入")).toBeVisible();
+  expect(uploads.filter((name) => name === "saved.gif")).toHaveLength(1);
+
+  await page.getByRole("checkbox", { name: "选择 旧收藏" }).check();
+  const vision = page.getByRole("button", {
+    name: "AI 识别所选 GIF 的文字与情绪",
+  });
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await vision.click();
+  expect(requests).toEqual([]);
+  page.once("dialog", (dialog) => dialog.accept());
+  await vision.click();
+  await expect(page.getByText("已提交识别。用刷新查看状态。")).toBeVisible();
+  expect(requests).toEqual([{ asset_ids: [candidateId], consent: true }]);
+
+  await page.locator("#library-query").fill("猫");
+  await page.locator("#library-query").press("Enter");
+  await expect(page.getByText("命中：猫")).toBeVisible();
+  await page.locator("#library-query").fill("飞机");
+  await page.locator("#library-query").press("Enter");
+  await expect(page.getByText(/未找到匹配项/)).toBeVisible();
+});
+
+test("private library splits imports, keeps selection, and downloads a backup", async ({
+  page,
+}) => {
+  const manifests = [];
+  const batches = new Map();
+  let exported;
+  let added;
+  const names = ["Sample one", "Sample two"];
+  const ids = [candidateId, requestId];
+  const cards = ids.map((asset_id, index) => ({
+    asset_id,
+    title: names[index],
+    frame_count: 2,
+    index_status: "pending",
+    annotation_status: "not_requested",
+    media_url: `/saved-assets/${asset_id}/media`,
+  }));
+  await page.route(/\/library\/assets(?:\?|$)/, (route) => {
+    const filtered = new URL(route.request().url()).searchParams.get("tag");
+    return route.fulfill({
+      json: { assets: filtered ? cards.slice(1) : cards },
+    });
+  });
+  await page.route("**/library/imports", (route) => {
+    const manifest = route.request().postDataJSON();
+    manifests.push(manifest.items.length);
+    const batch_id = `batch-${manifests.length}`;
+    const items = manifest.items.map((item) => ({
+      ...item,
+      status: "waiting",
+    }));
+    const counts = {
+      waiting: items.length,
+      imported: 0,
+      duplicate: 0,
+      rejected: 0,
+    };
+    const batch = { items, batch_id, counts };
+    batches.set(batch_id, batch);
+    return route.fulfill({ json: batch });
+  });
+  await page.route(/\/library\/imports\/batch-[0-9]+$/, (route) =>
+    route.fulfill({
+      json: batches.get(route.request().url().split("/").at(-1)),
+    }),
+  );
+  await page.route("**/library/imports/*/items/*", (route) => {
+    const parts = route.request().url().split("/");
+    const batch = batches.get(parts.at(-3));
+    const item = batch.items.find(
+      (item) => item.client_item_id === parts.at(-1),
+    );
+    item.status = "imported";
+    batch.counts.imported++;
+    batch.counts.waiting--;
+    return route.fulfill({ json: item });
+  });
+  await page.route("**/library/assets/bulk-tags", (route) => {
+    added = route.request().postDataJSON();
+    return route.fulfill({ json: { updated: 2 } });
+  });
+  await page.route("**/library/exports", (route) => {
+    exported = route.request().postDataJSON();
+    return route.fulfill({
+      contentType: "application/zip",
+      body: "mock archive",
+    });
+  });
+
+  await fixtures(page);
+  await page.getByText("我的表情库", { exact: true }).click();
+  await page.getByText("Sample one", { exact: true }).waitFor();
+  await page.locator("#library-files").setInputFiles(
+    Array.from({ length: 21 }, (_, index) => ({
+      name: `batch-file-${index}.gif`,
+      mimeType: "image/gif",
+      buffer: Buffer.concat([gif, Buffer.from([index])]),
+    })),
+  );
+  await page.getByRole("button", { name: "导入新批次" }).click();
+  await expect(page.getByText("batch-file-20.gif — 已导入")).toBeVisible();
+  expect(manifests).toEqual([20, 1]);
+
+  for (const name of names)
+    await page.getByRole("checkbox", { name: `选择 ${name}` }).check();
+  await page.locator("[data-filters] input[name=tag]").fill("归档");
+  await page.getByRole("button", { name: "筛选", exact: true }).click();
+  await expect(page.getByText("Sample one", { exact: true })).toBeHidden();
+  await expect(page.getByText("已选 2 张")).toBeVisible();
+  await page.locator("[data-bulk-tags] input").fill("归档、保留");
+  await page.getByRole("button", { name: "批量加标签" }).click();
+  await expect(page.getByText("已为 2 张 GIF 更新标签。")).toBeVisible();
+  expect(added).toEqual({ asset_ids: ids, tags: ["归档", "保留"] });
+
+  await page.locator("[data-export-manual]").check();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "备份所选原 GIF" }).click();
+  expect((await download).suggestedFilename()).toBe("private-gifs.zip");
+  expect(exported).toEqual({
+    asset_ids: ids,
+    profile: "original_zip",
+    include_manual: true,
+    include_annotations: false,
+  });
+});
+
+test("backup restore reports each current receipt and only restores successful metadata", async ({
+  page,
+}) => {
+  const { createHash } = await import("node:crypto");
+  const files = ["Large", "Small", "HTTP limit"].map((title, i) => {
+    const bytes = Buffer.concat([gif, Buffer.from([i])]);
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    return {
+      entry: {
+        title,
+        sha256,
+        path: `assets/${sha256}.gif`,
+        byte_size: bytes.length,
+      },
+      upload: { name: `${sha256}.gif`, mimeType: "image/gif", buffer: bytes },
+    };
+  });
+  const manifests = [];
+  const receipts = new Map();
+  const metadata = [];
+  const uploads = [];
+  const historical = {
+    batch_id: "history",
+    items: [
+      {
+        ...files[0].entry,
+        client_item_id: "old",
+        filename: files[0].upload.name,
+        status: "imported",
+        asset_id: "old-asset",
+      },
+    ],
+    counts: { waiting: 0, imported: 1, duplicate: 0, rejected: 0 },
+  };
+  receipts.set("history", historical);
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "private-library-import",
+      JSON.stringify([
+        {
+          manifest: {
+            client_batch_key: "unsubmitted",
+            purpose: "backup_restore",
+            items: [],
+          },
+        },
+        { batch_id: "history" },
+      ]),
+    );
+  });
+  await page.route("**/library/assets", (route) =>
+    route.fulfill({ json: { assets: [] } }),
+  );
+  await page.route("**/library/imports", (route) => {
+    const request = route.request().postDataJSON();
+    if (request.client_batch_key === "unsubmitted")
+      return route.fulfill({
+        status: 422,
+        json: { detail: { code: "backup_manifest_required" } },
+      });
+    manifests.push(request);
+    const batch_id = `current-${manifests.length}`;
+    const items = request.items.map((item) =>
+      item.sha256 === files[0].entry.sha256
+        ? { ...item, status: "rejected", error_code: "file_too_large" }
+        : { ...item, status: "waiting" },
+    );
+    const batch = {
+      batch_id,
+      items,
+      counts: {
+        waiting: items.length - 1,
+        imported: 0,
+        duplicate: 0,
+        rejected: 1,
+      },
+    };
+    receipts.set(batch_id, batch);
+    return route.fulfill({ json: batch });
+  });
+  await page.route(/\/library\/imports\/(?:history|current-\d+)$/, (route) =>
+    route.fulfill({
+      json: receipts.get(route.request().url().split("/").at(-1)),
+    }),
+  );
+  await page.route("**/library/imports/*/items/*", (route) => {
+    const parts = route.request().url().split("/");
+    const batch = receipts.get(parts.at(-3));
+    const item = batch.items.find(
+      (item) => item.client_item_id === parts.at(-1),
+    );
+    uploads.push(item.sha256);
+    if (item.sha256 === files[2].entry.sha256)
+      return route.fulfill({
+        status: 413,
+        json: { detail: { code: "file_too_large" } },
+      });
+    Object.assign(item, { status: "imported", asset_id: "small" });
+    batch.counts.waiting--;
+    batch.counts.imported++;
+    return route.fulfill({ json: item });
+  });
+  await page.route("**/library/restores/metadata", (route) => {
+    const request = route.request().postDataJSON();
+    metadata.push(request.uploaded_sha256);
+    return route.fulfill({
+      json: {
+        items: request.uploaded_sha256.map((sha256) => ({
+          sha256,
+          status: "restored",
+        })),
+      },
+    });
+  });
+  await fixtures(page);
+  await page.getByText("我的表情库", { exact: true }).click();
+  await expect(page.getByText(/旧还原请求未建立/)).toBeVisible();
+  await expect(page.getByText(/\.gif — 已导入/)).toBeVisible();
+  await page.getByText("从原 GIF 备份还原", { exact: true }).click();
+  await page.locator("#library-backup-manifest").setInputFiles({
+    name: "manifest.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        version: 1,
+        profile: "original_zip",
+        assets: files.map(({ entry }) => entry),
+      }),
+    ),
+  });
+  const restore = page.getByRole("button", { name: "校验并还原" });
+  await page
+    .locator("#library-files")
+    .setInputFiles(files.map(({ upload }) => upload));
+  await restore.click();
+  const results = page.locator("[data-restore-results]");
+  await expect(results.getByText("Small — 已还原")).toBeVisible();
+  await expect(results.getByText("Large — 超过目标库单文件上限")).toBeVisible();
+  await expect(
+    results.getByText("HTTP limit — 超过目标库单文件上限"),
+  ).toBeVisible();
+  expect(manifests[0].backup.assets).toHaveLength(3);
+  expect(metadata).toEqual([[files[1].entry.sha256]]);
+  expect(uploads).not.toContain(files[0].entry.sha256);
+
+  await page.locator("#library-files").setInputFiles(files[0].upload);
+  await restore.click();
+  await expect(results.getByText("Small — 缺少原 GIF")).toBeVisible();
+  await expect(results.getByText("Large — 超过目标库单文件上限")).toBeVisible();
+  expect(metadata).toHaveLength(1);
+});

@@ -120,11 +120,40 @@ export class Api {
     });
   }
 
+  continueOnline(id, payload, signal) {
+    return this.request(
+      `/search-requests/${encodeURIComponent(id)}/web-search`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal,
+      },
+    );
+  }
+
   review(jobId, payload, signal) {
     return this.request(`/search-jobs/${encodeURIComponent(jobId)}/reviews`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+      signal,
+    });
+  }
+
+  saveCandidate(id, key, signal) {
+    return this.request(`/candidates/${encodeURIComponent(id)}/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_save_key: key }),
+      signal,
+    });
+  }
+
+  savedAsset(id, signal, retry = false) {
+    const path = `/saved-assets/${encodeURIComponent(id)}`;
+    return this.request(retry ? `${path}/index-retry` : path, {
+      method: retry ? "POST" : "GET",
       signal,
     });
   }

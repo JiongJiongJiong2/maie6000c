@@ -126,6 +126,7 @@ class SearchRead(BaseModel):
 
 
 class WebSearchCreate(BaseModel):
+    search_profile: Literal["meme50-v2"] | None = None
     description: str = Field(default="", max_length=500)
     client_search_key: str = Field(min_length=1, max_length=128, pattern=r"^\S+$")
 

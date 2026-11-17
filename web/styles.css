@@ -1940,12 +1940,14 @@ html[data-motion="off"] .progress-track > span {
   text-decoration: underline;
 }
 
-.optional-description {
+.optional-description,
+label[for="search-mode"] {
   display: block;
   font-weight: 650;
   margin: 16px 0 8px;
 }
-#description {
+#description,
+#continue-description {
   width: 100%;
   resize: vertical;
   min-height: 76px;
@@ -1966,10 +1968,18 @@ html[data-motion="off"] .progress-track > span {
   flex-wrap: wrap;
   margin: 16px 0;
 }
-.meme-controls select {
+.meme-controls select,
+#search-mode {
   padding: 8px;
   max-width: 100%;
   font: inherit;
+}
+#continue-panel,
+#web-results {
+  margin-top: 24px;
+}
+#continue-description {
+  margin-top: 8px;
 }
 .candidates.meme50-grid {
   display: grid;
@@ -1998,4 +2008,46 @@ html[data-motion="off"] .progress-track > span {
   .candidates.meme50-grid {
     grid-template-columns: 1fr;
   }
+}
+
+#private-library {
+  display: block;
+  margin-inline: auto;
+  max-width: min(100% - 2rem, 70rem);
+  padding: 1rem;
+}
+
+#private-library summary {
+  cursor: pointer;
+}
+
+#private-library [data-assets] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+#private-library [data-assets] > li {
+  border: 1px solid currentColor;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#private-library img,
+#private-library input {
+  max-width: 100%;
+}
+
+#private-library form label {
+  display: block;
+}
+
+#private-library [data-assets] img {
+  display: block;
+  max-height: 18rem;
+  object-fit: contain;
 }
