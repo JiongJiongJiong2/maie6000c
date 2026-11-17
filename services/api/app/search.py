@@ -3,18 +3,18 @@ from __future__ import annotations
 import logging
 import secrets
 from datetime import timezone
-from pathlib import Path
 from typing import Annotated, Literal
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from services.common.config import get_settings
 from services.common.db import get_db
+from services.common.library_models import LibraryActivation
 from services.common.models import utcnow
 from services.common.search_models import (
     Candidate,
@@ -58,8 +58,19 @@ def fail(status: int, code: str, message: str) -> HTTPException:
     return HTTPException(status_code=status, detail={"code": code, "message": message})
 
 
-def authorize(request: Request) -> None:
-    token = get_settings().device_token
+def authorize(request: Request, db: Annotated[Session, Depends(get_db)]) -> None:
+    settings = get_settings()
+    token = settings.device_token
+    if not token.strip():
+        try:
+            private = settings.private_library_enabled or db.get(LibraryActivation, 1) is not None
+        except SQLAlchemyError as exc:
+            raise fail(
+                503, "authorization_unavailable", "Privacy configuration unavailable"
+            ) from exc
+        if private:
+            raise fail(503, "device_token_required", "Private deployment requires a device token")
+        return
     if token and not secrets.compare_digest(
         request.headers.get("authorization", ""), f"Bearer {token}"
     ):
@@ -324,20 +335,44 @@ def verify_saved_asset_media(asset: SavedAsset) -> bytes:
         raise fail(503, "saved_asset_corrupted", "Saved GIF failed integrity validation") from exc
 
 
-def remove_unreferenced_saved_file(
+def publish_saved_gif(
     db: Session,
-    stored_path: Path | None,
-    digest: str,
-) -> None:
-    if stored_path is None:
-        return
+    data: bytes,
+    *,
+    frame_count: int,
+    title: str,
+    provider: str,
+    source_url: str = "",
+    image_url: str = "",
+) -> tuple[SavedAsset, bool]:
+    digest = sha256(data)
+    if db.get_bind().dialect.name == "postgresql":
+        lock_key = int.from_bytes(bytes.fromhex(digest[:16]), "big", signed=True)
+        db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": lock_key})
+    asset = db.scalar(select(SavedAsset).where(SavedAsset.sha256 == digest))
+    if asset is not None:
+        verify_saved_asset_media(asset)
+        return asset, False
+
+    relative = f"saved/{digest}.gif"
     try:
-        referenced = db.scalar(select(SavedAsset.id).where(SavedAsset.sha256 == digest))
-    except SQLAlchemyError:
-        logger.exception("saved_asset_reference_check_failed")
-        return
-    if referenced is None:
-        remove_file_after_failure(stored_path, storage_class="saved_asset")
+        atomic_write(get_settings().media_root, relative, data)
+    except OSError as exc:
+        logger.exception("saved_asset_storage_failed")
+        raise fail(503, "storage_unavailable", "GIF could not be saved") from exc
+    asset = SavedAsset(
+        id=str(uuid4()),
+        sha256=digest,
+        title=title,
+        provider=provider,
+        source_url=source_url,
+        image_url=image_url,
+        gif_path=relative,
+        frame_count=frame_count,
+        index_status="pending",
+    )
+    db.add(asset)
+    return asset, True
 
 
 @router.get("/search-requests/{request_id}", response_model=SearchRead)
@@ -417,8 +452,10 @@ def create_web_search(
     request = require_request(db, str(request_id), lock=True)
     description = payload.description.strip()
     profile = payload.search_profile or (request.search_profile if description else "meme50-v2")
-    target = request.target_count if request.search_profile == "meme50-v2" else (
-        50 if profile == "meme50-v2" else 3
+    target = (
+        request.target_count
+        if request.search_profile == "meme50-v2"
+        else (50 if profile == "meme50-v2" else 3)
     )
 
     def replay(existing: SearchJob) -> AcceptedSearch:
@@ -646,13 +683,11 @@ def save_candidate(
     )
     if accepted_review is None:
         raise fail(409, "candidate_not_accepted", "Accept the candidate before saving it")
-    stored_path = None
     if candidate.saved_asset_id is not None:
         asset = db.get(SavedAsset, candidate.saved_asset_id)
         if asset is None:
             raise RuntimeError("Candidate references a missing saved asset")
         verify_saved_asset_media(asset)
-        digest = asset.sha256
     else:
         expiry = candidate.cache_expires_at.replace(tzinfo=timezone.utc)
         if expiry <= utcnow():
@@ -675,34 +710,18 @@ def save_candidate(
                 extra={"candidate_id": candidate.id},
             )
             raise fail(503, "media_corrupted", "Candidate GIF failed integrity validation") from exc
-        digest = sha256(data)
+        asset, _ = publish_saved_gif(
+            db,
+            data,
+            frame_count=candidate.frame_count,
+            title=f"{candidate.provider or 'Recovered'} GIF",
+            provider=candidate.provider or "unknown",
+            source_url=candidate.source_url or "",
+            image_url=candidate.image_url or "",
+        )
 
-        asset = db.scalar(select(SavedAsset).where(SavedAsset.sha256 == digest))
-        if asset is None:
-            relative = f"saved/{digest}.gif"
-            try:
-                stored_path = atomic_write(get_settings().media_root, relative, data)
-            except OSError as exc:
-                logger.exception("saved_asset_storage_failed")
-                raise fail(503, "storage_unavailable", "GIF could not be saved") from exc
-            asset = SavedAsset(
-                id=str(uuid4()),
-                sha256=digest,
-                title=f"{candidate.provider or 'Recovered'} GIF",
-                source_url=candidate.source_url or "",
-                image_url=candidate.image_url or "",
-                provider=candidate.provider or "unknown",
-                gif_path=relative,
-                frame_count=candidate.frame_count,
-                index_status="pending",
-            )
-            db.add(asset)
-        else:
-            verify_saved_asset_media(asset)
-
+    digest = asset.sha256
     try:
-        # PostgreSQL enforces the foreign keys when each statement executes.
-        # Publish the asset row before assigning its ID to the candidate.
         db.flush()
         candidate.saved_asset_id = asset.id
         db.add(
@@ -724,35 +743,31 @@ def save_candidate(
             existing_asset = db.get(SavedAsset, existing_save.saved_asset_id)
             if existing_asset is None:
                 raise RuntimeError("Persisted candidate save has no saved asset")
+            verify_saved_asset_media(existing_asset)
             return saved_asset_read(existing_asset)
-        existing_asset = db.scalar(select(SavedAsset).where(SavedAsset.sha256 == digest))
-        existing_candidate = db.get(Candidate, str(candidate_id))
-        if existing_asset is not None and existing_candidate is not None:
-            existing_candidate.saved_asset_id = existing_asset.id
-            db.add(
-                CandidateSave(
-                    candidate_id=existing_candidate.id,
-                    saved_asset_id=existing_asset.id,
-                    client_save_key=payload.client_save_key,
-                )
+        candidate = db.scalar(
+            select(Candidate).where(Candidate.id == str(candidate_id)).with_for_update()
+        )
+        asset = db.scalar(select(SavedAsset).where(SavedAsset.sha256 == digest))
+        if candidate is None or asset is None:
+            raise fail(409, "save_conflict", "Candidate was saved concurrently")
+        verify_saved_asset_media(asset)
+        candidate.saved_asset_id = asset.id
+        db.add(
+            CandidateSave(
+                candidate_id=candidate.id,
+                saved_asset_id=asset.id,
+                client_save_key=payload.client_save_key,
             )
-            try:
-                db.commit()
-            except SQLAlchemyError as exc:
-                db.rollback()
-                remove_unreferenced_saved_file(db, stored_path, digest)
-                logger.exception("saved_asset_recovery_commit_failed")
-                raise fail(
-                    503,
-                    "database_unavailable",
-                    "Save recovery could not be committed",
-                ) from exc
-            return saved_asset_read(existing_asset)
-        remove_unreferenced_saved_file(db, stored_path, digest)
-        raise fail(409, "save_conflict", "Candidate was saved concurrently")
+        )
+        try:
+            db.commit()
+        except SQLAlchemyError as exc:
+            db.rollback()
+            raise fail(503, "database_unavailable", "Save recovery could not be committed") from exc
+        return saved_asset_read(asset)
     except SQLAlchemyError as exc:
         db.rollback()
-        remove_unreferenced_saved_file(db, stored_path, digest)
         logger.exception("saved_asset_commit_failed")
         raise fail(503, "database_unavailable", "Save could not be committed") from exc
     logger.info(

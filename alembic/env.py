@@ -12,6 +12,7 @@ from services.common.db import Base
 # Register all ORM tables before Alembic reads the metadata.
 import_module("services.common.models")
 import_module("services.common.search_models")
+import_module("services.common.library_models")
 
 config = context.config
 

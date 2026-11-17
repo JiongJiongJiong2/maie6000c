@@ -70,6 +70,20 @@
           </div>
         </form>
       </section>
+      <details id="private-library" class="connection-panel">
+        <summary>我的表情库</summary>
+        <p role="status"></p>
+        <label for="library-files">选择 GIF（每批最多 20 个）</label>
+        <input id="library-files" type="file" accept=".gif,image/gif" multiple />
+        <div class="inline">
+          <button type="button" data-import>导入新批次</button>
+          <button type="button" data-resume hidden>继续上传</button>
+          <button type="button" data-refresh>刷新</button>
+        </div>
+        <ul data-receipts></ul>
+        <ul data-assets></ul>
+        <button type="button" data-more hidden>加载更多</button>
+      </details>
       <section class="intro" aria-labelledby="hero-title">
         <div class="hero-copy">
           <p class="eyebrow">

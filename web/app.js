@@ -1,3 +1,4 @@
+import { mountLibrary } from "./library.js";
 import { memeStatus, renderMemeResults, disposeMemeResults } from "./meme50.js";
 import { Api, validAccepted, validStatus } from "./api.js";
 import {
@@ -51,6 +52,8 @@ function newKey() {
     .join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
+
+const reconnectLibrary = mountLibrary(api, newKey);
 
 function notice(message = "") {
   $("notice").textContent = message;
@@ -858,6 +861,7 @@ $("connection-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (busy) return;
   api.token = $("token").value.trim();
+  reconnectLibrary();
   loadDemoLibrary();
   // Cancel requests using the previous credential and rebuild media with it.
   cancelSessionWork();
