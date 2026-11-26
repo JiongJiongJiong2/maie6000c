@@ -12,6 +12,7 @@ import json
 import os
 import re
 import stat
+import subprocess
 import sys
 import tempfile
 import warnings
@@ -38,6 +39,40 @@ POLICY_FIELDS = {
 }
 
 
+def _protect_windows_file(path: Path) -> None:
+    powershell = Path(os.environ["SystemRoot"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"
+    script = """
+        $ErrorActionPreference = 'Stop'
+        $path = $env:MEMERETRIEVE_ENV_ACL_TARGET
+        $user = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+        $acl = [System.Security.AccessControl.FileSecurity]::new()
+        $acl.SetSecurityDescriptorSddlForm("D:P(A;;FA;;;$user)", 'Access')
+        $acl.SetAccessRuleProtection($true, $false)
+        [System.IO.File]::SetAccessControl($path, $acl)
+
+        $acl = [System.IO.File]::GetAccessControl($path, 'Access')
+        $rules = $acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier])
+        if (-not $acl.AreAccessRulesProtected -or $rules.Count -ne 1 -or
+            $rules[0].IdentityReference -ne $user -or $rules[0].IsInherited -or
+            $rules[0].AccessControlType -ne 'Allow' -or
+            $rules[0].FileSystemRights -ne 'FullControl') {
+            exit 1
+        }
+    """
+    try:
+        subprocess.run(
+            [str(powershell), "-NoProfile", "-NonInteractive", "-Command", script],
+            env={**os.environ, "MEMERETRIEVE_ENV_ACL_TARGET": str(path)},
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True,
+            timeout=15,
+        )
+    except subprocess.SubprocessError:
+        raise OSError("configuration ACL could not be secured") from None
+
+
 def merge_private_env(path: Path, updates: dict[str, str]):
     """Atomic, owner-only update; refuse symlinks and unsupported field names."""
     if path.is_symlink() or (path.exists() and not path.is_file()):
@@ -57,7 +92,7 @@ def merge_private_env(path: Path, updates: dict[str, str]):
     if not updates:
         return False
     existed = path.exists()
-    original = path.read_text() if existed else ""
+    original = path.read_text(encoding="utf-8") if existed else ""
     lines, handled = [], set()
     for line in original.splitlines(keepends=True):
         match = re.match(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z_0-9]*)\s*=", line)
@@ -78,8 +113,12 @@ def merge_private_env(path: Path, updates: dict[str, str]):
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(prefix=".meme50-env-", dir=path.parent)
     try:
-        with os.fdopen(fd, "w") as stream:
-            os.fchmod(stream.fileno(), stat.S_IRUSR | stat.S_IWUSR)
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            # Set and verify permissions before the temporary file receives credentials.
+            if os.name == "nt":
+                _protect_windows_file(Path(temporary))
+            else:
+                os.fchmod(stream.fileno(), stat.S_IRUSR | stat.S_IWUSR)
             stream.write("".join(lines))
             stream.flush()
             os.fsync(stream.fileno())
@@ -89,7 +128,7 @@ def merge_private_env(path: Path, updates: dict[str, str]):
             raise ValueError("configuration encoding failed")
         if path.is_symlink():
             raise ValueError("configuration changed to a symlink")
-        if path.exists() != existed or (path.read_text() if path.exists() else "") != original:
+        if path.exists() != existed or (existed and path.read_text(encoding="utf-8") != original):
             raise ValueError("configuration was concurrently modified")
         os.replace(temporary, path)
     finally:
