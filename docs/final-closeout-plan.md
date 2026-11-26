@@ -21,6 +21,8 @@
 
 ## 正式网页闭环
 
+11 月 27 日已用 DeepSeek 的 GIF 续搜 API 完成本地未命中、联网取得 44 帧原 GIF、收藏和建索引。重启并阻断对外连接后，全新 Chrome 会话在 `/web/` 以另一帧首位命中同一资产，网页下载与原件 SHA-256 一致。成功复测在隔离 worker 内对两个 Commons 域名使用真实公共 DNS，原系统 DNS 的失败也已留档。正式网页的 `meme50-v2` 续搜按钮仍待同流程实测。[DeepSeek 与离线复用实测记录](evidence/gif-acquisition/deepseek-offline-reuse-20261127.json)
+
 先记录代码提交、有效配置指纹和隔离环境。选用可以测试和保存的真实媒体，独立保留目标来源、原 GIF 的 SHA-256 和帧数。确认目标资产起初不在固定库或私人库中，再从 `/web/` 选「仅本地检索」上传截图。原任务应正常完成，且未命中该目标。
 
 从同一页面点击「继续联网搜索」。原 `request_id` 和本地 `job_id` 保持可查，联网任务有独立 `job_id`，刷新后仍可看到本地结果及联网进度。当前页面经 `meme50-v2` 使用 HKUST 视觉、DeepSeek 查询规划和网页检索。用实际任务记录供应商调用、来源、结果 revision 及停止原因。历史 DDGS 路径可用于定位 legacy API 问题，其证据按 API 实测记录。[当前供应商说明](hkust-deepseek-execution.md)
