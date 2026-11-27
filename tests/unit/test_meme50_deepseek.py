@@ -162,6 +162,51 @@ def test_user_source_reuses_existing_scope_and_preserves_other_scopes():
     assert deepseek.prioritize_user_source([first, broad], "Saw it on Tenor.", 1, ledger) == [broad]
 
 
+def test_user_source_prefers_model_gif_query_over_static_appearance_and_replaces_old_scope():
+    static = Query(text="copper weathervane against grey sky", angle="visual_description")
+    stale = Query(text="site:tenor.com copper weathervane grey sky", angle="user_source_lookup")
+    gif = Query(text="spinning copper weathervane GIF", angle="appearance")
+    action = Query(text="rotating copper weathervane loop", angle="action")
+    result = deepseek.prioritize_user_source(
+        [static, stale, action, gif],
+        "I saw this looping GIF on Tenor. The copper weathervane spins in the wind.",
+        3,
+        Ledger(settings()),
+    )
+    assert result[0].text == "site:tenor.com spinning copper weathervane GIF"
+    assert result[1:] == [static, action]
+
+
+def test_user_source_uses_explicit_natural_subject_and_motion_when_generated_queries_are_static():
+    broad = Query(text="metal object outdoors cloudy sky", angle="visual_description")
+    description = (
+        "I saw this looping GIF on https://tenor.com/view/Hidden-filename.gif. "
+        "A copper weathervane spins against a grey sky."
+    )
+    result = deepseek.prioritize_user_source([broad], description, 2, Ledger(settings()))
+    assert result[0].text.startswith("site:tenor.com ")
+    assert "copper weathervane spins against a grey sky" in result[0].text
+    assert "GIF" in result[0].text and "Hidden-filename" not in result[0].text
+    assert result[1] == broad
+
+
+def test_user_source_retains_explicit_gif_format_after_length_limit():
+    long = Query(text="long copper weathervane spinning " * 6 + "GIF", angle="action")
+    media_text = "The looping GIF is from Tenor"
+    result = deepseek.prioritize_user_source([long], media_text, 2, Ledger(settings()))
+    assert len(result[0].text) <= 128 and result[0].text.endswith(" GIF")
+    assert result[1] == long
+
+
+def test_user_source_does_not_infer_animation_from_visual_queries_for_unspecified_media():
+    static = Query(text="metal object outdoors cloudy sky", angle="appearance")
+    motion = Query(text="weathervane spins GIF", angle="action")
+    result = deepseek.prioritize_user_source(
+        [static, motion], "I saw this on Tenor", 2, Ledger(settings())
+    )
+    assert result[0].text == "site:tenor.com metal object outdoors cloudy sky"
+
+
 @pytest.mark.parametrize(
     ("user_text", "remaining"),
     [
@@ -223,7 +268,10 @@ def test_recall_spends_two_existing_search_slots_on_explicit_source_and_broad_se
         ),
     )
     assert result["status"] == "completed"
-    assert queries == ["site:tenor.com orange cartoon animal", "orange cartoon animal"]
+    assert queries == [
+        "site:tenor.com cartoon animal jumps back animation",
+        "orange cartoon animal",
+    ]
     assert result["ledger"]["queries"] == result["ledger"]["search_calls"] == 2
 
 

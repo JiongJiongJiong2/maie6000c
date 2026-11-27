@@ -25,6 +25,9 @@ SOURCE_CUE = (
     r"(?:来自|來自|出自|来源|來源|在)\s*[:：]?\s*)"
 )
 SITE_OPERATOR = re.compile(r"(?<!\S)-?site:(\S+)", re.I)
+GIF_INTENT = re.compile(r"(?<![a-z0-9.])gifs?(?![a-z0-9])", re.I)
+ANIMATION_INTENT = re.compile(r"\b(?:animat(?:ed|ion)|loop(?:s|ing)?)\b|动图|動圖|动画|動畫", re.I)
+VISUAL_QUERY_ANGLES = {"appearance", "action", "visual_description"}
 
 
 def check_business_error(data, ledger):
@@ -95,10 +98,14 @@ def retrieval_queries(analysis):
     return result[:6]
 
 
+def user_source_reference(domain):
+    return rf"(?:https?://)?(?:www\.)?(?:{re.escape(domain)}|{USER_SOURCE_NAMES[domain]})"
+
+
 def explicit_user_source(user_text):
     matches = []
-    for domain, name in USER_SOURCE_NAMES.items():
-        reference = rf"(?:https?://)?(?:www\.)?(?:{re.escape(domain)}|{name})"
+    for domain in USER_SOURCE_NAMES:
+        reference = user_source_reference(domain)
         if re.fullmatch(reference + r"[/.!。]?", user_text.strip(), flags=re.I):
             return domain
         for match in re.finditer(
@@ -112,6 +119,22 @@ def explicit_user_source(user_text):
     return min(matches)[1] if matches else None
 
 
+def source_description(user_text, domain):
+    description = re.sub(
+        SOURCE_CUE + user_source_reference(domain) + r"(?:/\S*)?", " ", user_text, flags=re.I
+    )
+    description = re.sub(
+        r"https?://\S+|(?<!\S)\S+\.(?:gif|png|jpe?g|webp)(?![a-z0-9])(?:[?#]\S*)?",
+        " ",
+        SITE_OPERATOR.sub("", description),
+        flags=re.I,
+    )
+    description = re.sub(
+        r"^\s*(?:I\s+)?(?:saw|found)\s+(?:this|an?|the)\s+", "", description, flags=re.I
+    )
+    return " ".join(description.split()).strip(" .,;:。；，")
+
+
 def prioritize_user_source(queries, user_text, remaining_queries, ledger):
     """Keep an explicit source lookup and an unrestricted lookup within the same budget."""
     if not remaining_queries or not (domain := explicit_user_source(user_text)):
@@ -122,6 +145,11 @@ def prioritize_user_source(queries, user_text, remaining_queries, ledger):
         return queries
     if remaining_queries == 1:
         return broad[:1]
+    description = source_description(user_text, domain)
+    animation, suffix = (
+        (GIF_INTENT, "GIF") if GIF_INTENT.search(description) else (ANIMATION_INTENT, "animation")
+    )
+    wants_animation = bool(animation.search(description))
     existing = [
         q
         for q, scopes in annotated
@@ -132,19 +160,35 @@ def prioritize_user_source(queries, user_text, remaining_queries, ledger):
         (
             q
             for q in existing
-            if len(q.text.strip()) <= 128 and SITE_OPERATOR.sub("", q.text).strip()
+            if len(q.text.strip()) <= 128
+            and SITE_OPERATOR.sub("", q.text).strip()
+            and (not wants_animation or animation.search(SITE_OPERATOR.sub("", q.text)))
         ),
         None,
     )
     reused = scoped is not None
     if scoped is None:
-        base = next(
-            (q for q in broad if q.angle in {"appearance", "action", "visual_description"}),
-            broad[0],
-        )
+        visual = [q for q in broad if q.angle in VISUAL_QUERY_ANGLES]
+        base = visual[0] if visual else broad[0]
+        terms = base.text
+        if wants_animation:
+            animated = next((q for q in visual if animation.search(q.text)), None)
+            if animated is None:
+                animated = next(
+                    (q for q in visual if ANIMATION_INTENT.search(q.text) or q.angle == "action"),
+                    None,
+                )
+            if animated is not None:
+                base, terms = animated, animated.text
+            elif len(description.split()) >= 3 or re.search(r"[\u4e00-\u9fff]{5,}", description):
+                terms = description
         prefix = f"site:{domain} "
+        limit = 128 - len(prefix)
+        terms = terms.strip()[:limit].rstrip()
+        if wants_animation and not animation.search(terms):
+            terms = terms[: limit - len(suffix) - 1].rstrip() + " " + suffix
         scoped = Query(
-            text=prefix + base.text.strip()[: 128 - len(prefix)].rstrip(),
+            text=prefix + terms,
             angle="user_source_lookup",
             language=base.language,
         )
