@@ -14,6 +14,13 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def as_utc(value: datetime) -> datetime:
+    # SQLite drops timezones from stored UTC timestamps. PostgreSQL may return an offset.
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 class CaseStatus(StrEnum):
     NEW = "new"
     QUEUED = "queued"

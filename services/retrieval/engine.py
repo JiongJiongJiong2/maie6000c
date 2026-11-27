@@ -100,6 +100,7 @@ def search(image_path: Path, top_k: int = 3) -> dict:
         if (
             embeddings.shape != (len(ids), 512)
             or not np.isfinite(embeddings).all()
+            or not np.any(embeddings != 0, axis=1).all()
             or set(ids) != {str(asset.reference_asset_id) for asset in manifest.assets}
         ):
             raise ValueError("The GIF index does not match the corpus")

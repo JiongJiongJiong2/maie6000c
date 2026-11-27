@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import secrets
-from datetime import timezone
 from typing import Annotated, Literal
 from uuid import UUID, uuid4
 
@@ -15,7 +14,7 @@ from sqlalchemy.orm import Session
 from services.common.config import get_settings
 from services.common.db import get_db
 from services.common.library_models import LibraryActivation
-from services.common.models import utcnow
+from services.common.models import as_utc, utcnow
 from services.common.saved_publish import lock_saved_digest
 from services.common.search_models import (
     Candidate,
@@ -538,7 +537,7 @@ def read_media(candidate_id: UUID, db: Database) -> Response:
             raise fail(503, "saved_asset_unavailable", "Saved GIF is unavailable")
         data = verify_saved_asset_media(asset)
     else:
-        expiry = candidate.cache_expires_at.replace(tzinfo=timezone.utc)
+        expiry = as_utc(candidate.cache_expires_at)
         if expiry <= utcnow():
             raise fail(410, "media_expired", "Candidate media has expired; submit a new search")
         try:
@@ -692,7 +691,7 @@ def save_candidate(
             raise RuntimeError("Candidate references a missing saved asset")
         verify_saved_asset_media(asset)
     else:
-        expiry = candidate.cache_expires_at.replace(tzinfo=timezone.utc)
+        expiry = as_utc(candidate.cache_expires_at)
         if expiry <= utcnow():
             raise fail(410, "media_expired", "Candidate media has expired and cannot be saved")
         try:

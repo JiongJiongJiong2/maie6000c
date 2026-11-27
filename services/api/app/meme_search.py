@@ -2,7 +2,6 @@
 
 import base64
 import json
-from datetime import timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -11,7 +10,7 @@ from sqlalchemy import select
 
 from services.common.config import get_settings
 from services.common.media import inspect_media, preview_bytes
-from services.common.models import utcnow
+from services.common.models import as_utc, utcnow
 from services.common.search_models import Candidate, MemeCandidateDraft, SearchExecution, SearchJob
 from services.common.storage import MediaError, contained_path
 from .search import Database, MEDIA_RESPONSE_HEADERS, authorize, candidates_for_job, fail
@@ -90,7 +89,7 @@ def candidate_preview(candidate_id: UUID, db: Database):
     row = db.get(Candidate, str(candidate_id))
     if not row:
         raise fail(404, "candidate_not_found", "Candidate not found")
-    if row.cache_expires_at.replace(tzinfo=timezone.utc) <= utcnow() and not row.saved_asset_id:
+    if as_utc(row.cache_expires_at) <= utcnow() and not row.saved_asset_id:
         raise fail(410, "media_expired", "Preview expired")
     try:
         if row.preview_path:
@@ -114,7 +113,7 @@ def previews(job_id: UUID, db: Database):
         .where(MemeCandidateDraft.job_id == job.id)
         .order_by(MemeCandidateDraft.created_at)
     ):
-        if draft.expires_at.replace(tzinfo=timezone.utc) > utcnow():
+        if as_utc(draft.expires_at) > utcnow():
             by_group[draft.data["content_group_id"]] = draft
     items = []
     for draft in sorted(by_group.values(), key=lambda d: -d.data["score"])[:50]:
@@ -143,7 +142,7 @@ def draft_preview(job_id: UUID, draft_id: UUID, db: Database):
     draft = db.get(MemeCandidateDraft, str(draft_id))
     if not draft or draft.job_id != str(job_id):
         raise fail(404, "draft_not_found", "Preview not found")
-    if draft.expires_at.replace(tzinfo=timezone.utc) <= utcnow():
+    if as_utc(draft.expires_at) <= utcnow():
         raise fail(410, "preview_expired", "Preview expired")
     try:
         data = contained_path(get_settings().media_root, draft.preview_path).read_bytes()
