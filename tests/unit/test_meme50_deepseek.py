@@ -7,7 +7,13 @@ from PIL import Image
 
 from services.search_agent import meme_deepseek as deepseek
 from services.search_agent.meme_providers import vision_client
-from services.search_agent.meme_types import Ledger, MemeSettings, PipelineError, VisualAnalysis
+from services.search_agent.meme_types import (
+    Ledger,
+    MemeSettings,
+    PipelineError,
+    Query,
+    VisualAnalysis,
+)
 
 
 def analysis():
@@ -106,6 +112,119 @@ def test_search_treats_commons_file_namespace_as_page_and_preserves_direct_urls(
         (original, "direct", original),
         (ordinary, "direct", ordinary),
     ]
+
+
+@pytest.mark.parametrize(
+    ("user_text", "domain"),
+    [
+        ("I saw this GIF on Wikimedia Commons", "commons.wikimedia.org"),
+        ("来源：Tenor", "tenor.com"),
+        (
+            "This is from https://commons.wikimedia.org/wiki/File:Private-name.gif",
+            "commons.wikimedia.org",
+        ),
+    ],
+)
+def test_user_source_reserves_one_bounded_query_alongside_broad_search(user_text, domain):
+    queries = [
+        Query(text="green animal reaction", angle="identity_hypothesis"),
+        Query(text="three foxes jumping in a loop " * 6, angle="action"),
+        Query(text="funny cartoon expression", angle="emotion"),
+    ]
+    ledger = Ledger(settings())
+    result = deepseek.prioritize_user_source(queries, user_text, 2, ledger)
+    assert len(result) == 2 and result[1] == queries[0]
+    assert result[0].text.startswith(f"site:{domain} three foxes jumping in a loop")
+    assert len(result[0].text) <= 128 and "Private-name" not in result[0].text
+    assert result[0].angle == "user_source_lookup"
+    assert ledger.counts["queries"] == ledger.counts["search_calls"] == 0
+    assert ledger.trace[0]["details"] == {
+        "domain": domain,
+        "origin": "user_explicit_source",
+        "query": result[0].model_dump(),
+        "reused": False,
+    }
+
+
+def test_user_source_reuses_existing_scope_and_preserves_other_scopes():
+    broad = Query(text="jumping animal GIF", angle="appearance")
+    first = Query(text="jumping animal site:tenor.com", angle="user_source_lookup")
+    duplicate = Query(text="site:tenor.com animated fox", angle="action")
+    other = Query(text="site:imgflip.com/memetemplate running fox", angle="template_catalog")
+    queries = [broad, first, duplicate, other]
+    ledger = Ledger(settings())
+    assert deepseek.prioritize_user_source(queries, "Saw it on Tenor.", 3, ledger) == [
+        first,
+        broad,
+        other,
+    ]
+    assert ledger.trace[0]["details"]["reused"] is True
+    assert deepseek.prioritize_user_source([first, broad], "Saw it on Tenor.", 1, ledger) == [broad]
+
+
+@pytest.mark.parametrize(
+    ("user_text", "remaining"),
+    [
+        ("", 6),
+        ("A tenor in a blue suit", 6),
+        ("It was not from Tenor", 6),
+        ("-site:tenor.com", 6),
+        ("Saw it on https://tenor.com.example.org", 6),
+        ("Saw it on Tenor", 1),
+        ("Saw it on Tenor", 0),
+    ],
+)
+def test_user_source_keeps_default_queries_without_explicit_source_or_spare_budget(
+    user_text, remaining
+):
+    queries = [Query(text="Wikimedia Commons mentions Tenor", angle="appearance")]
+    ledger = Ledger(settings())
+    assert deepseek.prioritize_user_source(queries, user_text, remaining, ledger) == queries
+    assert ledger.trace == []
+
+
+def test_recall_spends_two_existing_search_slots_on_explicit_source_and_broad_search(
+    monkeypatch, tmp_path
+):
+    from types import SimpleNamespace
+
+    from services.search_agent.meme_pipeline import search_memes
+
+    queries = []
+
+    def request(method, url, ledger, **kwargs):
+        assert url == "https://api.deepseek.com/v1/tools/search"
+        queries.append(kwargs["json"]["query"])
+        return {"results": []}
+
+    monkeypatch.setattr(deepseek, "bounded_json", request)
+    input_path = tmp_path / "input.png"
+    Image.new("RGB", (20, 20), "orange").save(input_path)
+    user_text = "This animation is from Tenor"
+    prior = VisualAnalysis(
+        user_text=user_text,
+        planner_version="prior-plan",
+        queries=[
+            Query(text="orange cartoon animal", angle="appearance"),
+            Query(text="cartoon animal jumps back", angle="action"),
+            Query(text="cartoon animal startled", angle="emotion"),
+        ],
+    )
+    result = search_memes(
+        input_path,
+        user_text,
+        tmp_path / "work",
+        settings=settings().model_copy(update={"max_queries": 4, "max_search_calls": 2}),
+        saved_analysis=prior,
+        embeddings=SimpleNamespace(
+            load_model=lambda: None,
+            encode_images=lambda frames: np.ones((len(frames), 1)),
+            encode_texts=lambda texts: np.ones((len(texts), 1)),
+        ),
+    )
+    assert result["status"] == "completed"
+    assert queries == ["site:tenor.com orange cartoon animal", "orange cartoon animal"]
+    assert result["ledger"]["queries"] == result["ledger"]["search_calls"] == 2
 
 
 def test_verification_binds_to_actual_search_url_and_query_limit(monkeypatch):

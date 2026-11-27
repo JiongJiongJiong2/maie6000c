@@ -15,6 +15,18 @@ from .meme_types import MediaSource, PipelineError, Query
 from .resolvers import is_commons_file_page
 
 
+USER_SOURCE_NAMES = {
+    "commons.wikimedia.org": r"wikimedia\s+commons|维基共享资源|維基共享資源",
+    "tenor.com": r"tenor",
+    "cultofthepartyparrot.com": r"cult\s+of\s+the\s+party\s+parrot",
+}
+SOURCE_CUE = (
+    r"(?:\b(?:from|on|via|at)\s+(?:the\s+)?|(?<![-\w])(?:source|site)\s*[:：=]\s*|"
+    r"(?:来自|來自|出自|来源|來源|在)\s*[:：]?\s*)"
+)
+SITE_OPERATOR = re.compile(r"(?<!\S)-?site:(\S+)", re.I)
+
+
 def check_business_error(data, ledger):
     if data.get("error"):
         error = data["error"] if isinstance(data["error"], dict) else {}
@@ -81,6 +93,71 @@ def retrieval_queries(analysis):
             result.append(query)
             seen.add(query.text.casefold())
     return result[:6]
+
+
+def explicit_user_source(user_text):
+    matches = []
+    for domain, name in USER_SOURCE_NAMES.items():
+        reference = rf"(?:https?://)?(?:www\.)?(?:{re.escape(domain)}|{name})"
+        if re.fullmatch(reference + r"[/.!。]?", user_text.strip(), flags=re.I):
+            return domain
+        for match in re.finditer(
+            SOURCE_CUE + reference + r"(?![a-z0-9_-]|\.[a-z0-9-])", user_text, flags=re.I
+        ):
+            clause = re.split(r"[.!?;,。；，]", user_text[: match.start()])[-1]
+            if not re.search(
+                r"\b(?:not|never|don.t|avoid|exclude|except|without)\b|不要|排除|不是", clause, re.I
+            ):
+                matches.append((match.start(), domain))
+    return min(matches)[1] if matches else None
+
+
+def prioritize_user_source(queries, user_text, remaining_queries, ledger):
+    """Keep an explicit source lookup and an unrestricted lookup within the same budget."""
+    if not remaining_queries or not (domain := explicit_user_source(user_text)):
+        return queries
+    annotated = [(q, SITE_OPERATOR.findall(q.text)) for q in queries]
+    broad = [q for q, scopes in annotated if not scopes and q.text.strip()]
+    if not broad:
+        return queries
+    if remaining_queries == 1:
+        return broad[:1]
+    existing = [
+        q
+        for q, scopes in annotated
+        if [s.casefold().removeprefix("www.") for s in scopes] == [domain]
+        and not re.search(r"(?<!\S)-site:", q.text, re.I)
+    ]
+    scoped = next(
+        (
+            q
+            for q in existing
+            if len(q.text.strip()) <= 128 and SITE_OPERATOR.sub("", q.text).strip()
+        ),
+        None,
+    )
+    reused = scoped is not None
+    if scoped is None:
+        base = next(
+            (q for q in broad if q.angle in {"appearance", "action", "visual_description"}),
+            broad[0],
+        )
+        prefix = f"site:{domain} "
+        scoped = Query(
+            text=prefix + base.text.strip()[: 128 - len(prefix)].rstrip(),
+            angle="user_source_lookup",
+            language=base.language,
+        )
+    ledger.note(
+        "user_source_query",
+        origin="user_explicit_source",
+        domain=domain,
+        query=scoped.model_dump(),
+        reused=reused,
+    )
+    return [scoped, broad[0], *(q for q in queries if q != broad[0] and q not in existing)][
+        :remaining_queries
+    ]
 
 
 class DeepSeekQueryPlanner:

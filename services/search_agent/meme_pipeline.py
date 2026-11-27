@@ -17,7 +17,12 @@ from .caption_review import review_scores
 from .captions import caption_overlap, caption_phrases, product_listing, wants_products
 from .entity_verifier import REFERENCE_SIMILARITY, verify_entities
 from .meme_fetch import FetchClient
-from .meme_deepseek import DeepSeekWeb, DeepSeekQueryPlanner, retrieval_queries
+from .meme_deepseek import (
+    DeepSeekWeb,
+    DeepSeekQueryPlanner,
+    prioritize_user_source,
+    retrieval_queries,
+)
 from .meme_providers import vision_client
 from .meme_types import Ledger, MediaSource, MemeSettings, PipelineError, PreparedMedia, Query
 from .page_media import page_sources
@@ -178,7 +183,13 @@ def search_memes(
                 warnings.append(exc.code)
                 ledger.note("query_planning_failed", provider="deepseek", code=exc.code)
         if not analyze:
-            remaining_queries = max(0, settings.max_queries - ledger.counts["queries"])
+            remaining_queries = max(
+                0,
+                min(
+                    settings.max_queries - ledger.counts["queries"],
+                    settings.max_search_calls - ledger.counts["search_calls"],
+                ),
+            )
             analysis.queries = retrieval_queries(analysis)
             joint = next((q for q in analysis.queries if q.angle == "composite"), None)
             if (
@@ -196,6 +207,9 @@ def search_memes(
                     language=joint.language,
                 )
                 analysis.queries = [joint, template, *(q for q in analysis.queries if q != joint)]
+            analysis.queries = prioritize_user_source(
+                analysis.queries, user_text, remaining_queries, ledger
+            )
             # Both actual providers share one finite query ledger.
             analysis.queries = [
                 q.model_copy(update={"text": q.text.strip()[:128]})
