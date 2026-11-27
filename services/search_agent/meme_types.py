@@ -11,13 +11,19 @@ from services.common.media import MediaMetadata
 from services.search_agent.models import Source, Candidate
 
 
+VISION_PROVIDER_POLICIES = {
+    "hkust-deepseek-v1": "hkust",
+    "hkgai-deepseek-v1": "hkgai",
+}
+
+
 class MemeSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", extra="ignore", env_prefix="MEME50_", populate_by_name=True
     )
     vision_model: str = "gemini-3.8-flash"
-    provider_policy: Literal["hkust-deepseek-v1"] = "hkust-deepseek-v1"
-    vision_provider: Literal["gemini", "hkust"] = "hkust"
+    provider_policy: Literal["hkust-deepseek-v1", "hkgai-deepseek-v1"] = "hkust-deepseek-v1"
+    vision_provider: Literal["gemini", "hkust", "hkgai"] = "hkust"
     deepseek_model: str = Field(
         default="deepseek-flash",
         validation_alias=AliasChoices("deepseek_model", "MEME50_DEEPSEEK_MODEL", "DEEPSEEK_MODEL"),
@@ -36,6 +42,13 @@ class MemeSettings(BaseSettings):
         repr=False,
         exclude=True,
         validation_alias=AliasChoices("hkust_api_key", "MEME50_HKUST_API_KEY", "HKUST_API_KEY"),
+    )
+    hkgai_model: str = "t2_hkgai-v3_fp8_1m_e10"
+    hkgai_api_key: SecretStr = Field(
+        default_factory=lambda: SecretStr(""),
+        repr=False,
+        exclude=True,
+        validation_alias=AliasChoices("MEME50_HKGAI_API_KEY", "HKGAI_API_KEY", "hkgai_api_key"),
     )
     gemini_api_key: str = Field(
         default="",
@@ -77,13 +90,17 @@ class MemeSettings(BaseSettings):
     max_disk_bytes: int = Field(default=512 * 1024 * 1024, gt=0, le=512 * 1024 * 1024)
     concurrency: int = Field(default=6, ge=1, le=6)
     dns_mode: Literal["system", "doh"] = "system"
-    minimum_score: float = Field(default=0.55, ge=-1, le=1, allow_inf_nan=False)
-    scoring_version: str = "meme50-rank-dev-v1-unvalidated"
+    minimum_score: float = Field(default=0.50, ge=-1, le=1, allow_inf_nan=False)
+    scoring_version: str = "meme50-rank-caption-v2"
     dedup_version: str = "meme50-temporal-local-v8"
 
     @property
     def effective_vision_model(self):
-        return self.hkust_model if self.vision_provider == "hkust" else self.vision_model
+        if self.vision_provider == "hkust":
+            return self.hkust_model
+        if self.vision_provider == "hkgai":
+            return self.hkgai_model
+        return self.vision_model
 
 
 class EntityHypothesis(BaseModel):
@@ -101,6 +118,7 @@ class Query(BaseModel):
 class VisualAnalysis(BaseModel):
     model_config = ConfigDict(extra="forbid")
     observations: list[str] = Field(default_factory=list, max_length=12)
+    visual_keywords: list[str] = Field(default_factory=list, max_length=12)
     ocr_text: str = Field(default="", max_length=2000)
     entity_hypotheses: list[EntityHypothesis] = Field(default_factory=list, max_length=8)
     emotion_tags: list[str] = Field(default_factory=list, max_length=12)
@@ -117,6 +135,8 @@ class VisualAnalysis(BaseModel):
 class MediaSource(Source):
     media_url: str | None = None
     preview_url: str | None = None
+    product_page: bool = False
+    image_caption: str = Field(default="", max_length=500)
     source_type: str = "page"
     source_rank: int = Field(default=1, ge=1)
     channel: str = "keyword"

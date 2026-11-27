@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
+from contextlib import asynccontextmanager
 from time import perf_counter
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
@@ -17,11 +18,13 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from services.api.app.accounts import router as accounts_router, select_account
 from services.api.app.demo import router as demo_router
+from services.api.app.library import activate_library, router as library_router
 from services.api.app.search import router as search_router
 from services.api.app.meme_search import router as meme_router
 from services.common.config import configure_logging, get_settings
-from services.common.db import get_db
+from services.common.db import get_db, get_session_factory
 from services.common.models import Case, CaseStatus, Job, JobStatus, JobType
 from services.common.schemas import (
     CaseCreate,
@@ -35,7 +38,21 @@ from services.common.storage import prepare_storage
 configure_logging()
 logger = logging.getLogger("services.api.main")
 
-app = FastAPI(title="MAIE 6000C Starter API", version="0.1.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = get_settings()
+    if settings.private_library_enabled:
+        if not settings.account_login_enabled and not settings.device_token.strip():
+            raise RuntimeError("Private library requires a non-empty DEVICE_TOKEN")
+        with get_session_factory()() as db:
+            activate_library(db)
+    yield
+
+
+app = FastAPI(title="MAIE 6000C Starter API", version="0.1.0", lifespan=lifespan)
+app.middleware("http")(select_account)
+app.include_router(accounts_router)
+app.include_router(library_router)
 app.include_router(search_router)
 
 HTTP_REQUESTS = Counter(

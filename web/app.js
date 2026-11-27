@@ -1,6 +1,12 @@
+import { mountLibrary } from "./library.js";
 import { memeStatus, renderMemeResults, disposeMemeResults } from "./meme50.js";
 import { Api, validAccepted, validStatus } from "./api.js";
-import { loadSession, saveSession } from "./store.js";
+import {
+  loadFavorite,
+  saveFavorite,
+  loadSession,
+  saveSession,
+} from "./store.js";
 
 const $ = (id) => document.getElementById(id);
 const api = new Api();
@@ -33,6 +39,7 @@ let initialized = false;
 let inputURL;
 let cardSignature = "";
 const mediaURLs = new Map();
+const activeFavorites = new Map();
 
 // crypto.randomUUID is unavailable on plain-HTTP LAN origins; getRandomValues
 // still supplies cryptographic UUIDs there.
@@ -46,6 +53,8 @@ function newKey() {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
+mountLibrary(api, newKey);
+
 function notice(message = "") {
   $("notice").textContent = message;
   $("notice").hidden = !message;
@@ -57,7 +66,6 @@ function feedback(id, message, error = false) {
 }
 
 function disposeCards() {
-  disposeMemeResults();
   for (const url of mediaURLs.values()) URL.revokeObjectURL(url);
   mediaURLs.clear();
   cardSignature = "";
@@ -70,12 +78,28 @@ function cancelSessionWork() {
   lifetime = new AbortController();
   clearTimeout(pollTimer);
   polling = false;
+  clearWebCards();
   disposeCards();
 }
 
+function searchProfile() {
+  return $("search-mode").querySelector("input:checked").value;
+}
+
+function restoreChoice(group, value) {
+  const radio = Array.from($(group).elements).find(
+    (input) => input.value === value,
+  );
+  if (radio) radio.checked = true;
+}
+
 function renderInput() {
+  restoreChoice("search-mode", session?.searchProfile);
   $("description").value = session?.description || "";
-  $("media-filter").value = session?.filter || "all";
+  $("continue-description").value =
+    session?.online?.creation?.payload.description || "";
+  feedback("continue-feedback", "");
+  restoreChoice("media-filter", session?.filter || "all");
   if (inputURL) URL.revokeObjectURL(inputURL);
   inputURL = session?.file ? URL.createObjectURL(session.file) : null;
   $("input-preview").hidden = !inputURL;
@@ -89,6 +113,18 @@ function renderInput() {
     : "";
 }
 
+// Jobs from the worker and previously saved searches can carry either message.
+function searchErrorMessage(error) {
+  switch (error?.message) {
+    case "图片检索服务暂不可用，请稍后重试。":
+      return "Image search is temporarily unavailable. Please try again later.";
+    case "图片检索中断或结果未通过验证，请重试。":
+      return "Image search stopped or the results could not be verified. Please try again.";
+    default:
+      return error?.message || "Online search failed.";
+  }
+}
+
 function render() {
   const result = session?.result;
   const accepted = session?.accepted;
@@ -99,8 +135,17 @@ function render() {
   const uncertainReview = session?.review && !session.review.review_id;
   $("submit").hidden = !!accepted;
   $("submit").disabled = !initialized || busy || !session?.file;
+  const local = searchProfile() === "legacy";
+  $("file-input").accept = local
+    ? "image/png,image/jpeg,image/webp"
+    : "image/png,image/jpeg,image/webp,image/gif";
+  $("search-mode").disabled = busy || !initialized;
+  $("local-hint").hidden = !local;
+  document.querySelector(".image-disclosure").hidden = local;
+  $("description").hidden = local;
+  document.querySelector('label[for="description"]').hidden = local;
   $("description").disabled =
-    busy || !!session?.submissionStarted || !!accepted;
+    local || busy || !!session?.submissionStarted || !!accepted;
   $("submit").textContent = busy
     ? "Submitting…"
     : session?.submissionStarted
@@ -144,7 +189,12 @@ function render() {
     description =
       "The search finished without a suitable match in this collection. Try a clearer crop or another screenshot.";
   } else if (status === "failed" && result?.error) {
-    description = `${result.error.message} (${result.error.code})`;
+    description = [
+      searchErrorMessage(result.error),
+      result.error.code && `(${result.error.code})`,
+    ]
+      .filter(Boolean)
+      .join(" ");
   }
   $("status-title").textContent = title;
   $("status-description").textContent = description;
@@ -171,43 +221,95 @@ function render() {
       true,
     );
   }
-  $("meme-controls").hidden = !meme50 || status !== "completed";
-  $("meme-retry").hidden = !meme50 || status !== "failed";
-  $("meme-analysis").hidden = !meme50 || !result?.analysis;
-  if (meme50) {
-    const stages = {
-      preprocessing: "Preparing image",
-      understanding: "Understanding image",
-      verifying: "Checking visual clues",
-      recalling: "Searching sources",
-      fetching: "Downloading and validating",
-      reranking: "Ranking and grouping",
-      finalizing: "Publishing results",
-    };
-    if (active) {
-      $("status-title").textContent =
-        stages[result.stage] || "Waiting for image search";
-      $("status-description").textContent =
-        `${result.verified_count || 0} verified content groups. Preview order may change.`;
+  renderCandidates(!meme50 && hasCandidates ? result.candidates : []);
+  renderOnline();
+}
+
+function onlineState() {
+  return session?.accepted?.search_profile === "meme50-v2"
+    ? session
+    : session?.online;
+}
+
+function clearWebCards() {
+  disposeMemeResults();
+  $("web-candidates").replaceChildren();
+}
+
+function renderOnline() {
+  const state = onlineState();
+  const result = state?.result;
+  const status = result?.status || state?.accepted?.status;
+  const direct = !!state && state === session;
+  const active =
+    state?.accepted && (!result || ["pending", "running"].includes(status));
+  const completed = status === "completed";
+  const paged = completed && !!result?.page;
+  const localReady = session?.result?.status === "completed" && !direct;
+  $("continue-panel").hidden = !localReady;
+  $("continue-form").hidden = status === "failed" && !state?.creation;
+  $("continue-description").disabled = !!(busy || active || state?.creation);
+  $("continue-submit").disabled = !!(busy || active);
+  $("continue-submit").textContent = state?.creation
+    ? "Resume online search"
+    : "Continue online";
+  $("web-results").hidden = !state?.accepted;
+  $("meme-controls").hidden = !paged;
+  $("meme-retry").hidden = status !== "failed";
+  $("meme-retry").disabled = busy || !!state?.creation;
+  const matchedSource = result?.analysis?.evidence?.find(
+    (entry) =>
+      entry.matching_media_url && entry.relation === "supports" && entry.title,
+  );
+  const recognized = (result?.analysis?.entity_hypotheses || [])
+    .filter((entity) => entity.status === "supported")
+    .map((entity) => entity.name);
+  $("meme-analysis").textContent = [
+    recognized.length > 0 && `Recognized: ${recognized.join(", ")}`,
+    matchedSource && `Matching source: ${matchedSource.title}`,
+    ...(result?.analysis?.observations || []),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  $("analysis-details").hidden = !$("meme-analysis").textContent;
+  if (!state?.accepted) return;
+  const stages = {
+    preprocessing: "Preparing image",
+    understanding: "Understanding image",
+    verifying: "Checking visual clues",
+    recalling: "Searching sources",
+    fetching: "Downloading and validating",
+    reranking: "Ranking and grouping",
+    finalizing: "Publishing results",
+  };
+  let message = active
+    ? `${stages[result?.stage] || "Waiting for image search"} · ${result?.verified_count || 0} verified results`
+    : status === "failed"
+      ? searchErrorMessage(result.error)
+      : "No related images found";
+  if (completed && (result?.page?.total_all || result?.candidates?.length))
+    message = "Related images are ready";
+  $(direct ? "status-title" : "web-status").textContent = message;
+  if (direct) {
+    $("web-status").textContent = "";
+    if (paged) {
+      $("result-count").textContent =
+        `${result.page.total_all} verified ${result.page.total_all === 1 ? "result" : "results"}`;
+      $("status-description").textContent = "";
     }
-    if (status === "completed") {
-      $("result-count").textContent = `${result.page.total_all} images`;
-      $("status-title").textContent = "Related images are ready";
-      $("status-description").textContent =
-        result.page.total_all < result.target_count
-          ? `Found ${result.page.total_all} distinct results out of a target of ${result.target_count}. Some sources or capabilities could not supply more verified matches.`
-          : "Final order is stable. Relevance scores are ranking signals, not correctness rates.";
-      $("page-summary").textContent = `${result.page.total} in this filter`;
-      $("next-page").disabled = !result.page.next_cursor;
-      $("previous-page").disabled = !session.pageHistory?.length;
-    }
-    $("meme-analysis").textContent =
-      result.analysis?.observations?.join(" · ") || "";
-    renderMemeResults(result, api, lifetime.signal, { download: downloadMeme });
-  } else {
-    $("candidates").classList.remove("meme50-grid");
-    renderCandidates(hasCandidates ? result.candidates : []);
   }
+  if (paged) {
+    restoreChoice("media-filter", state.filter || "all");
+    $("page-summary").textContent =
+      `Page ${(state.pageHistory?.length || 0) + 1} · ${result.page.total} ${result.page.total === 1 ? "result" : "results"}`;
+    $("next-page").disabled = !result.page.next_cursor;
+    $("previous-page").disabled = !state.pageHistory?.length;
+  }
+  if (result)
+    renderMemeResults($("web-candidates"), result, api, lifetime.signal, {
+      download: downloadMeme,
+      favorite: mountFavorite,
+    });
 }
 
 function makeButton(label, className, handler) {
@@ -252,6 +354,13 @@ function renderCandidates(candidates) {
       );
       reload.hidden = true;
       body.append(score, accept, download, reload);
+      if (candidate.asset_id && candidate.save_status === "saved") {
+        card.dataset.saved = "true";
+        card.dataset.assetId = candidate.asset_id;
+        const status = document.createElement("p");
+        status.textContent = favoriteLabel(candidate.index_status);
+        body.append(status);
+      }
       card.append(media, body);
       $("candidates").append(card);
       loadMedia(candidate, media, reload);
@@ -269,7 +378,7 @@ function renderCandidates(candidates) {
       : "This is the one";
     card.querySelector(".accept").disabled =
       busy || !!(review && !review.review_id) || !!selected;
-    card.querySelector(".download").hidden = !selected;
+    card.querySelector(".download").hidden = !selected && !card.dataset.saved;
     card.querySelector(".download").disabled = busy;
   }
 }
@@ -320,6 +429,8 @@ async function selectFile(file) {
       )
     )
       throw new Error("Choose a PNG, JPG, WebP, or GIF image.");
+    if (searchProfile() === "legacy" && file.type === "image/gif")
+      throw new Error("Use a PNG, JPEG, or WebP screenshot for local search.");
     if (!file.size || file.size > 10 * 1024 * 1024)
       throw new Error(
         "This file is empty or larger than 10 MiB. Choose a smaller image.",
@@ -337,7 +448,7 @@ async function selectFile(file) {
       );
     const next = {
       file,
-      searchProfile: "meme50-v2",
+      searchProfile: searchProfile(),
       description: $("description").value,
       filter: "all",
       pageHistory: [],
@@ -364,6 +475,10 @@ async function selectFile(file) {
 
 async function submit() {
   if (busy || !session?.file || session.accepted) return;
+  if (session.searchProfile === "legacy" && session.file.type === "image/gif") {
+    notice("Use a PNG, JPEG, or WebP screenshot for local search.");
+    return;
+  }
   busy = true;
   notice();
   render();
@@ -373,11 +488,18 @@ async function submit() {
     // Persist the exact File and key before sending, including ambiguous timeouts.
     await saveSession(session);
     const accepted = validAccepted(
-      await api.submit(session.file, session.submissionKey, lifetime.signal, {
-        search_profile: "meme50-v2",
-        description: session.description ?? $("description").value,
-        target_count: 50,
-      }),
+      await api.submit(
+        session.file,
+        session.submissionKey,
+        lifetime.signal,
+        session.searchProfile === "legacy"
+          ? {}
+          : {
+              search_profile: "meme50-v2",
+              description: session.description ?? $("description").value,
+              target_count: 50,
+            },
+      ),
     );
     if (currentEpoch !== epoch) return;
     session.accepted = accepted;
@@ -404,28 +526,90 @@ async function poll() {
   pollAgain = false;
   const currentEpoch = epoch;
   const requestId = session.accepted.request_id;
-  const navigation = JSON.stringify([session.filter, session.cursor]);
+  const searchSession = session;
   polling = true;
   render();
   let succeeded = false;
   try {
-    const result =
-      session.accepted.search_profile === "meme50-v2"
-        ? await memeStatus(api, session.accepted, session, lifetime.signal)
-        : validStatus(await api.status(requestId, lifetime.signal));
-    if (currentEpoch !== epoch) return;
-    if (navigation !== JSON.stringify([session.filter, session.cursor])) {
-      pollAgain = true;
-      return;
+    const direct = searchSession.accepted.search_profile === "meme50-v2";
+    if (!direct) {
+      const previousOnline = searchSession.online;
+      const previousOnlineJob = previousOnline?.accepted?.job_id;
+      const relation = validAccepted(
+        await api.status(requestId, lifetime.signal),
+      );
+      if (relation.request_id !== requestId)
+        throw new Error("Search request mismatch.");
+      if (currentEpoch !== epoch) return;
+      const localId = relation.local_job_id || searchSession.accepted.job_id;
+      const local =
+        relation.job_id === localId && relation.job_kind !== "web"
+          ? validStatus(relation)
+          : await readJobResult(requestId, localId, "local");
+      if (currentEpoch !== epoch) return;
+      if (searchSession.review && searchSession.review.jobId !== local.job_id) {
+        searchSession.review = null;
+        feedback("review-status", "");
+        feedback("download-status", "");
+      }
+      searchSession.result = local;
+      const latest = relation.web_searches?.at(-1);
+      const online = searchSession.online;
+      if (
+        latest &&
+        latest.job_id !== online?.accepted?.job_id &&
+        online === previousOnline &&
+        online?.accepted?.job_id === previousOnlineJob &&
+        !online?.creation &&
+        !online?.retryKey &&
+        !busy
+      ) {
+        searchSession.online = {
+          accepted: validAccepted({ ...latest, request_id: requestId }),
+        };
+        clearWebCards();
+      }
     }
-    if (result.request_id !== requestId)
-      throw new Error("The server returned results for a different search.");
-    if (session.result?.job_id && session.result.job_id !== result.job_id) {
-      session.review = null;
-      feedback("review-status", "");
-      feedback("download-status", "");
+    const web = direct ? searchSession : searchSession.online;
+    if (web?.accepted) {
+      const webId = web.accepted.job_id;
+      const navigation = JSON.stringify([web.filter, web.cursor]);
+      const view = { ...web };
+      const summary = web.accepted.search_profile
+        ? null
+        : await api.request(`/search-jobs/${encodeURIComponent(webId)}`, {
+            signal: lifetime.signal,
+          });
+      if (currentEpoch !== epoch) return;
+      const profile = summary?.search_profile || web.accepted.search_profile;
+      const result =
+        profile === "meme50-v2"
+          ? await memeStatus(
+              api,
+              {
+                ...web.accepted,
+                ...(direct ? {} : { job_kind: "web" }),
+              },
+              view,
+              lifetime.signal,
+              summary,
+            )
+          : await readJobResult(requestId, webId, "web", summary);
+      if (currentEpoch !== epoch) return;
+      if (
+        web !== onlineState() ||
+        webId !== web.accepted.job_id ||
+        navigation !== JSON.stringify([web.filter, web.cursor])
+      ) {
+        pollAgain = true;
+        return;
+      }
+      web.accepted = { ...web.accepted, search_profile: result.search_profile };
+      web.result = result;
+      web.revision = view.revision;
+      web.cursor = view.cursor;
+      web.pageHistory = view.pageHistory;
     }
-    session.result = result;
     await saveSession(session);
     if (currentEpoch !== epoch) return;
     notice();
@@ -443,7 +627,9 @@ async function poll() {
         pollTimer = setTimeout(poll, 0);
       } else if (
         succeeded &&
-        ["pending", "running"].includes(session.result.status) &&
+        [session.result, onlineState()?.result].some((result) =>
+          ["pending", "running"].includes(result?.status),
+        ) &&
         !document.hidden
       ) {
         pollTimer = setTimeout(poll, 1500);
@@ -508,8 +694,9 @@ async function sendReview() {
 async function downloadCandidate(candidate, button) {
   if (
     busy ||
-    !session?.review?.review_id ||
-    session.review.payload.candidate_id !== candidate.candidate_id
+    (!candidate.asset_id &&
+      (!session?.review?.review_id ||
+        session.review.payload.candidate_id !== candidate.candidate_id))
   )
     return;
   const currentEpoch = epoch;
@@ -520,7 +707,10 @@ async function downloadCandidate(candidate, button) {
   try {
     // Re-fetch so expired or unavailable media is reported instead of silently
     // treating an earlier preview as a successful current download.
-    const blob = await api.media(candidate.media_url, lifetime.signal);
+    const urlPath = candidate.asset_id
+      ? `/saved-assets/${encodeURIComponent(candidate.asset_id)}/media`
+      : candidate.media_url;
+    const blob = await api.media(urlPath, lifetime.signal);
     if (currentEpoch !== epoch) return;
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -559,6 +749,8 @@ async function reset(keepFile = false) {
       keepFile && session?.file
         ? {
             file: session.file,
+            searchProfile: searchProfile(),
+            description: $("description").value,
             submissionKey: newKey(),
             submissionStarted: false,
             accepted: null,
@@ -698,29 +890,33 @@ $("forget").addEventListener("click", () => reset(false));
 $("refresh").addEventListener("click", poll);
 $("reject").addEventListener("click", () => choose("reject_all"));
 $("review-retry").addEventListener("click", sendReview);
-$("connection-toggle").addEventListener("click", () => {
-  $("connection-panel").hidden = !$("connection-panel").hidden;
-  $("connection-toggle").setAttribute(
-    "aria-expanded",
-    String(!$("connection-panel").hidden),
-  );
-});
-$("connection-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (busy) return;
-  api.token = $("token").value.trim();
-  loadDemoLibrary();
-  // Cancel requests using the previous credential and rebuild media with it.
-  cancelSessionWork();
-  render();
-  await checkHealth();
-  if (session?.accepted) poll();
-});
+if (api.account) {
+  $("account-name").textContent = api.account;
+  $("account-name").hidden = false;
+  $("sign-out").hidden = false;
+  window.addEventListener("storage", (event) => {
+    if (event.key === "memeretrieve-account-change") location.replace("/web/");
+  });
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) location.reload();
+  });
+  $("sign-out").addEventListener("click", async () => {
+    try {
+      await api.request("/auth/logout", { method: "POST" });
+      localStorage.setItem("memeretrieve-account-change", newKey());
+      location.replace("/web/");
+    } catch (error) {
+      notice(error.message);
+    }
+  });
+}
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) clearTimeout(pollTimer);
   else if (
     session?.accepted &&
-    !["completed", "failed"].includes(session.result?.status)
+    (!["completed", "failed"].includes(session.result?.status) ||
+      (onlineState()?.accepted &&
+        !["completed", "failed"].includes(onlineState()?.result?.status)))
   )
     poll();
 });
@@ -743,8 +939,23 @@ window.addEventListener("pageshow", (event) => {
 try {
   session = (await loadSession()) || null;
   if (session?.accepted) validAccepted(session.accepted);
-  if (session?.result && session?.accepted?.search_profile !== "meme50-v2")
-    validStatus(session.result);
+  if (
+    session?.accepted &&
+    !session.accepted.search_profile &&
+    session.result?.search_profile === "meme50-v2" &&
+    session.result.job_id === session.accepted.job_id &&
+    session.result.job_kind !== "local"
+  ) {
+    session.accepted.search_profile = "meme50-v2";
+  }
+  if (session?.result && session.accepted?.search_profile !== "meme50-v2") {
+    if (
+      session.result.search_profile === "meme50-v2" ||
+      session.result.job_kind === "web"
+    )
+      session.result = null;
+    else validStatus(session.result);
+  }
   renderInput();
 } catch (error) {
   session = null;
@@ -811,58 +1022,160 @@ async function downloadMeme(candidate) {
     notice(error.message);
   }
 }
+$("search-mode").addEventListener("change", async (event) => {
+  if (session?.file) {
+    const radio = event.target;
+    const hadFocus = document.activeElement === radio;
+    await reset(true);
+    if (hadFocus && document.activeElement === document.body)
+      radio.focus({ preventScroll: true });
+  }
+  render();
+});
 $("description").addEventListener("input", async () => {
   if (session && !session.submissionStarted) {
     session.description = $("description").value;
     await saveSession(session);
   }
 });
-$("media-filter").addEventListener("change", async () => {
-  if (!session) return;
-  if (session.filter === $("media-filter").value) return;
-  session.filter = $("media-filter").value;
-  session.cursor = null;
-  session.pageHistory = [];
+async function readJobResult(requestId, id, kind, summary = null) {
+  const signal = lifetime.signal;
+  const path = `/search-jobs/${encodeURIComponent(id)}`;
+  const job =
+    summary?.result_kind !== undefined
+      ? summary
+      : await api.request(path, { signal });
+  if (
+    job.job_id !== id ||
+    job.request_id !== requestId ||
+    job.job_kind !== kind
+  )
+    throw new Error("Search job does not belong to this request.");
+  const candidates =
+    job.status === "completed"
+      ? await api.request(`${path}/candidates`, { signal })
+      : [];
+  return validStatus({
+    ...job,
+    candidates: candidates.map((candidate) => ({
+      ...candidate,
+      ...(kind === "web"
+        ? {
+            media_kind: candidate.media_kind || "animated",
+            media_format: candidate.media_format || "GIF",
+            frame_count: candidate.frame_count || 2,
+            preview_url: candidate.preview_url || candidate.media_url,
+          }
+        : {}),
+    })),
+  });
+}
+
+$("continue-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (
+    busy ||
+    session?.result?.status !== "completed" ||
+    ["pending", "running"].includes(
+      session.online?.result?.status || session.online?.accepted?.status,
+    )
+  )
+    return;
+  const state = (session.online ||= {});
+  busy = true;
+  try {
+    state.creation ||= {
+      requestId: session.accepted.request_id,
+      payload: {
+        description: $("continue-description").value.trim(),
+        client_search_key: newKey(),
+        search_profile: "meme50-v2",
+      },
+    };
+    render();
+    await saveSession(session);
+    const { requestId, payload } = state.creation;
+    const accepted = validAccepted(
+      await api.continueOnline(requestId, payload, lifetime.signal),
+    );
+    validateOnlineAccepted(accepted, session.result.job_id);
+    session.online = { accepted };
+    clearWebCards();
+    await saveSession(session);
+    $("continue-description").value = "";
+    feedback("continue-feedback", "");
+  } catch (error) {
+    feedback("continue-feedback", error.message, true);
+  } finally {
+    busy = false;
+    render();
+    poll();
+  }
+});
+
+function validateOnlineAccepted(accepted, previousId, profile = "meme50-v2") {
+  if (
+    accepted.request_id !== session.accepted.request_id ||
+    accepted.job_id === previousId ||
+    (accepted.search_profile || "legacy") !== profile
+  )
+    throw new Error("Invalid linked online search response.");
+}
+
+$("media-filter").addEventListener("change", async (event) => {
+  const state = onlineState();
+  if (!state) return;
+  state.filter = event.target.value;
+  state.cursor = null;
+  state.pageHistory = [];
   await saveSession(session);
   poll();
 });
 $("next-page").addEventListener("click", async () => {
-  if (!session?.result?.page?.next_cursor) return;
-  session.pageHistory = [
-    ...(session.pageHistory || []),
-    session.cursor || null,
-  ];
-  session.cursor = session.result.page.next_cursor;
+  const state = onlineState();
+  if (!state?.result?.page?.next_cursor) return;
+  state.pageHistory = [...(state.pageHistory || []), state.cursor || null];
+  state.cursor = state.result.page.next_cursor;
   await saveSession(session);
   poll();
 });
 $("previous-page").addEventListener("click", async () => {
-  if (!session?.pageHistory?.length) return;
-  session.cursor = session.pageHistory.pop();
+  const state = onlineState();
+  if (!state?.pageHistory?.length) return;
+  state.cursor = state.pageHistory.pop();
   await saveSession(session);
   poll();
 });
 $("meme-retry").addEventListener("click", async () => {
-  if (busy || !session?.result || session.result.status !== "failed") return;
+  const state = onlineState();
+  if (busy || state?.result?.status !== "failed") return;
   busy = true;
   render();
   try {
-    session.retryKey = session.retryKey || newKey();
+    state.retryKey ||= newKey();
     await saveSession(session);
     const accepted = validAccepted(
-      await api.request(`/search-jobs/${session.result.job_id}/retry`, {
+      await api.request(`/search-jobs/${state.result.job_id}/retry`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ client_retry_key: session.retryKey }),
+        body: JSON.stringify({ client_retry_key: state.retryKey }),
+        signal: lifetime.signal,
       }),
     );
-    cancelSessionWork();
-    session.accepted = accepted;
-    session.result = null;
-    session.revision = null;
-    session.cursor = null;
-    session.pageHistory = [];
-    session.retryKey = null;
+    validateOnlineAccepted(
+      accepted,
+      state.result.job_id,
+      state.result.search_profile,
+    );
+    Object.assign(state, {
+      accepted,
+      result: null,
+      revision: null,
+      cursor: null,
+      pageHistory: [],
+      retryKey: null,
+    });
+    clearWebCards();
     await saveSession(session);
   } catch (error) {
     notice(error.message);
@@ -872,3 +1185,150 @@ $("meme-retry").addEventListener("click", async () => {
     poll();
   }
 });
+
+function favoriteLabel(status) {
+  return (
+    {
+      pending: "Saved, indexing queued",
+      running: "Saved, indexing",
+      ready: "Saved, searchable locally",
+      failed: "Saved, indexing failed",
+    }[status] || ""
+  );
+}
+
+function mountFavorite(jobId, candidate, body, download, signal) {
+  const key = `favorite/${jobId}/${candidate.candidate_id}`;
+  const status = document.createElement("p");
+  status.setAttribute("role", "status");
+  const action = makeButton("Confirm and save", "secondary", act);
+  action.disabled = true;
+  body.append(status, action);
+  let record;
+  let timer;
+  let error = "";
+  let expired = false;
+  signal.addEventListener("abort", () => clearTimeout(timer), { once: true });
+
+  function show(working = false) {
+    if (signal.aborted) return;
+    const asset = record?.asset;
+    if (asset) {
+      download.dataset.mediaUrl = asset.media_url;
+      body.closest(".candidate")?.setAttribute("data-asset-id", asset.asset_id);
+    }
+    status.textContent = [
+      asset ? favoriteLabel(asset.index_status) : working ? "Saving…" : "",
+      asset?.index_error,
+      error,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    action.textContent = asset
+      ? error
+        ? "Refresh index status"
+        : "Retry indexing"
+      : record?.reviewKey
+        ? "Resume saving"
+        : "Confirm and save";
+    action.hidden =
+      expired || (!!asset && !error && asset.index_status !== "failed");
+    action.disabled = working;
+  }
+
+  async function rememberAsset(asset) {
+    if (
+      asset?.save_status !== "saved" ||
+      !asset.asset_id ||
+      !asset.media_url ||
+      !favoriteLabel(asset.index_status) ||
+      (record.asset && asset.asset_id !== record.asset.asset_id)
+    ) {
+      throw new Error("The server returned invalid saved GIF details.");
+    }
+    record.asset = asset;
+    await saveFavorite(key, record);
+  }
+
+  async function check(retry = false) {
+    if (signal.aborted) return;
+    clearTimeout(timer);
+    error = "";
+    show(true);
+    try {
+      await rememberAsset(
+        await api.savedAsset(record.asset.asset_id, signal, retry),
+      );
+      if (
+        ["pending", "running"].includes(record.asset.index_status) &&
+        !signal.aborted
+      )
+        timer = setTimeout(check, 1500);
+    } catch (failure) {
+      error = failure.message;
+    }
+    show();
+  }
+
+  async function act() {
+    if (record?.asset) {
+      await check(!error && record.asset.index_status === "failed");
+      return;
+    }
+    if (activeFavorites.has(key)) return;
+    error = "";
+    show(true);
+    // Allow an acknowledged save to reach IndexedDB even if the card goes away.
+    const operation = (async () => {
+      record ||= { reviewKey: newKey(), saveKey: newKey() };
+      await saveFavorite(key, record);
+      if (!record.reviewId) {
+        const review = await api.review(jobId, {
+          candidate_id: candidate.candidate_id,
+          decision: "accept",
+          client_review_key: record.reviewKey,
+        });
+        if (!review?.review_id)
+          throw new Error("The server did not acknowledge the confirmation.");
+        record.reviewId = review.review_id;
+        await saveFavorite(key, record);
+      }
+      await rememberAsset(
+        await api.saveCandidate(candidate.candidate_id, record.saveKey),
+      );
+    })();
+    activeFavorites.set(key, operation);
+    try {
+      await operation;
+      await check();
+    } catch (failure) {
+      error = failure.message;
+      expired = failure.status === 410;
+      show();
+    } finally {
+      activeFavorites.delete(key);
+    }
+  }
+
+  async function restore() {
+    await activeFavorites.get(key)?.catch(() => {});
+    record = await loadFavorite(key);
+    if (!record?.asset && candidate.asset_id) {
+      record = {
+        ...record,
+        asset: {
+          asset_id: candidate.asset_id,
+          media_url: `/saved-assets/${encodeURIComponent(candidate.asset_id)}/media`,
+          save_status: "saved",
+          index_status: candidate.index_status,
+        },
+      };
+    }
+    show();
+    if (record?.asset) await check();
+  }
+  restore().catch((failure) => {
+    error = failure.message;
+    show();
+  });
+}

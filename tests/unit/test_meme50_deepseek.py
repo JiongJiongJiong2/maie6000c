@@ -7,7 +7,13 @@ from PIL import Image
 
 from services.search_agent import meme_deepseek as deepseek
 from services.search_agent.meme_providers import vision_client
-from services.search_agent.meme_types import Ledger, MemeSettings, PipelineError, VisualAnalysis
+from services.search_agent.meme_types import (
+    Ledger,
+    MemeSettings,
+    PipelineError,
+    Query,
+    VisualAnalysis,
+)
 
 
 def analysis():
@@ -85,6 +91,188 @@ def test_search_returns_actual_pages_or_direct_urls_not_invented_images(monkeypa
     assert items[0].media_url is None and items[0].source_type == "page"
     assert items[1].media_url == "https://cdn.example.org/original.gif?size=full"
     assert ledger.counts["queries"] == ledger.counts["search_calls"] == 1
+
+
+@pytest.mark.parametrize("namespace", ["File:", "File%3A", "file:"])
+def test_search_treats_commons_file_namespace_as_page_and_preserves_direct_urls(
+    monkeypatch, namespace
+):
+    page = f"https://commons.wikimedia.org/wiki/{namespace}Example.gif"
+    original = "https://upload.wikimedia.org/wikipedia/commons/a/ab/Example.gif?download=1"
+    ordinary = "https://cdn.example.org/reaction/Gesture.GIF?size=full"
+    monkeypatch.setattr(
+        deepseek,
+        "bounded_json",
+        lambda *a, **k: {"results": [{"url": url} for url in (page, original, ordinary)]},
+    )
+    s = settings()
+    items = deepseek.DeepSeekWeb(s, Ledger(s)).search("animated reaction GIF", 3)
+    assert [(item.source_url, item.source_type, item.media_url) for item in items] == [
+        (page, "page", None),
+        (original, "direct", original),
+        (ordinary, "direct", ordinary),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("user_text", "domain"),
+    [
+        ("I saw this GIF on Wikimedia Commons", "commons.wikimedia.org"),
+        ("来源：Tenor", "tenor.com"),
+        (
+            "This is from https://commons.wikimedia.org/wiki/File:Private-name.gif",
+            "commons.wikimedia.org",
+        ),
+    ],
+)
+def test_user_source_reserves_one_bounded_query_alongside_broad_search(user_text, domain):
+    queries = [
+        Query(text="green animal reaction", angle="identity_hypothesis"),
+        Query(text="three foxes jumping in a loop " * 6, angle="action"),
+        Query(text="funny cartoon expression", angle="emotion"),
+    ]
+    ledger = Ledger(settings())
+    result = deepseek.prioritize_user_source(queries, user_text, 2, ledger)
+    assert len(result) == 2 and result[1] == queries[0]
+    assert result[0].text.startswith(f"site:{domain} three foxes jumping in a loop")
+    assert len(result[0].text) <= 128 and "Private-name" not in result[0].text
+    assert result[0].angle == "user_source_lookup"
+    assert ledger.counts["queries"] == ledger.counts["search_calls"] == 0
+    assert ledger.trace[0]["details"] == {
+        "domain": domain,
+        "origin": "user_explicit_source",
+        "query": result[0].model_dump(),
+        "reused": False,
+    }
+
+
+def test_user_source_reuses_existing_scope_and_preserves_other_scopes():
+    broad = Query(text="jumping animal GIF", angle="appearance")
+    first = Query(text="jumping animal site:tenor.com", angle="user_source_lookup")
+    duplicate = Query(text="site:tenor.com animated fox", angle="action")
+    other = Query(text="site:imgflip.com/memetemplate running fox", angle="template_catalog")
+    queries = [broad, first, duplicate, other]
+    ledger = Ledger(settings())
+    assert deepseek.prioritize_user_source(queries, "Saw it on Tenor.", 3, ledger) == [
+        first,
+        broad,
+        other,
+    ]
+    assert ledger.trace[0]["details"]["reused"] is True
+    assert deepseek.prioritize_user_source([first, broad], "Saw it on Tenor.", 1, ledger) == [broad]
+
+
+def test_user_source_prefers_model_gif_query_over_static_appearance_and_replaces_old_scope():
+    static = Query(text="copper weathervane against grey sky", angle="visual_description")
+    stale = Query(text="site:tenor.com copper weathervane grey sky", angle="user_source_lookup")
+    gif = Query(text="spinning copper weathervane GIF", angle="appearance")
+    action = Query(text="rotating copper weathervane loop", angle="action")
+    result = deepseek.prioritize_user_source(
+        [static, stale, action, gif],
+        "I saw this looping GIF on Tenor. The copper weathervane spins in the wind.",
+        3,
+        Ledger(settings()),
+    )
+    assert result[0].text == "site:tenor.com spinning copper weathervane GIF"
+    assert result[1:] == [static, action]
+
+
+def test_user_source_uses_explicit_natural_subject_and_motion_when_generated_queries_are_static():
+    broad = Query(text="metal object outdoors cloudy sky", angle="visual_description")
+    description = (
+        "I saw this looping GIF on https://tenor.com/view/Hidden-filename.gif. "
+        "A copper weathervane spins against a grey sky."
+    )
+    result = deepseek.prioritize_user_source([broad], description, 2, Ledger(settings()))
+    assert result[0].text.startswith("site:tenor.com ")
+    assert "copper weathervane spins against a grey sky" in result[0].text
+    assert "GIF" in result[0].text and "Hidden-filename" not in result[0].text
+    assert result[1] == broad
+
+
+def test_user_source_retains_explicit_gif_format_after_length_limit():
+    long = Query(text="long copper weathervane spinning " * 6 + "GIF", angle="action")
+    media_text = "The looping GIF is from Tenor"
+    result = deepseek.prioritize_user_source([long], media_text, 2, Ledger(settings()))
+    assert len(result[0].text) <= 128 and result[0].text.endswith(" GIF")
+    assert result[1] == long
+
+
+def test_user_source_does_not_infer_animation_from_visual_queries_for_unspecified_media():
+    static = Query(text="metal object outdoors cloudy sky", angle="appearance")
+    motion = Query(text="weathervane spins GIF", angle="action")
+    result = deepseek.prioritize_user_source(
+        [static, motion], "I saw this on Tenor", 2, Ledger(settings())
+    )
+    assert result[0].text == "site:tenor.com metal object outdoors cloudy sky"
+
+
+@pytest.mark.parametrize(
+    ("user_text", "remaining"),
+    [
+        ("", 6),
+        ("A tenor in a blue suit", 6),
+        ("It was not from Tenor", 6),
+        ("-site:tenor.com", 6),
+        ("Saw it on https://tenor.com.example.org", 6),
+        ("Saw it on Tenor", 1),
+        ("Saw it on Tenor", 0),
+    ],
+)
+def test_user_source_keeps_default_queries_without_explicit_source_or_spare_budget(
+    user_text, remaining
+):
+    queries = [Query(text="Wikimedia Commons mentions Tenor", angle="appearance")]
+    ledger = Ledger(settings())
+    assert deepseek.prioritize_user_source(queries, user_text, remaining, ledger) == queries
+    assert ledger.trace == []
+
+
+def test_recall_spends_two_existing_search_slots_on_explicit_source_and_broad_search(
+    monkeypatch, tmp_path
+):
+    from types import SimpleNamespace
+
+    from services.search_agent.meme_pipeline import search_memes
+
+    queries = []
+
+    def request(method, url, ledger, **kwargs):
+        assert url == "https://api.deepseek.com/v1/tools/search"
+        queries.append(kwargs["json"]["query"])
+        return {"results": []}
+
+    monkeypatch.setattr(deepseek, "bounded_json", request)
+    input_path = tmp_path / "input.png"
+    Image.new("RGB", (20, 20), "orange").save(input_path)
+    user_text = "This animation is from Tenor"
+    prior = VisualAnalysis(
+        user_text=user_text,
+        planner_version="prior-plan",
+        queries=[
+            Query(text="orange cartoon animal", angle="appearance"),
+            Query(text="cartoon animal jumps back", angle="action"),
+            Query(text="cartoon animal startled", angle="emotion"),
+        ],
+    )
+    result = search_memes(
+        input_path,
+        user_text,
+        tmp_path / "work",
+        settings=settings().model_copy(update={"max_queries": 4, "max_search_calls": 2}),
+        saved_analysis=prior,
+        embeddings=SimpleNamespace(
+            load_model=lambda: None,
+            encode_images=lambda frames: np.ones((len(frames), 1)),
+            encode_texts=lambda texts: np.ones((len(texts), 1)),
+        ),
+    )
+    assert result["status"] == "completed"
+    assert queries == [
+        "site:tenor.com cartoon animal jumps back animation",
+        "orange cartoon animal",
+    ]
+    assert result["ledger"]["queries"] == result["ledger"]["search_calls"] == 2
 
 
 def test_verification_binds_to_actual_search_url_and_query_limit(monkeypatch):
@@ -364,3 +552,95 @@ def test_existing_uncertain_name_query_can_be_broadened_without_confirming_ident
         event["details"]["origin"] == "existing_model_hypothesis"
         and event["details"]["hypothesis_only"] is True
     )
+
+
+def test_composite_query_survives_single_entity_normalization(monkeypatch):
+    from services.search_agent.meme_types import EntityHypothesis, Query
+
+    value = analysis()
+    value.queries[0] = Query(text="paper astronaut in a painted landscape", angle="composite")
+    value.entity_hypotheses = [
+        EntityHypothesis(name="astronaut", confidence=0.95, status="supported")
+    ]
+    generated = [
+        {"text": "astronaut reaction", "angle": "identity"},
+        {"text": "painted landscape", "angle": "appearance"},
+    ]
+    monkeypatch.setattr(
+        deepseek,
+        "bounded_json",
+        lambda *a, **kw: {
+            "choices": [
+                {
+                    "finish_reason": "stop",
+                    "message": {"content": json.dumps({"queries": generated})},
+                }
+            ]
+        },
+    )
+    planned = deepseek.DeepSeekQueryPlanner(settings(), Ledger(settings())).plan(value)
+    assert planned[0] == value.queries[0]
+    assert any(q.angle == "appearance" for q in planned)
+
+
+def test_reference_matching_requires_pixels_and_reserves_recall_budget(monkeypatch):
+    from types import SimpleNamespace
+    from services.search_agent import entity_verifier as verify
+    from services.search_agent.meme_types import Query
+
+    value = analysis()
+    value.queries[0] = Query(text="cutout astronaut over painted landscape", angle="composite")
+    value.visual_keywords = ["paper astronaut", "painted landscape", "folded arms"]
+    public = "https://catalog.example.org"
+
+    def media(color):
+        output = io.BytesIO()
+        Image.new("RGB", (16, 16), color).save(output, format="PNG")
+        return output.getvalue()
+
+    pixels = [media("red"), media("blue")]
+
+    class Search:
+        def __init__(self, settings, ledger):
+            self.ledger = ledger
+
+        def verify(self, query):
+            self.ledger.take("queries")
+            return [{"id": f"e{i}", "title": "edit", "url": f"{public}/p{i}"} for i in range(2)]
+
+    class Fetch:
+        def get(self, url, kind, limit):
+            if "/p" in url:
+                return f'<meta property="og:image" content="/i{url[-1]}">'.encode(), url
+            return pixels[int(url[-1])], url
+
+    def encode(images):
+        return np.array(
+            [
+                [float(im.getpixel((0, 0))[0] > 0), float(im.getpixel((0, 0))[2] > 0)]
+                for im in images
+            ]
+        )
+
+    def correct(frames, text, evidence):
+        result = value.model_copy(deep=True)
+        result.evidence = evidence
+        return result
+
+    monkeypatch.setattr(verify, "DeepSeekWeb", Search)
+    monkeypatch.setattr(verify, "vision_client", lambda *a: SimpleNamespace(analyze=correct))
+    config = settings().model_copy(update={"max_queries": 2})
+    ledger = Ledger(config)
+    output, warnings = verify.verify_entities(
+        value,
+        [Image.new("RGB", (16, 16), "red")],
+        config,
+        ledger,
+        fetcher=Fetch(),
+        embeddings=SimpleNamespace(encode_images=encode),
+    )
+    assert not warnings and ledger.counts["queries"] == 1
+    assert output.evidence[0]["matching_media_url"] == public + "/i0"
+    assert "matching_media_url" not in output.evidence[1]
+    assert output.evidence[0]["id"] != output.evidence[1]["id"]
+    assert "paper astronaut" in verify.verification_queries(value)[0]

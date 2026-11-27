@@ -5,7 +5,7 @@ import json
 import sys
 from pathlib import Path
 
-from services.search_agent.meme_types import MemeSettings, RunnerEvent
+from services.search_agent.meme_types import MemeSettings, RunnerEvent, VisualAnalysis
 
 
 def main():
@@ -37,6 +37,9 @@ def main():
                 Path(payload["work_dir"]),
                 payload["target_count"],
                 settings=MemeSettings(**payload.get("settings", {})),
+                saved_analysis=VisualAnalysis.model_validate(payload["saved_analysis"])
+                if "saved_analysis" in payload
+                else None,
                 emit=emit,
             )
         except Exception:

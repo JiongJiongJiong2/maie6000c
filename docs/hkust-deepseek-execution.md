@@ -1,6 +1,6 @@
 # 当前执行范围：HKUST + DeepSeek Flash
 
-2026-11-12，香港时间。此文记录用户最新要求，优先于此前 Google Vision / Brave 方案和旧 A0/A2 服务约束。全程单 agent，不调用 subagent。图片必填、文字可选、PNG/JPEG/WebP/GIF、约 50 个不重复动静态表情的产品目标不变。
+2026-11-12，香港时间。HKUST 与 DeepSeek 是默认组合，优先于此前 Google Vision / Brave 方案和旧 A0/A2 服务约束。图片必填、文字可选、PNG/JPEG/WebP/GIF、约 50 个不重复动静态表情的产品目标不变。
 
 ## 角色与实际接口
 
@@ -12,7 +12,7 @@
 | 从网页找到媒体、下载 | 现有隔离 public fetcher、通用 HTML/结构化媒体提取 | 抓取真实搜索返回的公开页面或直接媒体 URL，解码与校验真实 PNG/GIF 等字节 |
 | 重排与去重 | 本机固定版本 CLIP、SHA、内容分组 | 不调用额外平台 API；保留现有相关性阈值与内容去重 |
 
-只允许上述两个账号服务作为当前任务的模型/检索供应商。正式 factory 不会选择 Google 直连 Gemini、Google Cloud Vision、Brave、Tavily 或其他备用供应商。仓库的旧适配器保留兼容性，但本 profile 不调用。既有 Google Cloud 项目及凭据没有被删除，也不再作为任务依赖；无需开通 Google 结算或注册 Brave。
+每个任务使用一个视觉供应商和 DeepSeek。HKUST 是默认视觉供应商，HKGAI 可显式选择。图片检索 profile 不调用 Google 直连 Gemini、Google Cloud Vision、Brave 或 Tavily。
 
 DeepSeek 的聊天模型不会凭空联网。本实现实际调用其官方 Search 端点，再访问真实结果页面。它提供网页搜索，并非原始图片像素反搜。因此 `reverse_image_provider=disabled` 会明确记入 trace，不能把网页搜索标成“真实以图反搜”。页面或媒体 URL 必须来自实际检索/抓取响应，不能由模型编造。
 
@@ -38,9 +38,24 @@ MEME50_REVERSE_IMAGE_PROVIDER=disabled
 
 API key 仅进入对应官方域名的认证头；不会进入 DB 配置、runner JSON、前端或媒体 fetcher。测试默认隔离本机 `.env` 及真实 key，仅用受控测试值。DeepSeek 使用会消耗用户已有账号额度；没有新开付费账户、绑定结算或购买套餐。
 
+## 可选 HKGAI 识图
+
+在本地交互终端运行 `python -m scripts.configure_meme50 --provider hkgai --vision-only`，输入独立授权的 HKGAI 生产 key，模型提示默认使用 `t2_hkgai-v3_fp8_1m_e10`。从项目虚拟环境执行。配置工具把 provider 和 policy 一起写入 `.env`，保留 HKUST 和 DeepSeek 的现有设置。运行 `python -m scripts.configure_meme50 --check` 查看当前选择和 key 是否已配置。
+
+```dotenv
+MEME50_PROVIDER_POLICY=hkgai-deepseek-v1
+MEME50_VISION_PROVIDER=hkgai
+MEME50_HKGAI_MODEL=t2_hkgai-v3_fp8_1m_e10
+MEME50_HKGAI_API_KEY=<local-only>
+```
+
+此模式把截图理解、OCR 和必要的视觉复核交给 HKGAI，查询规划和网页搜索继续使用 DeepSeek。代码把 HKGAI key 作为 Bearer 凭据发送到固定地址 `https://api1.hkgai.net/v1/chat/completions`。Compose 只把该 key 传给 worker。私有库经用户同意后执行的素材标注仍使用原有 HKUST 路径。HKGAI Studio 的测试凭据和地址需与生产凭据分开使用。 [HKGAI 模型指南](https://hkgai-studio.prod.hkchat.app/en/docs/modelhub)
+
+修改后重启本地 worker，或运行 `docker compose up -d worker` 让 Compose 应用新环境。用 `python -m scripts.meme50_acceptance probe --image <sample.png> --out <new-directory>` 检查当前视觉服务及 DeepSeek，再用同一配置跑真实任务。切换回默认 HKUST 时运行 `python -m scripts.configure_meme50 --provider hkust --vision-only`，再重启 worker。
+
 ## 管线与预算
 
-上传原字节与 SHA → 多格式解码、代表帧 → HKUST 理解 → 必要时 DeepSeek 网页核验 + HKUST 对照图片复核 → DeepSeek Flash 规划查询 → DeepSeek 网页检索 → 真实页面/媒体提取 → 多帧图像与文本排序 → SHA/内容分组 → 验证草稿 → DB 最终事务、revision、筛选与分页。
+上传原字节与 SHA → 多格式解码、代表帧 → 视觉理解 → 必要时 DeepSeek 网页核验和视觉复核 → DeepSeek Flash 规划查询 → DeepSeek 网页检索 → 真实页面/媒体提取 → 多帧图像与文本排序 → SHA/内容分组 → 验证草稿 → DB 最终事务、revision、筛选与分页。
 
 单次任务最多 **3 次模型调用**（初次看图、可选看图复核、Flash 查询规划），不是无限重试。搜索调用、查询数、下载数、页面数、字节、磁盘与截止时间沿用共享 ledger：最多 16 次搜索调用、6 条查询、120 次原媒体尝试、40 页、512 MiB；初始 180 秒，总上限 300 秒。模型调用上限及 worker 最终协议检查已同步为 3，其余门槛没有放松。
 
@@ -50,7 +65,7 @@ API key 仅进入对应官方域名的认证头；不会进入 DB 配置、runne
 
 | 门槛 | 当前要求 |
 | --- | --- |
-| A0 | HKUST 看图、DeepSeek Flash 规划、DeepSeek 网页召回及核验四种调用真实成功；正式 job 配置与 probe 指纹匹配。仅 key 非空不算通过 |
+| A0 | 所选视觉供应商看图、DeepSeek Flash 规划、DeepSeek 网页召回及核验四种调用真实成功；正式 job 的供应商、视觉模型和配置指纹与 probe 匹配。仅 key 非空不算通过 |
 | A1 | 原自动图片理解、空文字、至少两角度查询、真实联网核验案例要求保持；不能用文件名、预写 caption 或目标 URL 替代 |
 | A2 | 同一正式任务有 DeepSeek Flash 查询规划 trace、真实 DeepSeek 网页结果和实际验证媒体；不再要求 Google 像素反搜通道，不能伪装反搜已通过 |
 | A3–A8 | 原真实 API/worker/DB、三例各单次 40–50、至少 12 例家族隔离留出集、浏览器、回归/部署、真人审阅、真实成员独立复现保持 |

@@ -1,0 +1,188 @@
+{
+  "date": "2026-11-27 Asia/Shanghai",
+  "runtime_code_matches_commit": "b830756595428e25fc73546bce6e37f4b746b8fd",
+  "scope": "Real DeepSeek Search through the legacy web-search API, API review/save, API and worker restart, offline lookup and original download through a new Chrome session on /web/. The meme50-v2 Continue online button was not exercised.",
+  "fixture": {
+    "credit": "Marvel, Rotating earth (large), Wikimedia Commons, CC BY-SA 3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Rotating_earth_(large).gif",
+    "license": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "input_kind": "Distinct PNG images derived from this public GIF; engineering verification",
+    "online_input_sha256": "aa697ab0d2f6da548dc4fd05969a56ba012028e9682d945ef729f6cf30225265",
+    "offline_input_sha256": "4122e9b8913ecf76805fd35f5cae2180b4fc6f286b0084368bd55000fe0b2088"
+  },
+  "configuration": {
+    "provider": "deepseek",
+    "mode": "web",
+    "search_domains": [
+      "commons.wikimedia.org"
+    ],
+    "use_model_for_planning": false,
+    "online_dns": "Worker-process test DNS override only for commons.wikimedia.org and upload.wikimedia.org, using actual public DNS-over-HTTPS answers. Application source and host-wide DNS were unmodified.",
+    "offline_network": "API and worker restarted with credentials cleared, media fetch service stopped, loopback-only process network guard."
+  },
+  "original_request_id": "99da4f4b-44ce-4207-871e-191569d9a2f2",
+  "web_job_requested_by": "POST /search-requests/{request_id}/web-search",
+  "first_save_status": "pending",
+  "verification": {
+    "source_sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "source_bytes": 1001718,
+    "frames": 44,
+    "unique_decoded_frames": 44,
+    "dimensions": [
+      400,
+      400
+    ],
+    "migration": "20261118_0007",
+    "initial_local": {
+      "job_id": "a8f062a3-c9e4-4ae0-969e-2321bab93f7f",
+      "status": "completed",
+      "result_kind": "no_candidates",
+      "false_match_count": 0
+    },
+    "web": {
+      "job_id": "e3baef84-1c0a-44dc-a5d3-0242ff94d321",
+      "status": "completed",
+      "stage": "completed",
+      "profile": "legacy",
+      "result_kind": "candidates",
+      "agent_version": "web-search-v1",
+      "model_version": "clip-vit-base-patch32@37000f5cdccec47a3f6f83142bff131370757470",
+      "stop_reason": "candidates_found",
+      "search_calls": 1,
+      "planner_calls": 0,
+      "downloads_used": 1,
+      "duration_ms": 23093,
+      "warnings": [
+        "resolve_unsupported_source"
+      ],
+      "trace": [
+        {
+          "round": 1,
+          "step": "plan",
+          "elapsed_ms": 0,
+          "details": {
+            "query": "a blue green planet Earth spinning slowly on a black background in a looping animated GIF site:commons.wikimedia.org"
+          }
+        },
+        {
+          "round": 1,
+          "step": "search",
+          "elapsed_ms": 577,
+          "details": {
+            "provider": "deepseek",
+            "backend": null,
+            "new_sources": 6,
+            "rejected": 0
+          }
+        },
+        {
+          "round": 1,
+          "step": "resolve_sources",
+          "elapsed_ms": 3061,
+          "details": {
+            "page_requests": 1,
+            "pages_used": 1,
+            "media_count": 1,
+            "reasons": {
+              "unsupported_source": 5
+            },
+            "redirects": 0,
+            "diagnostics": [],
+            "hosts": [
+              "commons.wikimedia.org"
+            ]
+          }
+        },
+        {
+          "round": 1,
+          "step": "prepare_candidates",
+          "elapsed_ms": 20733,
+          "details": {
+            "candidates": 1,
+            "downloads_used": 1,
+            "rejected": 0,
+            "rejected_low_score": 0,
+            "redirects": 0,
+            "diagnostics": [],
+            "failure_codes": []
+          }
+        },
+        {
+          "round": 0,
+          "step": "stop",
+          "elapsed_ms": 20733,
+          "details": {
+            "reason": "candidates_found",
+            "search_calls": 1,
+            "planner_calls": 0,
+            "downloads_used": 1
+          }
+        }
+      ]
+    },
+    "index_samples": [
+      0,
+      6,
+      12,
+      18,
+      24,
+      30,
+      36,
+      43
+    ],
+    "index_dimensions": 512,
+    "candidate_id": "648b7a89-f06a-478a-9d1d-2b973c4af944",
+    "candidate_source_url": "https://commons.wikimedia.org/wiki/File:Rotating_earth_(large).gif",
+    "candidate_media_url": "https://upload.wikimedia.org/wikipedia/commons/2/2c/Rotating_earth_%28large%29.gif?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+    "candidate_rank": 1,
+    "candidate_score": 0.9888930320739746,
+    "asset_id": "6dd36267-2bc9-4a90-bfc6-73afcb1c830c",
+    "index_status": "ready",
+    "index_version": "7eed0bd20817eced681d41ab3caf64e957919ec07406bcbb7fa22fab2e7a1246",
+    "offline_job": "3bd8c29d-7cff-43f5-9075-3e0dfed89ad3",
+    "offline_rank": 1,
+    "offline_score": 0.9848131272427878,
+    "same_sha_all_stages": true
+  },
+  "browser": {
+    "checked_at": "2026-11-26T17:00:32.761Z",
+    "entry": "/web/",
+    "browser": "Chrome",
+    "browser_version": "158.0.8127.37",
+    "clean_context": true,
+    "search_selection": "legacy/local only",
+    "sample_sha256": "4122e9b8913ecf76805fd35f5cae2180b4fc6f286b0084368bd55000fe0b2088",
+    "job_id": "8c540c8d-68be-4606-98f2-275b0139b23b",
+    "request_id": "256cdd4c-b3c5-4832-bfde-126cf5306ac0",
+    "candidate_id": "6f65c772-fcd8-4789-aeb8-5972f6c4680b",
+    "rank": 1,
+    "asset_id": "6dd36267-2bc9-4a90-bfc6-73afcb1c830c",
+    "index_status": "ready",
+    "source_sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "browser_response_sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "browser_download_sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "preview_dimensions": {
+      "width": 400,
+      "height": 400
+    },
+    "fetcher_offline": true,
+    "external_browser_requests": 0,
+    "web_searches": 0
+  },
+  "other_attempts": {
+    "earth_system_dns": {
+      "job_id": "a35fe2bc-c97b-46c7-882a-64ff3ff4d54c",
+      "status": "failed",
+      "stop_reason": "media_processing_failed",
+      "search_calls": 2,
+      "downloads_used": 0,
+      "warnings": [
+        "resolve_source_unavailable",
+        "resolve_unsupported_source"
+      ]
+    },
+    "earth_system_dns_cause": "The system resolver returned non-public addresses; original job rejected four page resolutions before download.",
+    "parrot": "Site-scoped DeepSeek search returned no sources; unscoped search returned nine unsupported pages. Neither recovered the target on these attempts.",
+    "parrot_unscoped_job_id": "8e6c67fc-4d7c-43e9-8ff4-9ea1ee813a94"
+  }
+}

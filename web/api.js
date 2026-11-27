@@ -19,7 +19,7 @@ export function sameOriginPath(path) {
 }
 
 export class Api {
-  token = "";
+  account = document.documentElement.dataset.account || "";
 
   async request(
     path,
@@ -32,20 +32,22 @@ export class Api {
     const timer = setTimeout(abort, timeout);
     try {
       const headers = new Headers(options.headers);
-      if (this.token) headers.set("Authorization", `Bearer ${this.token}`);
+      if (this.account) headers.set("X-Library-Account", this.account);
       const response = await fetch(sameOriginPath(path), {
         ...options,
         headers,
+        credentials: "same-origin",
         signal: controller.signal,
         cache: "no-store",
         redirect: "error",
       });
       if (!response.ok) {
+        if (response.status === 401 && this.account) location.replace("/web/");
         const body = await response.json().catch(() => null);
         const detail = body?.detail ?? body?.error;
         const message = typeof detail === "string" ? detail : detail?.message;
         const fallback = {
-          401: "The access token is missing or invalid. Open Connection settings.",
+          401: "Sign in to open your library.",
           404: "Endpoint or record not found. Check that the W07 backend is connected.",
           409: "The request conflicts with an earlier submission. Start a new search.",
           410: "This GIF has expired. Start a new search.",
@@ -120,11 +122,40 @@ export class Api {
     });
   }
 
+  continueOnline(id, payload, signal) {
+    return this.request(
+      `/search-requests/${encodeURIComponent(id)}/web-search`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal,
+      },
+    );
+  }
+
   review(jobId, payload, signal) {
     return this.request(`/search-jobs/${encodeURIComponent(jobId)}/reviews`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+      signal,
+    });
+  }
+
+  saveCandidate(id, key, signal) {
+    return this.request(`/candidates/${encodeURIComponent(id)}/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_save_key: key }),
+      signal,
+    });
+  }
+
+  savedAsset(id, signal, retry = false) {
+    const path = `/saved-assets/${encodeURIComponent(id)}`;
+    return this.request(retry ? `${path}/index-retry` : path, {
+      method: retry ? "POST" : "GET",
       signal,
     });
   }

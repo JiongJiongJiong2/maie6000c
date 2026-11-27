@@ -26,7 +26,12 @@ import numpy as np
 
 from services.common.media import inspect_media, png_bytes, representative_frames
 from services.search_agent.meme_deepseek import DeepSeekQueryPlanner, DeepSeekWeb
-from services.search_agent.meme_types import Ledger, MemeSettings, PipelineError
+from services.search_agent.meme_types import (
+    Ledger,
+    MemeSettings,
+    PipelineError,
+    VISION_PROVIDER_POLICIES,
+)
 from services.search_agent.visual_analysis import analyze_image
 from scripts import verify_meme50
 
@@ -49,6 +54,7 @@ PUBLIC_FIELDS = (
     "reverse_image_provider",
     "vision_provider",
     "hkust_model",
+    "hkgai_model",
     "vision_model",
     "keyword_provider",
     "verify_entities",
@@ -198,6 +204,8 @@ def probe(args):
     ledger = Ledger(settings)
     report = dict(
         kind="provider_probe",
+        provider_policy=settings.provider_policy,
+        vision_provider=settings.vision_provider,
         input_sha256=metadata.sha256,
         sampled_frames=records,
         configuration_fingerprint=frozen["configuration_fingerprint"],
@@ -242,7 +250,7 @@ def probe(args):
     analyzed = call(
         "visual",
         settings.vision_provider,
-        "chat/completions" if settings.vision_provider == "hkust" else "generateContent",
+        "chat/completions",
         lambda: analyze_image(data, "", settings, ledger)[0],
     )
     if analyzed:
@@ -273,10 +281,9 @@ def probe(args):
                 error_code="automatic_query_unavailable",
             )
         )
-    report["provider_policy"] = settings.provider_policy
     report["reverse_image"] = {
         "status": "disabled",
-        "reason": "HKUST/DeepSeek-only; web retrieval is not pixel reverse-search",
+        "reason": "The vision model and DeepSeek web search do not provide pixel reverse-search",
     }
     for name, method in [("keyword_web", "search"), ("web_verification", "verify")]:
         if not analysis:
@@ -953,30 +960,44 @@ def finalize_data(
         e for _, _, e in suite_entries if e.get("machine_status") == "passed" and e.get("results")
     ]
     calls = probe_report.get("calls", [])
+    policy = probe_report.get("provider_policy")
+    vision_provider = VISION_PROVIDER_POLICIES.get(policy)
     expected = {
-        "visual": ("hkust", "chat/completions", "model_calls"),
+        "visual": (vision_provider, "chat/completions", "model_calls"),
         "query_planning": ("deepseek", "chat/completions", "model_calls"),
         "keyword_web": ("deepseek", "v1/tools/search", "search_calls"),
         "web_verification": ("deepseek", "v1/tools/search", "search_calls"),
     }
-    four = probe_report.get("provider_policy") == "hkust-deepseek-v1" and all(
-        any(
-            c.get("name") == name
-            and c.get("provider") == provider
-            and c.get("endpoint_type") == endpoint
-            and c.get("status") == "passed"
-            and c.get("ledger_delta", {}).get(counter, 0) > 0
-            and (name != "query_planning" or c.get("model") == "deepseek-flash")
-            for c in calls
-        )
+    passed_calls = {
+        name: [
+            call
+            for call in calls
+            if call.get("name") == name
+            and call.get("provider") == provider
+            and call.get("endpoint_type") == endpoint
+            and call.get("status") == "passed"
+            and call.get("ledger_delta", {}).get(counter, 0) > 0
+            and (name != "query_planning" or call.get("model") == "deepseek-flash")
+        ]
         for name, (provider, endpoint, counter) in expected.items()
+    }
+    four = (
+        vision_provider is not None
+        and probe_report.get("vision_provider", vision_provider) == vision_provider
+        and all(passed_calls.values())
     )
     binding = any(
-        digest({k: j.get("configuration", {}).get(k) for k in PUBLIC_FIELDS})
+        config.get("provider_policy") == policy
+        and config.get("vision_provider") == vision_provider
+        and digest({k: config.get(k) for k in PUBLIC_FIELDS})
         == probe_report.get("configuration_fingerprint")
-        and j.get("execution", {}).get("model_calls", 0) > 0
-        for j in jobs
-        if j.get("execution")
+        and any(
+            call.get("model") and call["model"] == config.get(f"{vision_provider}_model")
+            for call in passed_calls["visual"]
+        )
+        for job in jobs
+        if (job.get("execution") or {}).get("model_calls", 0) > 0
+        for config in [job.get("configuration") or {}]
     )
     distinct_analyses = {
         (e.get("input_sha256"), tuple(e.get("job", {}).get("analysis", {}).get("observations", [])))

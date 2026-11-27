@@ -388,3 +388,28 @@ class ContentGroups:
             )
         )
         return key, True
+
+
+def unique_post_previews(items):
+    """Prefer a Spotlight post's native still to its square social-card rendition."""
+    native = set()
+    cards = {}
+    for item in items:
+        page, media = urlsplit(item.source_url), urlsplit(item.media_url)
+        if page.hostname not in {"snapchat.com", "www.snapchat.com"}:
+            continue
+        post = page.path.rstrip("/")
+        spotlight = re.fullmatch(r"/@[\w.-]+/spotlight/([\w-]+)", post)
+        if not spotlight:
+            continue
+        if media.hostname == "cf-st.sc-cdn.net" and media.path.startswith("/d/"):
+            native.add(spotlight[1])
+        elif media.hostname in {"snapchat.com", "www.snapchat.com"} and media.path == (
+            post + "/preview/square.jpeg"
+        ):
+            cards[item.key] = spotlight[1]
+    return [
+        item
+        for item in items
+        if cards.get(item.key) not in native or item.signals.get("picture_match")
+    ]

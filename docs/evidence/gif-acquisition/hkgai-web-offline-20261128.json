@@ -1,0 +1,170 @@
+{
+  "date": "2026-11-28 Asia/Shanghai",
+  "outcome": "passed",
+  "runtime_commit": "0a848561af3c1e6cb4133ef2b309f4ed87526bef",
+  "runtime_tree": "45e745b511630a262c1a9b84979d74903dd0a876",
+  "runtime_fingerprint": "3cc7798af7b89b3e81c9694f5eaf0bddf2dac4829507b604121176d778628550",
+  "migration": "20261121_0008",
+  "entry": "/web/ in Chrome. Real browser registration, local upload, Continue online, animation playback, download, Confirm and save, new Chrome session after offline restart, local upload of another frame, download.",
+  "fixture": {
+    "title": "Rotating earth (large)",
+    "author": "Marvel",
+    "license": "CC BY-SA 3.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "source": "https://commons.wikimedia.org/wiki/File:Rotating_earth_(large).gif",
+    "media_url": "https://upload.wikimedia.org/wikipedia/commons/2/2c/Rotating_earth_%28large%29.gif?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+    "bytes": 1001718,
+    "dimensions": [
+      400,
+      400
+    ],
+    "frames": 44,
+    "distinct_decoded_frames": 44,
+    "reference_sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "online_input_sha256": "aa697ab0d2f6da548dc4fd05969a56ba012028e9682d945ef729f6cf30225265",
+    "offline_input_sha256": "4122e9b8913ecf76805fd35f5cae2180b4fc6f286b0084368bd55000fe0b2088",
+    "input_kind": "Two different frames of the independently obtained public GIF. Engineering fixture, not an independent user accuracy sample."
+  },
+  "input": {
+    "user_text": "I saw this looping Earth GIF on Wikimedia Commons. A blue-green globe spins slowly against a black starfield, with North and South America visible as it turns.",
+    "source_clue": "Wikimedia Commons, supplied in the description",
+    "target_url_filename_or_hash_in_query": false,
+    "account_mode": true
+  },
+  "initial_local": {
+    "request_id": "24b2b5f6-f451-4067-ba7f-9a406ec45cba",
+    "id": "0ef271e0-a5f7-4c20-8ca8-384cc46bef96",
+    "result_kind": "no_candidates",
+    "unrelated_candidates": 0
+  },
+  "continuation": {
+    "job_id": "b32b08be-7395-4d4e-bcef-866ce9653651",
+    "result_revision": "5d05072a097747368ebe3bf3bf90e9ab",
+    "profile": "meme50-v2",
+    "target_count": 50,
+    "result_count": 50,
+    "kinds": {
+      "animated": 17,
+      "static": 33
+    },
+    "stop_reason": "target_reached",
+    "rank": 1,
+    "candidate_id": "0876f27c-266e-428b-a9d9-c6280a73752f",
+    "duration_ms": 169414,
+    "model_calls": 2,
+    "search_calls": 5,
+    "media_attempts": 87,
+    "vision": "hkgai/t2_hkgai-v3_fp8_1m_e10/visible-facts-v3",
+    "planner": "deepseek/deepseek-flash/query-plan-v6-source-and-theme",
+    "policy": "hkgai-deepseek-v1",
+    "source_query": [
+      {
+        "origin": "user_explicit_source",
+        "domain": "commons.wikimedia.org",
+        "query": {
+          "text": "site:commons.wikimedia.org rotating Earth GIF North and South America view",
+          "angle": "user_source_lookup",
+          "language": "en"
+        },
+        "reused": false
+      }
+    ],
+    "online_dns": "doh",
+    "distinct_browser_frames": 5
+  },
+  "collection": {
+    "asset_id": "e779651b-6fa2-441b-9a9f-691b5e9cb95d",
+    "initial_index_status": "pending",
+    "final_index_status": "ready",
+    "index_samples": [
+      0,
+      6,
+      12,
+      18,
+      24,
+      30,
+      36,
+      43
+    ],
+    "dimensions": 512,
+    "exactly_one_review_and_one_save_verified": true,
+    "workspace_separation_verified": true
+  },
+  "offline": {
+    "api_and_worker_restarted": true,
+    "clean_chrome_session": true,
+    "provider_credentials_cleared": true,
+    "egress": "Loopback-only process guard; media-fetch stopped; new Chrome started with external name resolution disabled.",
+    "relogin_http_status": 200,
+    "request_id": "2d7bcb1a-c5a2-4773-8fc7-b1f2f62bf4fe",
+    "job_id": "7e12873e-474f-4b6d-9731-9c8f64871410",
+    "rank": 1,
+    "score": 0.9848131272427878,
+    "asset_id": "e779651b-6fa2-441b-9a9f-691b5e9cb95d",
+    "web_jobs": 0,
+    "external_browser_requests": 0
+  },
+  "original_bytes": {
+    "candidate": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "online-download": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "offline-download": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "also_compared_byte_for_byte": true
+  },
+  "prior_attempts": [
+    {
+      "sample": "earth",
+      "description": "A blue-green Earth globe turning slowly in a loop against a black background.",
+      "job_id": "e5677f5c-b720-48ba-b854-3512bd1e3bad",
+      "status": "failed",
+      "stop_reason": "pipeline_internal_error",
+      "results": 0,
+      "exact_target_returned": false
+    },
+    {
+      "sample": "earth",
+      "description": "Recover the original animated GIF showing a blue-green Earth globe rotating slowly over a black starfield.",
+      "job_id": "3c759418-633e-44b8-b195-c94e7049c134",
+      "status": "completed",
+      "stop_reason": "query_limit",
+      "results": 25,
+      "exact_target_returned": false
+    },
+    {
+      "sample": "earth",
+      "description": "I saw this looping Earth GIF on Wikimedia Commons. A blue-green globe spins slowly against a black starfield, with North and South America visible as it turns.",
+      "job_id": "f91b26e4-557f-4086-86f2-2956bd1960d2",
+      "status": "completed",
+      "stop_reason": "query_limit",
+      "results": 18,
+      "exact_target_returned": false
+    },
+    {
+      "sample": "parrot",
+      "description": "The classic animated Party Parrot emoji from Cult of the Party Parrot, with one solid green bird and a yellow beak bobbing from side to side.",
+      "job_id": "2ae497c0-1317-47f6-88d4-4d241baac68d",
+      "status": "completed",
+      "stop_reason": "query_limit",
+      "results": 36,
+      "exact_target_returned": false
+    },
+    {
+      "sample": "earth",
+      "description": "I saw this looping Earth GIF on Wikimedia Commons. A blue-green globe spins slowly against a black starfield, with North and South America visible as it turns.",
+      "job_id": "547c6aed-7783-4ab8-b2e1-9fa7cb115800",
+      "status": "completed",
+      "stop_reason": "query_limit",
+      "results": 46,
+      "exact_target_returned": false
+    },
+    {
+      "sample": "parrot",
+      "description": "The classic animated Party Parrot emoji from Cult of the Party Parrot, with one solid green bird and a yellow beak bobbing from side to side.",
+      "job_id": "37e693d6-9f1a-441e-b36d-deb39fb68585",
+      "status": "completed",
+      "stop_reason": "query_limit",
+      "results": 31,
+      "exact_target_returned": false
+    }
+  ],
+  "scope": "The real public-source search required a source clue in the successful Earth run. Earlier misses and a Windows path failure are retained. This is an engineering demonstration; no real-user Top-3 rate is estimated."
+}

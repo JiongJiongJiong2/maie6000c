@@ -1,0 +1,17 @@
+# Use the files prepared by scripts/download_model.py. The parent model_cache
+# volume stays writable for the GIF feature index and its readiness check.
+x-clip-mount: &clip-mount
+  type: bind
+  source: ./data/models/clip-vit-base-patch32
+  target: /data/models/clip-vit-base-patch32
+  read_only: true
+  bind:
+    create_host_path: false
+
+services:
+  api:
+    volumes:
+      - *clip-mount
+  worker:
+    volumes:
+      - *clip-mount

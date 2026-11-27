@@ -29,7 +29,7 @@ For the prepared complete local stack, use `.venv/bin/python scripts/run_local_d
 
 After the backend and retrieval are integrated, configure the database, storage, corpus, and model using the backend's `.env.example`, then use the team's `docker compose up --build` workflow. Visit the same `/web/` URL. Do not open the HTML with `file://` or serve it on another port while expecting relative requests to reach a different API origin.
 
-If the server sets `DEVICE_TOKEN`, open the connection panel at the top right, enter the token, and select **Apply and reconnect**. The token stays in page memory and must be entered again after a reload. Search, review, preview, and download requests all carry `Authorization: Bearer …`. Tokens are not placed in URLs, IndexedDB, source files, or logs.
+With Compose, set `PRIVATE_LIBRARY_ENABLED=true` to enable account sign-in. Select **Register**, choose a username and password, and use **Sign out** to switch users. The same account opens the same private library on each device that can reach the service. The browser remembers the session for 30 days. Existing single-user data can be assigned during account creation using the Mac trial launcher. For another deployment, obtain a short-lived setup value locally with `docker compose exec -T api python -m services.common.accounts` and open `/web/sign-in#setup=<value>` on that deployment. Ordinary registrations always start with an empty library.
 
 ## Behavior
 
@@ -48,7 +48,7 @@ If the server sets `DEVICE_TOKEN`, open the connection panel at the top right, e
 |---|---|
 | `POST /search-requests` | Multipart `image`, `client_submission_key`; accept `202` with request/job UUIDs |
 | `GET /search-requests/{request_id}` | Read and validate `status`, `result_kind`, `candidates`, and `error` |
-| `GET /candidates/{candidate_id}/media` | Fetch the supplied same-origin `media_url` as a Blob, with the optional token |
+| `GET /candidates/{candidate_id}/media` | Fetch the supplied same-origin `media_url` as a Blob, with the account session |
 | `POST /search-jobs/{job_id}/reviews` | JSON `decision`, `candidate_id`, `client_review_key`; retain `review_id` |
 | `GET /health/ready` | API connection indicator; does not establish worker or model readiness |
 

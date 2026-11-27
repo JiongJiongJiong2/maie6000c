@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import logging
 import json
-import signal
+import logging
+import re
 import shutil
+import signal
 import stat
 import subprocess
 import sys
@@ -17,9 +18,13 @@ from pydantic import ValidationError
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from services.common.config import configure_logging, get_settings
+from services.common.accounts import workspaces
+from services.common.config import (
+    configure_logging, get_settings, use_workspace, worker_environment,
+)
 from services.common.db import get_engine, get_session_factory
 from services.common.models import utcnow
+from services.common.saved_publish import lock_saved_digest
 from services.common.search_models import (
     Candidate,
     ReferenceAsset,
@@ -99,6 +104,7 @@ def invoke_retrieval(image_path: Path) -> RetrievalResult:
     try:
         result = subprocess.run(
             [sys.executable, "-m", "services.worker.app.retrieval_runner", str(image_path)],
+            env=worker_environment(),
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             text=True,
@@ -143,6 +149,7 @@ def invoke_web_search(image_path: Path, description: str, work_dir: Path) -> Web
         result = subprocess.run(
             [sys.executable, "-m", "services.worker.app.web_search_runner"],
             input=json.dumps(payload),
+            env=worker_environment(),
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             text=True,
@@ -176,6 +183,7 @@ def invoke_saved_asset_index(asset_id: str) -> str:
     try:
         result = subprocess.run(
             [sys.executable, "-m", "services.worker.app.index_runner", asset_id],
+            env=worker_environment(),
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             text=True,
@@ -217,7 +225,10 @@ def claim_next_search_job(db: Session) -> SearchJob | None:
         job.stage = "local_retrieval" if job.job_kind == "local" else "web_search"
         job.started_at = utcnow()
         db.commit()
-        logger.info("search_claimed", extra={"request_id": job.request_id, "job_id": job.id})
+        logger.info(
+            "search_claimed",
+            extra={"request_id": job.request_id, "job_id": job.id, "job_kind": job.job_kind},
+        )
     return job
 
 
@@ -374,6 +385,7 @@ def process_search_job(job_id: str, retriever: Retriever = invoke_retrieval) -> 
                     "request_id": job.request_id,
                     "job_id": job.id,
                     "result_kind": job.result_kind,
+                    "job_kind": job.job_kind,
                     "candidate_count": len(result.matches),
                     "duration_seconds": elapsed_seconds(job.started_at, finished_at),
                 },
@@ -681,13 +693,18 @@ def process_saved_asset_index(
         asset = db.get(SavedAsset, asset_id)
         if asset is None or asset.index_status != "running":
             raise RuntimeError("Only a claimed saved asset can be indexed")
-        asset_path = contained_path(get_settings().media_root, asset.gif_path)
+        relative_path = asset.gif_path
         digest = asset.sha256
         expected_frame_count = asset.frame_count
     try:
+        settings = get_settings()
+        asset_path = contained_path(settings.media_root, relative_path)
         if not asset_path.is_file():
             raise IndexingError("saved_asset_missing", "Saved GIF is missing from storage")
-        data = asset_path.read_bytes()
+        with asset_path.open("rb") as source:
+            data = source.read(settings.max_candidate_bytes + 1)
+        if len(data) > settings.max_candidate_bytes:
+            raise MediaError("Saved GIF exceeds the configured byte limit")
         if sha256(data) != digest:
             raise IndexingError("saved_asset_corrupted", "Saved GIF checksum does not match")
         frame_count = validate_image(data, animated_gif=True)
@@ -811,86 +828,122 @@ def cleanup_media(db: Session) -> None:
         if relative not in referenced_saved and _is_stale_regular_file(
             path, orphan_cutoff, storage_class="orphan_saved_asset"
         ):
-            remove_file_after_failure(path, storage_class="orphan_saved_asset")
+            if re.fullmatch(r"[a-f0-9]{64}\.gif", path.name):
+                lock_saved_digest(db, path.stem)
+                referenced = db.scalar(select(SavedAsset.id).where(SavedAsset.gif_path == relative))
+                if referenced is None and _is_stale_regular_file(
+                    path, orphan_cutoff, storage_class="orphan_saved_asset",
+                ):
+                    remove_file_after_failure(path, storage_class="orphan_saved_asset")
+                db.commit()
+            else:
+                remove_file_after_failure(path, storage_class="orphan_saved_asset")
     work_root = settings.media_root / "web-search"
     for path in work_root.iterdir():
         if _is_stale_directory(path, orphan_cutoff):
             _remove_web_work_dir(path)
 
 
+def process_workspace_queue(factory, iteration, stop_event):
+    from .library_worker import run_one_library_job
+
+    if iteration % 3 == 0 and run_one_library_job(
+        factory, similarity_first=iteration % 2 == 0,
+    ):
+        return True
+    with factory() as db:
+        asset = claim_next_saved_asset_index(db) if iteration % 3 == 2 else None
+        job = claim_next_search_job(db) if asset is None else None
+        if job is None and asset is None and iteration % 3 != 2:
+            asset = claim_next_saved_asset_index(db)
+        if job is not None and stop_event.is_set():
+            release_claimed_search_job(db, job.id)
+            job = None
+            return False
+        if asset is not None and stop_event.is_set():
+            asset.index_status = "pending"
+            db.commit()
+            asset = None
+            return False
+    if job is not None:
+        try:
+            if job.search_profile == "meme50-v2":
+                from .meme_worker import process_meme_job
+
+                process_meme_job(job.id, factory=factory)
+            elif job.job_kind == "web":
+                process_web_search_job(job.id)
+            else:
+                process_search_job(job.id)
+        except (RetrievalError, MediaError, OSError, ValidationError) as exc:
+            logger.exception("search_processing_failed", extra={"job_id": job.id})
+            code = (
+                exc.code
+                if isinstance(exc, RetrievalError)
+                else "media_processing_failed"
+            )
+            message = (
+                str(exc)
+                if isinstance(exc, RetrievalError)
+                else ("Input or candidate media could not be validated or stored")
+            )
+            with factory() as db:
+                fail_job(db, job.id, code, message)
+        except Exception:
+            logger.exception("search_unexpected_failure", extra={"job_id": job.id})
+            with factory() as db:
+                fail_job(
+                    db, job.id, "worker_error", "Unexpected worker execution failure"
+                )
+    elif asset is not None:
+        process_saved_asset_index(asset.id)
+    else:
+        return run_one_library_job(factory, similarity_first=False)
+    return True
+
+
 def run_worker(stop_event: threading.Event | None = None) -> None:
+    from .library_worker import recover_annotations
+
     stop_event = stop_event or threading.Event()
     configure_logging()
     prepare_storage()
     engine = get_engine()
     if engine.dialect.name != "postgresql":
         raise RuntimeError("The deployed search worker requires PostgreSQL for singleton locking")
-    factory = get_session_factory()
     # Keep a dedicated session-level lock while recovering and processing jobs.
     with engine.connect() as ownership:
         if not ownership.scalar(text("SELECT pg_try_advisory_lock(6000, 7)")):
             raise RuntimeError("Another MemeRetrieve search worker is already running")
         ownership.commit()
         try:
-            with factory() as db:
-                recover_interrupted_jobs(db)
-                recover_interrupted_saved_indexes(db)
-                cleanup_media(db)
-            last_cleanup = time.monotonic()
+            last_cleanup = {}
+            iteration = 0
             logger.info("search_worker_started")
             while not stop_event.is_set():
                 ownership.execute(text("SELECT 1"))
                 ownership.commit()
-                with factory() as db:
-                    job = claim_next_search_job(db)
-                    asset = None if job is not None else claim_next_saved_asset_index(db)
-                    if job is not None and stop_event.is_set():
-                        release_claimed_search_job(db, job.id)
-                        job = None
+                iteration += 1
+                worked = False
+                names = workspaces() if get_settings().account_login_enabled else ["public"]
+                for name in names:
+                    if stop_event.is_set():
                         break
-                    if asset is not None and stop_event.is_set():
-                        asset.index_status = "pending"
-                        db.commit()
-                        asset = None
-                        break
-                if job is not None:
-                    try:
-                        if job.search_profile == "meme50-v2":
-                            from .meme_worker import process_meme_job
-
-                            process_meme_job(job.id, factory=factory)
-                        elif job.job_kind == "web":
-                            process_web_search_job(job.id)
-                        else:
-                            process_search_job(job.id)
-                    except (RetrievalError, MediaError, OSError, ValidationError) as exc:
-                        logger.exception("search_processing_failed", extra={"job_id": job.id})
-                        code = (
-                            exc.code
-                            if isinstance(exc, RetrievalError)
-                            else "media_processing_failed"
-                        )
-                        message = (
-                            str(exc)
-                            if isinstance(exc, RetrievalError)
-                            else ("Input or candidate media could not be validated or stored")
-                        )
-                        with factory() as db:
-                            fail_job(db, job.id, code, message)
-                    except Exception:
-                        logger.exception("search_unexpected_failure", extra={"job_id": job.id})
-                        with factory() as db:
-                            fail_job(
-                                db, job.id, "worker_error", "Unexpected worker execution failure"
-                            )
-                elif asset is not None:
-                    process_saved_asset_index(asset.id)
-                else:
+                    with use_workspace(name):
+                        factory = get_session_factory()
+                        first_visit = name not in last_cleanup
+                        if first_visit or time.monotonic() - last_cleanup[name] >= 3600:
+                            with factory() as db:
+                                if first_visit:
+                                    prepare_storage()
+                                    recover_interrupted_jobs(db)
+                                    recover_interrupted_saved_indexes(db)
+                                    recover_annotations(db)
+                                cleanup_media(db)
+                            last_cleanup[name] = time.monotonic()
+                        worked = process_workspace_queue(factory, iteration, stop_event) or worked
+                if not worked:
                     stop_event.wait(get_settings().worker_poll_seconds)
-                if not stop_event.is_set() and time.monotonic() - last_cleanup >= 3600:
-                    with factory() as db:
-                        cleanup_media(db)
-                    last_cleanup = time.monotonic()
         finally:
             ownership.execute(text("SELECT pg_advisory_unlock(6000, 7)"))
             ownership.commit()

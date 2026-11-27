@@ -20,6 +20,12 @@ from services.retrieval.download import (
 from .models import Source
 
 
+def is_commons_file_page(url):
+    return url.hostname == "commons.wikimedia.org" and unquote(url.path).casefold().startswith(
+        "/wiki/file:"
+    )
+
+
 class ResolvedBatch(BaseModel):
     sources: list[Source] = Field(default_factory=list)
     failures: list[Literal["unsupported_source", "source_unavailable"]] = Field(
@@ -129,9 +135,7 @@ def resolve_sources(sources, *, deadline, remaining_pages, remaining_downloads):
         if p.hostname in MEDIA_HOSTS and p.path.lower().endswith(".gif"):
             result.sources.append(source.model_copy(update={"image_url": source.source_url}))
             continue
-        commons = p.hostname == "commons.wikimedia.org" and unquote(p.path).casefold().startswith(
-            "/wiki/file:"
-        )
+        commons = is_commons_file_page(p)
         parrot = p.hostname == "cultofthepartyparrot.com" and p.path in {"", "/"}
         tenor = p.hostname == "tenor.com" and bool(
             re.fullmatch(r"/(?:[a-z]{2}(?:-[A-Za-z]{2})?/)?view/[^/]+-\d+/?", p.path)
