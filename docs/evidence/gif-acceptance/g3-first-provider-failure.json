@@ -1,0 +1,174 @@
+{
+  "input_sha256": "fd5e574f355d156ade24a58065c5dbee8a16e35ac399951946fa875b3a904296",
+  "description": "green dancing parrot bobbing its head animated emoji",
+  "transport": "actual HTTP; independent worker; no injected search/embedding",
+  "files": [],
+  "passed": false,
+  "request_id": "eb43024a-61ee-459f-8e83-57b9009cbc7e",
+  "local_job_id": "529ca97d-0628-4006-a505-e0a7e888e30d",
+  "local_result": {
+    "request_id": "eb43024a-61ee-459f-8e83-57b9009cbc7e",
+    "job_id": "529ca97d-0628-4006-a505-e0a7e888e30d",
+    "status": "completed",
+    "job_kind": "local",
+    "stage": "completed",
+    "local_job_id": "529ca97d-0628-4006-a505-e0a7e888e30d",
+    "web_searches": [],
+    "result_kind": "candidates",
+    "candidates": [
+      {
+        "candidate_id": "60d8bb79-752c-468a-8197-033d9a0c1df7",
+        "rank": 1,
+        "score": 0.8689979599754771,
+        "media_url": "/candidates/60d8bb79-752c-468a-8197-033d9a0c1df7/media",
+        "source_url": null,
+        "image_url": null,
+        "provider": null,
+        "save_status": "not_saved",
+        "asset_id": null,
+        "index_status": null
+      },
+      {
+        "candidate_id": "b75a5340-c328-4f42-9553-d8a73b1cb0bf",
+        "rank": 2,
+        "score": 0.8447030316782784,
+        "media_url": "/candidates/b75a5340-c328-4f42-9553-d8a73b1cb0bf/media",
+        "source_url": null,
+        "image_url": null,
+        "provider": null,
+        "save_status": "not_saved",
+        "asset_id": null,
+        "index_status": null
+      },
+      {
+        "candidate_id": "dffe8f40-5688-42ba-b353-562698c7f6e3",
+        "rank": 3,
+        "score": 0.8285762205393183,
+        "media_url": "/candidates/dffe8f40-5688-42ba-b353-562698c7f6e3/media",
+        "source_url": null,
+        "image_url": null,
+        "provider": null,
+        "save_status": "not_saved",
+        "asset_id": null,
+        "index_status": null
+      }
+    ],
+    "error": null
+  },
+  "local_candidates": [
+    {
+      "candidate_id": "60d8bb79-752c-468a-8197-033d9a0c1df7",
+      "rank": 1,
+      "score": 0.8689979599754771,
+      "media_url": "/candidates/60d8bb79-752c-468a-8197-033d9a0c1df7/media",
+      "source_url": null,
+      "image_url": null,
+      "provider": null,
+      "save_status": "not_saved",
+      "asset_id": null,
+      "index_status": null
+    },
+    {
+      "candidate_id": "b75a5340-c328-4f42-9553-d8a73b1cb0bf",
+      "rank": 2,
+      "score": 0.8447030316782784,
+      "media_url": "/candidates/b75a5340-c328-4f42-9553-d8a73b1cb0bf/media",
+      "source_url": null,
+      "image_url": null,
+      "provider": null,
+      "save_status": "not_saved",
+      "asset_id": null,
+      "index_status": null
+    },
+    {
+      "candidate_id": "dffe8f40-5688-42ba-b353-562698c7f6e3",
+      "rank": 3,
+      "score": 0.8285762205393183,
+      "media_url": "/candidates/dffe8f40-5688-42ba-b353-562698c7f6e3/media",
+      "source_url": null,
+      "image_url": null,
+      "provider": null,
+      "save_status": "not_saved",
+      "asset_id": null,
+      "index_status": null
+    }
+  ],
+  "web_job_id": "51ca6226-d2a9-42fb-922d-ad226a8c18f4",
+  "same_key_replay": true,
+  "changed_description_conflict": true,
+  "web_result": {
+    "job_id": "51ca6226-d2a9-42fb-922d-ad226a8c18f4",
+    "job_kind": "web",
+    "status": "failed",
+    "stage": "failed",
+    "description": "green dancing parrot bobbing its head animated emoji",
+    "result_kind": null,
+    "error": {
+      "code": "web_provider_unavailable",
+      "message": "Web search failed (web_provider_unavailable)"
+    }
+  },
+  "job_kind": "web",
+  "execution": {
+    "model_version": null,
+    "agent_version": "web-search-v1",
+    "stop_reason": "provider_unavailable",
+    "search_calls": 2,
+    "planner_calls": 0,
+    "downloads_used": 0,
+    "duration_ms": 17507,
+    "trace": [
+      {
+        "round": 1,
+        "step": "plan",
+        "elapsed_ms": 0,
+        "details": {
+          "query": "green dancing parrot bobbing its head animated emoji site:cultofthepartyparrot.com"
+        }
+      },
+      {
+        "round": 1,
+        "step": "search_error",
+        "elapsed_ms": 8023,
+        "details": {
+          "provider": "ddgs",
+          "code": "provider_unavailable"
+        }
+      },
+      {
+        "round": 2,
+        "step": "plan",
+        "elapsed_ms": 8028,
+        "details": {
+          "query": "green dancing parrot bobbing its head animated emoji GIF 动态表情 原图 site:cultofthepartyparrot.com"
+        }
+      },
+      {
+        "round": 2,
+        "step": "search_error",
+        "elapsed_ms": 17330,
+        "details": {
+          "provider": "ddgs",
+          "code": "provider_unavailable"
+        }
+      },
+      {
+        "round": 0,
+        "step": "stop",
+        "elapsed_ms": 17331,
+        "details": {
+          "reason": "provider_unavailable",
+          "search_calls": 2,
+          "planner_calls": 0,
+          "downloads_used": 0
+        }
+      }
+    ],
+    "warnings": [
+      "search_provider_unavailable"
+    ]
+  },
+  "independent_target_sha256": "ecfacdf40753e363e4022f79ee48ddf55d6b3d537b6a6fa80929718b653b7022",
+  "target_byte_match": false,
+  "target_note": "Post-hoc byte comparison only; human confirmation pending"
+}

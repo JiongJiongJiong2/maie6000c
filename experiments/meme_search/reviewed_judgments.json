@@ -1,0 +1,409 @@
+{
+  "items": [
+    {
+      "case_id": "c01",
+      "arm": "literal",
+      "relevant_ranks": [
+        1
+      ],
+      "blank_ranks": [],
+      "gif_ranks": [],
+      "notes": "Rank 1 explicitly identifies Drake Hotline Bling; generic editors at 4–5 lack matching template evidence.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c01",
+      "arm": "rewrite",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [],
+      "gif_ranks": [],
+      "notes": "All five describe or use Drake Yes/No; rank 1 is a Drake-made variant.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c01",
+      "arm": "skill",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [
+        1,
+        2,
+        5
+      ],
+      "gif_ranks": [],
+      "notes": "All pages identify Drake format; 1 and 2/5 expose template/editor evidence, 3/4 are format/history pages.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c02",
+      "arm": "literal",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [
+        3
+      ],
+      "gif_ranks": [],
+      "notes": "Each result identifies Two Buttons; rank 3 explicitly offers a blank template.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c02",
+      "arm": "rewrite",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "blank_ranks": [],
+      "gif_ranks": [],
+      "notes": "Ranks 1–4 name Two Buttons or sweating-man button versions; rank 5 is unrelated.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c02",
+      "arm": "skill",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [
+        3
+      ],
+      "gif_ranks": [],
+      "notes": "All results identify Two Buttons; rank 3 explicitly offers a blank template. Rank 4 is a captioned recreation, not blank-template evidence.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c03",
+      "arm": "literal",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "blank_ranks": [],
+      "gif_ranks": [],
+      "notes": "Ranks 1–4 explicitly discuss the Distracted Boyfriend image; rank 5 is a different couple-chat meme.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c03",
+      "arm": "rewrite",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [],
+      "gif_ranks": [],
+      "notes": "All five results discuss the boyfriend looking at another woman meme.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c03",
+      "arm": "skill",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [],
+      "gif_ranks": [],
+      "notes": "All titles and page descriptions identify Distracted Boyfriend; no explicit blank or GIF page.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c04",
+      "arm": "literal",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [],
+      "gif_ranks": [],
+      "notes": "All results identify Disaster Girl, its origin, or direct adaptations.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c04",
+      "arm": "rewrite",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [],
+      "gif_ranks": [],
+      "notes": "All results concern Disaster Girl, including an explicit history page.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c04",
+      "arm": "skill",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [],
+      "gif_ranks": [],
+      "notes": "All results identify Disaster Girl or its origin; no blank/GIF page evidence.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c05",
+      "arm": "literal",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [],
+      "gif_ranks": [],
+      "notes": "All results are panda-head meme family pages, but no unique target asset exists.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c05",
+      "arm": "rewrite",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [
+        2,
+        4,
+        5
+      ],
+      "gif_ranks": [],
+      "notes": "All concern panda-head/faces; ranks 2, 4, 5 explicitly say textless/no-text.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c05",
+      "arm": "skill",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [
+        1,
+        2,
+        4
+      ],
+      "gif_ranks": [],
+      "notes": "All are panda-head/faces; ranks 1, 2, 4 explicitly indicate no-text/blank results.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c06",
+      "arm": "literal",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [],
+      "gif_ranks": [
+        3
+      ],
+      "notes": "All are Zhang You 食屎啦你 meme/origin pages; rank 3 explicitly identifies a GIF. Rank 5 is a static meme page.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c06",
+      "arm": "rewrite",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [],
+      "gif_ranks": [
+        4,
+        5
+      ],
+      "notes": "All match the Zhang You phrase/frame; ranks 4 and 5 explicitly say GIF.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c06",
+      "arm": "skill",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [],
+      "gif_ranks": [
+        4
+      ],
+      "notes": "All concern the quote/frame; rank 4 is explicitly a GIF set.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c07",
+      "arm": "literal",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [],
+      "gif_ranks": [],
+      "notes": "All results refer to Wang Jingze/真香, though some are articles rather than media pages.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c07",
+      "arm": "rewrite",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [],
+      "gif_ranks": [
+        2,
+        3,
+        4
+      ],
+      "notes": "All match the Wang Jingze/真香 family; ranks 2–4 explicitly advertise GIF/dynamic images.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c07",
+      "arm": "skill",
+      "relevant_ranks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "blank_ranks": [
+        5
+      ],
+      "gif_ranks": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "notes": "All match Wang Jingze; ranks 1,3,4,5 explicitly advertise GIFs; rank 5 also says blank-expression DIY.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c08",
+      "arm": "literal",
+      "relevant_ranks": null,
+      "blank_ranks": null,
+      "gif_ranks": null,
+      "notes": "Ground truth is deliberately unknown; no absence or hit inferred.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c08",
+      "arm": "rewrite",
+      "relevant_ranks": null,
+      "blank_ranks": null,
+      "gif_ranks": null,
+      "notes": "Ground truth is deliberately unknown; no absence or hit inferred.",
+      "assessor": "gpt-6-luna"
+    },
+    {
+      "case_id": "c08",
+      "arm": "skill",
+      "relevant_ranks": null,
+      "blank_ranks": null,
+      "gif_ranks": null,
+      "notes": "Ground truth is deliberately unknown; no absence or hit inferred.",
+      "assessor": "gpt-6-luna"
+    }
+  ],
+  "limitations": [
+    "Labels use only returned ranks 1–5 and captured page snippets/text; page evidence does not establish exact asset identity or downloadable media.",
+    "Blank/GIF labels require explicit matching page evidence; generic editor capabilities are not counted. All judgments are AI annotations, not human acceptance.",
+    "c05 has no unique target image; relevance means the panda-head/faces family. c08 ground truth is unknown."
+  ],
+  "review_changes": [
+    {
+      "case_id": "c02",
+      "arm": "skill",
+      "field": "blank_ranks",
+      "removed": [
+        4
+      ],
+      "reason": "Rank 4 describes an already-captioned recreation, not an explicitly blank template."
+    },
+    {
+      "case_id": "c03",
+      "arm": "literal",
+      "field": "relevant_ranks",
+      "removed": [
+        5
+      ],
+      "reason": "Rank 5 describes a separate couple-chat screenshot, not the Distracted Boyfriend family."
+    },
+    {
+      "case_id": "c06",
+      "arm": "literal",
+      "field": "gif_ranks",
+      "removed": [
+        5
+      ],
+      "reason": "Top-level result text for rank 5 describes a static meme image and does not advertise an animated item; later media-probe evidence is excluded."
+    }
+  ],
+  "review_note": "Reviewed against captured top-five raw search blocks only. No new searches or media-probe evidence used. AI annotation, not human acceptance."
+}

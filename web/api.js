@@ -1,3 +1,21 @@
+// Safari versions without AbortSignal.any still need shared cancellation.
+export function combineSignals(signals) {
+  if (typeof AbortSignal.any === "function") return AbortSignal.any(signals);
+  const controller = new AbortController();
+  const abort = (event) => {
+    for (const signal of signals) signal.removeEventListener("abort", abort);
+    controller.abort(event.target.reason);
+  };
+  for (const signal of signals) {
+    if (signal.aborted) {
+      abort({ target: signal });
+      return controller.signal;
+    }
+    signal.addEventListener("abort", abort, { once: true });
+  }
+  return controller.signal;
+}
+
 export class ApiError extends Error {
   constructor(message, status = 0, code = "network_error") {
     super(message);
@@ -19,7 +37,7 @@ export function sameOriginPath(path) {
 }
 
 export class Api {
-  token = "";
+  account = document.documentElement.dataset.account || "";
 
   async request(
     path,
@@ -32,20 +50,22 @@ export class Api {
     const timer = setTimeout(abort, timeout);
     try {
       const headers = new Headers(options.headers);
-      if (this.token) headers.set("Authorization", `Bearer ${this.token}`);
+      if (this.account) headers.set("X-Library-Account", this.account);
       const response = await fetch(sameOriginPath(path), {
         ...options,
         headers,
+        credentials: "same-origin",
         signal: controller.signal,
         cache: "no-store",
         redirect: "error",
       });
       if (!response.ok) {
+        if (response.status === 401 && this.account) location.replace("/web/");
         const body = await response.json().catch(() => null);
         const detail = body?.detail ?? body?.error;
         const message = typeof detail === "string" ? detail : detail?.message;
         const fallback = {
-          401: "The access token is missing or invalid. Open Connection settings.",
+          401: "Sign in to open your library.",
           404: "Endpoint or record not found. Check that the W07 backend is connected.",
           409: "The request conflicts with an earlier submission. Start a new search.",
           410: "This GIF has expired. Start a new search.",
@@ -62,19 +82,28 @@ export class Api {
       }
       if (media) {
         const blob = await response.blob();
-        const signature = new TextDecoder().decode(
-          await blob.slice(0, 6).arrayBuffer(),
-        );
-        if (
-          blob.type.split(";")[0] !== "image/gif" ||
-          !["GIF87a", "GIF89a"].includes(signature)
-        ) {
+        const bytes = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
+        const text = new TextDecoder().decode(bytes);
+        const mime = blob.type.split(";")[0];
+        const valid =
+          (mime === "image/gif" &&
+            ["GIF87a", "GIF89a"].includes(text.slice(0, 6))) ||
+          (mime === "image/png" &&
+            bytes[0] === 137 &&
+            text.slice(1, 4) === "PNG") ||
+          (mime === "image/jpeg" &&
+            bytes[0] === 255 &&
+            bytes[1] === 216 &&
+            bytes[2] === 255) ||
+          (mime === "image/webp" &&
+            text.slice(0, 4) === "RIFF" &&
+            text.slice(8, 12) === "WEBP");
+        if (!valid)
           throw new ApiError(
-            "The returned file is not a valid GIF.",
+            "The returned file is not a supported image.",
             0,
             "invalid_media",
           );
-        }
         return blob;
       }
       if (binary) return await response.blob();
@@ -93,10 +122,15 @@ export class Api {
     }
   }
 
-  submit(file, key, signal) {
+  submit(file, key, signal, settings = {}) {
     const body = new FormData();
     body.set("image", file, file.name);
     body.set("client_submission_key", key);
+    if (settings.search_profile) {
+      body.set("search_profile", settings.search_profile);
+      body.set("target_count", String(settings.target_count || 50));
+      body.set("description", settings.description || "");
+    }
     return this.request("/search-requests", { method: "POST", body, signal });
   }
 
@@ -106,11 +140,40 @@ export class Api {
     });
   }
 
+  continueOnline(id, payload, signal) {
+    return this.request(
+      `/search-requests/${encodeURIComponent(id)}/web-search`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal,
+      },
+    );
+  }
+
   review(jobId, payload, signal) {
     return this.request(`/search-jobs/${encodeURIComponent(jobId)}/reviews`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+      signal,
+    });
+  }
+
+  saveCandidate(id, key, signal) {
+    return this.request(`/candidates/${encodeURIComponent(id)}/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_save_key: key }),
+      signal,
+    });
+  }
+
+  savedAsset(id, signal, retry = false) {
+    const path = `/saved-assets/${encodeURIComponent(id)}`;
+    return this.request(retry ? `${path}/index-retry` : path, {
+      method: retry ? "POST" : "GET",
       signal,
     });
   }

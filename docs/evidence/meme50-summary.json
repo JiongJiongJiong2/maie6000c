@@ -1,0 +1,173 @@
+{
+  "baseline": "c34d9f6c55a1febbe78fcbf275baab70536424d7",
+  "branch": "codex/real-gif-acquisition",
+  "profile": "meme50-v2",
+  "implementation_digest": "5956ba2eccbf490c6ef00e4eb84d2fa44d3d81f1ba87d2c5c6868885a8f32250",
+  "python": {
+    "passed": 279,
+    "deselected_smoke": 2,
+    "postgres": "actually executed"
+  },
+  "web": {
+    "passed": 17,
+    "network": "controlled responses; not live acceptance"
+  },
+  "checks": {
+    "ruff": "passed",
+    "diff_check": "passed",
+    "prettier": "passed"
+  },
+  "live_public_egress": [
+    {
+      "url": "https://www.python.org/static/community_logos/python-logo.png",
+      "status": 200,
+      "stats": {
+        "bytes_used": 45738,
+        "redirects": 0,
+        "dns_queries": 1,
+        "connections": 1,
+        "peers": [
+          "151.101.0.223"
+        ],
+        "http_gets": 1,
+        "final_url": "https://www.python.org/static/community_logos/python-logo.png"
+      },
+      "metadata": {
+        "format": "PNG",
+        "mime_type": "image/png",
+        "media_kind": "static",
+        "frame_count": 1,
+        "width": 211,
+        "height": 71,
+        "byte_size": 45187,
+        "duration_ms": 0,
+        "sha256": "ea0e73137c1c8561e91241771e3c81e5b3e8f5ab2cbfdad1a00d8eea524815fa"
+      }
+    },
+    {
+      "url": "https://www.mozilla.org/en-US/",
+      "status": 200,
+      "stats": {
+        "bytes_used": 115855,
+        "redirects": 0,
+        "dns_queries": 1,
+        "connections": 1,
+        "peers": [
+          "151.101.131.19"
+        ],
+        "http_gets": 1,
+        "final_url": "https://www.mozilla.org/en-US/"
+      },
+      "extracted": [
+        "https://www.mozilla.org/media/img/m24/og.3a69dffad83e.png",
+        "https://www.mozilla.org/media/cms/images/donate.2e16d0ba.fill-1400x700.jpg",
+        "https://www.mozilla.org/media/cms/images/collective-mobile-1450.2e16d0ba.fill-800x800.jpg",
+        "https://www.mozilla.org/media/cms/images/image1.2e16d0ba.fill-1400x1400.jpg"
+      ]
+    },
+    {
+      "url": "https://www.mozilla.org/media/img/m24/og.3a69dffad83e.png",
+      "status": 200,
+      "stats": {
+        "bytes_used": 6519,
+        "redirects": 0,
+        "dns_queries": 1,
+        "connections": 1,
+        "peers": [
+          "151.101.131.19"
+        ],
+        "http_gets": 1,
+        "final_url": "https://www.mozilla.org/media/img/m24/og.3a69dffad83e.png"
+      },
+      "metadata": {
+        "format": "PNG",
+        "mime_type": "image/png",
+        "media_kind": "static",
+        "frame_count": 1,
+        "width": 1200,
+        "height": 630,
+        "byte_size": 5990,
+        "duration_ms": 0,
+        "sha256": "594c404fb43669caf9833a3d6821d367e8f3e448742ef1e3e9c1356abcafd27c"
+      }
+    },
+    {
+      "url": "http://169.254.169.254/latest/meta-data",
+      "status": 422,
+      "error": {
+        "code": "url_policy",
+        "stats": {
+          "bytes_used": 0,
+          "redirects": 0,
+          "dns_queries": 0,
+          "connections": 0,
+          "peers": [],
+          "http_gets": 0
+        }
+      }
+    }
+  ],
+  "browser": {
+    "route_interception": false,
+    "errors": [],
+    "downloads": [],
+    "human_review": "pending",
+    "accepted": {
+      "request_id": "d52a719a-2256-4302-a07d-9154d7532d4b",
+      "job_id": "1f2c6cd7-5c8e-4386-99ad-038a779c44b1",
+      "status": "pending",
+      "search_profile": "meme50-v2",
+      "contract_version": 2,
+      "target_count": 50
+    },
+    "failed": true,
+    "refresh_restored": true,
+    "retry": {
+      "request_id": "d52a719a-2256-4302-a07d-9154d7532d4b",
+      "job_id": "2f07dba6-c0ac-493d-acf7-1c0d9aff88f5",
+      "status": "pending",
+      "search_profile": "meme50-v2",
+      "contract_version": 2,
+      "target_count": 50
+    }
+  },
+  "worker_model": {
+    "uid": 10001,
+    "image_shape": [
+      1,
+      512
+    ],
+    "text_shape": [
+      1,
+      512
+    ],
+    "cosine": 0.2581658363342285
+  },
+  "provider_credentials": {
+    "gemini": false,
+    "google_vision": false,
+    "brave": false
+  },
+  "machine_contract": "passed",
+  "live_automatic_retrieval": "not_passed_credentials_missing",
+  "quantity_40_to_50": "not_evaluated",
+  "quality": "human_review_pending",
+  "independent_reproduction": "pending",
+  "heldout": {
+    "frozen": 12,
+    "animated": 4,
+    "empty_description": 8,
+    "ran_retrieval": false
+  },
+  "containers": {
+    "worker_image": "sha256:989725dc6ca2ada4c2006356925e5d196c13c275cfe44f680f2c028a0ecb5647",
+    "worker_uid": "10001:10001",
+    "fetch_uid": "10001:10001",
+    "fetch_networks": [
+      "memeretrieve-local_media_egress"
+    ],
+    "fetch_has_credentials": false,
+    "fetch_mounts": [],
+    "fetch_read_only": true
+  }
+}

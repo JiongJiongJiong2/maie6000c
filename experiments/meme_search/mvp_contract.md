@@ -1,0 +1,26 @@
+# First-version implementation contract
+
+Standalone local app: `services.meme_agent.app:app`, UI `/studio/`, default port 8010. Existing W07 app stays separate. All local state lives in ignored `data/meme-agent/`; env configuration comes from ignored `.env`. No credentials in responses/logs. Use the existing offline CLIP encoder for actual image vectors. SQLite stores metadata and vectors. This is a bounded tool workflow, not a general autonomous web crawler.
+
+## HTTP interface (root owns app.py)
+
+- `GET /api/config`: `{planner_configured, web_search_configured, collection_count, search_scope}`. Configured does not mean authenticated.
+- `POST /api/search` multipart `query` (max 500), optional `image`, `scope` (`all`, `library`, `web`; default all). Response `{candidates: Candidate[], trace: [{step,detail}], warnings: string[]}`. Request may take up to 90 seconds; browser displays busy state. Empty description with image searches local collection only.
+- `GET /api/library`: `{items: Candidate[]}` latest first.
+- `POST /api/import` multipart `image`, `title`: creates an unsaved candidate (user must confirm to collect). Returns Candidate.
+- `POST /api/candidates/{id}/edit` JSON `{top_text, bottom_text}` (max 120 each): creates a new unsaved static PNG candidate with provenance. Only editable templates, no text erasure or animation editing. Returns Candidate.
+- `POST /api/candidates/{id}/save` JSON `{title?}`: `{item: Candidate, duplicate: bool}`. Saves media and real vector atomically from user's perspective. Failure must not say indexed.
+- `GET /api/media/{id}` returns server-owned validated bytes (display/download).
+- `GET /api/health` lightweight ready status.
+
+Candidate JSON fields: `id, title, source_url` (optional HTTPS page), `provider` (imgflip/brave/upload/library/edit), `media_url` (same-origin generated URL), `format, width, height, frames, animated, editable` (boolean), `saved` (boolean), `sha256`, `created_at`, optional `score` (raw similarity, never percent confidence), optional `parent_id`, `caption` (object). Returned `editable` for Imgflip static templates; uploads need explicit UI blank-template intent; Brave results never automatically editable. Library preserves original source and editability. Editing consumes a blank base; resulting edited item is not editable so captions don't stack.
+
+## Python boundaries
+
+`providers.py` (provider agent): `plan_query(query: str) -> dict` with `{queries: list[str], keywords: list[str], planner: str, warnings:list[str]}`; `search_templates(plan:dict, limit:int=6) -> list[dict]`; `search_web(plan:dict, limit:int=6) -> list[dict]`. Source dict `{title, source_url, image_url, provider, editable}`. `ProviderError` contains only safe messages. `media.py`: `download_image(url: str)->bytes`, `inspect_image(data:bytes)->dict` (`format,width,height,frames,animated,sha256`). Allowlisted HTTPS public address validation incl redirects, timeouts and byte/pixel/frame caps, original image only, never HTML preview; private network URLs blocked. .env lookup via own `AgentSettings` from settings.py (root).
+
+`library.py` (storage agent): `Library(root: Path, encoder: Callable[[PIL.Image.Image], np.ndarray])`; methods `add_candidate(data:bytes, metadata:dict)->dict`, `get(id:str)->dict` (KeyError missing), `media_path(id:str)->Path`, `save(id:str,title:str|None=None)->tuple[dict,bool]`, `list_saved()->list[dict]`, `search(query:str='', image: PIL.Image.Image|None=None, limit:int=8)->list[dict]`. Metadata includes inspected media fields and source/title/provider/editable; library also calculates sha and generated random ID, metadata is server only. SQLite plus raw bytes; vectors computed only on save or image query using injected encoder. Store vector model identity; restart persistent, deterministic dedup by bytes; text search title plus query/tags/caption metadata. Genuine image cosine search (no fake vectors), fail meaningfully if model absent. Serialize encoder access. Do not change old W07 tables. Imports/query text sanitization root/API responsibility. All dicts public Candidate shape; internal absolute paths/vectors must not leak.
+
+`settings.py`: cached `get_agent_settings()` returns `data_root:Path`, `deepseek_api_key:str`, `deepseek_base_url:str`, `deepseek_model:str`, `brave_api_key:str`, and optional `meme_font_path:str`. Defaults official DeepSeek URL, model `deepseek-flash`, no keys. Providers accept an optional settings instance; otherwise use these defaults. Bounded JSON planning falls back to local aliases without exposing keys on errors.
+
+`web/studio/index.html`, `styles.css`, `app.js` (frontend agent): buildless standalone plain functional page; no decorative product design, per user preference. Chinese interface; clear provider scope and provenance. Query, optional screenshot, scope, status/errors; results with verify/edit/collect; upload template with explicit blank-template checkbox (`blank_template` multipart; default false); static top/bottom caption editor preview through edit route; persistent library section. Don't represent similarity as probability. Don't render user/provider strings as HTML. Mobile and keyboard accessible. Root wires files and backend.

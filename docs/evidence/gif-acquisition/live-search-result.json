@@ -1,0 +1,61 @@
+{
+  "status": "failed",
+  "result_kind": "no_results",
+  "stop_reason": "provider_unavailable",
+  "candidates": [],
+  "trace": [
+    {
+      "round": 1,
+      "step": "plan",
+      "elapsed_ms": 0,
+      "details": {
+        "query": "Rotating earth large Wikimedia Commons GIF"
+      }
+    },
+    {
+      "round": 1,
+      "step": "search_error",
+      "elapsed_ms": 8073,
+      "details": {
+        "provider": "ddgs",
+        "code": "provider_unavailable"
+      }
+    },
+    {
+      "round": 2,
+      "step": "plan",
+      "elapsed_ms": 8073,
+      "details": {
+        "query": "Rotating earth large Wikimedia Commons GIF GIF 动态表情 原图"
+      }
+    },
+    {
+      "round": 2,
+      "step": "search_error",
+      "elapsed_ms": 16199,
+      "details": {
+        "provider": "ddgs",
+        "code": "provider_unavailable"
+      }
+    },
+    {
+      "round": 0,
+      "step": "stop",
+      "elapsed_ms": 16200,
+      "details": {
+        "reason": "provider_unavailable",
+        "search_calls": 2,
+        "planner_calls": 0,
+        "downloads_used": 0
+      }
+    }
+  ],
+  "warnings": [
+    "search_provider_unavailable"
+  ],
+  "search_calls": 2,
+  "planner_calls": 0,
+  "downloads_used": 0,
+  "model_version": null,
+  "agent_version": "web-search-v1"
+}

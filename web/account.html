@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en" class="account-root">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Sign in · MemeRetrieve</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./account.js"></script>
+  </head>
+  <body class="account-page">
+    <main class="account-layout">
+      <aside class="account-poster" aria-label="MemeRetrieve">
+        <div class="account-brand">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+          <span>MemeRetrieve</span>
+        </div>
+        <div class="account-exhibit">
+          <div class="account-story">
+            <p class="account-display">Your <em>GIF</em><br />library.</p>
+            <p class="account-description">
+              Find your saved reactions by caption, character, or mood.
+            </p>
+          </div>
+          <div class="poster-scraps sticker-cluster" aria-hidden="true">
+            <i
+              class="account-sticker"
+              data-sticker="glove"
+              style="--x: 13%; --y: 0%; --w: 52%; --r: -21deg"
+            ></i>
+            <i
+              class="account-sticker"
+              data-sticker="heart"
+              style="--x: 64%; --y: 40%; --w: 21%; --r: 17deg"
+            ></i>
+          </div>
+          <div class="account-stage" aria-hidden="true">
+            <img
+              class="account-art"
+              src="./account-folder.webp"
+              alt=""
+              width="1402"
+              height="1122"
+            />
+            <i class="stage-tape"></i>
+            <span class="account-sticker stage-fish" data-sticker="fish"></span>
+            <span class="account-sticker stage-drop" data-sticker="drop"></span>
+            <span class="account-sticker stage-frog" data-sticker="frog"></span>
+          </div>
+        </div>
+      </aside>
+      <section class="account-access" aria-labelledby="account-title">
+        <div class="sticker-cluster desk-offcuts" aria-hidden="true">
+          <i
+            class="account-sticker"
+            data-sticker="frog"
+            style="--x: 12%; --y: 24%; --w: 34%; --r: -29deg"
+          ></i>
+          <i
+            class="account-sticker"
+            data-sticker="star"
+            style="--x: 60%; --y: 4%; --w: 15%; --r: 32deg"
+          ></i>
+        </div>
+        <div class="account-fields">
+          <i class="sheet-tape" aria-hidden="true"></i>
+          <div class="sticker-cluster crown" aria-hidden="true">
+            <i
+              class="account-sticker"
+              data-sticker="orbit"
+              style="--x: 0%; --y: 27%; --w: 44%; --r: -18deg"
+            ></i>
+            <i
+              class="account-sticker"
+              data-sticker="pixel-cat"
+              style="--x: 37%; --y: 3%; --w: 53%; --r: 13deg"
+            ></i>
+            <i
+              class="account-sticker"
+              data-sticker="bolt"
+              style="--x: 34%; --y: 57%; --w: 19%; --r: -29deg"
+            ></i>
+            <i
+              class="account-sticker"
+              data-sticker="star"
+              style="--x: 83%; --y: 45%; --w: 13%; --r: 21deg"
+            ></i>
+          </div>
+          <div class="sticker-cluster spill" aria-hidden="true">
+            <i
+              class="account-sticker"
+              data-sticker="spring"
+              style="--x: 30%; --y: 0%; --w: 68%; --r: 29deg"
+            ></i>
+            <i
+              class="account-sticker"
+              data-sticker="drop"
+              style="--x: 8%; --y: 44%; --w: 30%; --r: -17deg"
+            ></i>
+          </div>
+          <div class="sticker-cluster pocket" aria-hidden="true">
+            <i
+              class="account-sticker"
+              data-sticker="cassette"
+              style="--x: 18%; --y: 11%; --w: 73%; --r: 13deg"
+            ></i>
+            <i
+              class="account-sticker"
+              data-sticker="mushroom"
+              style="--x: -2%; --y: 0%; --w: 47%; --r: -22deg"
+            ></i>
+            <i
+              class="account-sticker"
+              data-sticker="heart"
+              style="--x: 79%; --y: 53%; --w: 16%; --r: 16deg"
+            ></i>
+          </div>
+          <span
+            class="account-sticker paper-letter"
+            data-sticker="letter"
+            aria-hidden="true"
+          ></span>
+          <fieldset
+            class="account-modes"
+            id="account-modes"
+            aria-label="Account access"
+          >
+            <label
+              ><input type="radio" name="mode" value="login" checked /><span
+                >Sign in</span
+              ></label
+            >
+            <label
+              ><input type="radio" name="mode" value="register" /><span
+                >Register</span
+              ></label
+            >
+          </fieldset>
+          <div class="account-form-heading">
+            <h1 id="account-title">Sign in</h1>
+            <span
+              class="account-sticker heading-sticker"
+              aria-hidden="true"
+              data-sticker="flower"
+            ></span>
+          </div>
+          <p id="account-intro">Open your personal GIF library.</p>
+          <form id="account-form" method="post">
+            <label for="username"
+              >Username<span
+                class="account-sticker label-sticker"
+                aria-hidden="true"
+                data-sticker="cat"
+              ></span
+            ></label>
+            <input
+              id="username"
+              name="username"
+              autocomplete="username"
+              autocapitalize="none"
+              spellcheck="false"
+              required
+              maxlength="64"
+            />
+            <label for="password"
+              >Password<span
+                class="account-sticker label-sticker"
+                aria-hidden="true"
+                data-sticker="heart"
+              ></span
+            ></label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required
+              maxlength="256"
+            />
+            <p id="account-error" role="alert" hidden></p>
+            <button id="account-submit" class="library-primary" type="submit">
+              Sign in
+            </button>
+          </form>
+        </div>
+      </section>
+      <div class="account-parade" aria-hidden="true">
+        <div class="parade-track">
+          <div class="parade-group">
+            <span class="account-sticker" data-sticker="fish"></span>
+            <span class="account-sticker" data-sticker="star"></span>
+            <span class="account-sticker" data-sticker="glove"></span>
+            <span class="account-sticker" data-sticker="flower"></span>
+            <span class="account-sticker" data-sticker="orbit"></span>
+            <span class="account-sticker" data-sticker="frog"></span>
+            <span class="account-sticker" data-sticker="cassette"></span>
+            <span class="account-sticker" data-sticker="pixel-cat"></span>
+            <span class="account-sticker" data-sticker="drop"></span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,76 @@
+{
+  "items": [
+    {
+      "id": "drake_blank",
+      "status": "verified_image",
+      "mime": "image/jpeg",
+      "format": "JPEG",
+      "byte_size": 92771,
+      "width": 1200,
+      "height": 1200,
+      "frame_count": 1,
+      "sha256": "09dd77b5bc0a2d3ac717bb3b309bdbd5ad584e19be2843b0dc714a1e387d7926"
+    },
+    {
+      "id": "two_buttons_redraw",
+      "status": "verified_image",
+      "mime": "image/webp",
+      "format": "WEBP",
+      "byte_size": 129862,
+      "width": 1024,
+      "height": 1536,
+      "frame_count": 1,
+      "sha256": "bf90a460884efb3de788cc266e82b7245910b9dcf8b2590317bb30c767c28dd7"
+    },
+    {
+      "id": "wang_gif_preview",
+      "status": "verified_image",
+      "mime": "image/gif",
+      "format": "GIF",
+      "byte_size": 78756,
+      "width": 440,
+      "height": 412,
+      "frame_count": 1,
+      "sha256": "32527f25c932891c4c5cba3dacbaaddd9381aa274b5392243f19b461b250baa7"
+    },
+    {
+      "id": "wang_blank_preview",
+      "status": "verified_image",
+      "mime": "image/jpeg",
+      "format": "JPEG",
+      "byte_size": 22267,
+      "width": 350,
+      "height": 287,
+      "frame_count": 1,
+      "sha256": "34cc8683372ea7eb30e3a97e51173d1718d407be1d78469ffd56063628840683"
+    },
+    {
+      "id": "jacky_preview",
+      "status": "verified_image",
+      "mime": "image/gif",
+      "format": "GIF",
+      "byte_size": 310907,
+      "width": 160,
+      "height": 160,
+      "frame_count": 24,
+      "sha256": "ca3f90503c59ab5db8c1420853c1c34faeef12088396ace4b926d312ffce9f6b"
+    },
+    {
+      "id": "panda_proxy_candidate",
+      "status": "failed",
+      "error": "invalid_or_unresolved_url"
+    },
+    {
+      "id": "panda_blank_candidate",
+      "status": "failed",
+      "error": "network_or_tls_error"
+    }
+  ],
+  "limitations": [
+    "DNS is checked before every request and redirect. Standard HTTP transport resolves again; DNS rebinding is not eliminated. Use only an explicitly selected trusted public corpus.",
+    "15 seconds is a cooperative wall-clock budget plus per-operation HTTP timeout, not a hard process deadline.",
+    "Only PNG/JPEG/GIF/WebP accepted. Image validation does not assess relevance, license, or safety.",
+    "Decoded images are limited to 500 frames, 25000000 pixels per canvas, and 100000000 canvas pixels multiplied by frames; every accepted frame is decoded before caching.",
+    "Output omits URLs to avoid leaking query tokens; join to the local input by id."
+  ]
+}

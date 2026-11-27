@@ -30,46 +30,218 @@
         <button id="motion-toggle" class="quiet small" aria-pressed="true">
           Motion: on
         </button>
-        <button
-          id="connection-toggle"
-          class="quiet small connection-button"
-          aria-expanded="false"
-          aria-controls="connection-panel"
-        >
+        <span class="quiet small connection-button">
           <span class="status-dot" id="health-dot"></span
-          ><span id="health-label">Check connection</span
-          ><span aria-hidden="true">↗</span>
+          ><span id="health-label">Connecting</span>
+        </span>
+        <span id="account-name" class="account-name" hidden></span>
+        <button id="sign-out" class="quiet small" type="button" hidden>
+          Sign out
         </button>
       </nav>
     </header>
     <main>
-      <section
-        id="connection-panel"
-        class="connection-panel"
-        hidden
-        aria-label="Connection settings"
-      >
-        <div>
-          <strong>Connection settings</strong>
-          <p>
-            Enter an access token if your server requires one. It stays in
-            memory for this page only.
-          </p>
-        </div>
-        <form id="connection-form">
-          <label for="token">Access token (optional)</label>
-          <div class="inline">
-            <input
-              id="token"
-              type="password"
-              autocomplete="off"
-              placeholder="Enter DEVICE_TOKEN"
-            /><button class="secondary" type="submit">
-              Apply and reconnect
+      <details id="private-library" lang="en">
+        <summary class="library-heading">
+          <span class="library-mark" aria-hidden="true"></span>
+          <span>My GIF Library</span>
+          <span class="library-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="library-body">
+          <form data-search class="library-search">
+            <label for="library-query">Search your collection</label>
+            <div class="library-search-row">
+              <input
+                id="library-query"
+                type="search"
+                maxlength="200"
+                placeholder="Try a sarcastic clapping cat"
+              />
+              <button type="submit" class="library-primary">Search</button>
+              <button type="button" data-clear>Clear</button>
+            </div>
+          </form>
+          <div class="library-toolbar" aria-label="Library tools" role="group">
+            <button
+              type="button"
+              data-tool
+              aria-controls="library-import"
+              aria-expanded="false"
+            >
+              Import GIFs
+            </button>
+            <button
+              type="button"
+              data-tool
+              aria-controls="library-filters"
+              aria-expanded="false"
+            >
+              Filters
+            </button>
+            <button
+              type="button"
+              data-tool
+              aria-controls="library-selection"
+              aria-expanded="false"
+            >
+              Selection tools<span data-selection aria-live="polite"></span>
+            </button>
+            <button type="button" data-refresh>Refresh</button>
+          </div>
+          <div id="library-import" class="library-drawer" hidden>
+            <div class="library-form-row">
+              <label for="library-files"
+                >GIF files <small>Up to 60 per import</small>
+                <span class="library-file-picker"
+                  ><input
+                    id="library-files"
+                    type="file"
+                    aria-label="Choose GIFs"
+                    aria-describedby="library-file-names"
+                    accept=".gif,image/gif"
+                    multiple
+                  /><span aria-hidden="true">Choose GIFs</span
+                  ><span id="library-file-names">No file chosen</span></span
+                >
+              </label>
+              <button type="button" data-import>Import files</button>
+              <button type="button" data-resume hidden>Resume upload</button>
+            </div>
+            <ul data-receipts class="library-log"></ul>
+            <details class="library-restore">
+              <summary>Restore a backup</summary>
+              <p>
+                Unzip the backup, select its GIFs above and choose the manifest
+                below.
+              </p>
+              <div class="library-form-row">
+                <label for="library-backup-manifest"
+                  >Backup manifest
+                  <span class="library-file-picker"
+                    ><input
+                      id="library-backup-manifest"
+                      type="file"
+                      aria-label="Choose manifest"
+                      aria-describedby="library-manifest-name"
+                      accept=".json,application/json"
+                    /><span aria-hidden="true">Choose manifest</span
+                    ><span id="library-manifest-name"
+                      >No file chosen</span
+                    ></span
+                  >
+                </label>
+                <button type="button" data-restore-backup>
+                  Verify and restore
+                </button>
+              </div>
+              <ul data-restore-results class="library-log"></ul>
+            </details>
+          </div>
+          <div id="library-filters" class="library-drawer" hidden>
+            <form data-filters class="library-filter-row">
+              <label>Title<input name="title" maxlength="200" /></label>
+              <label>Tag<input name="tag" maxlength="40" /></label>
+              <label
+                >Status
+                <select name="state">
+                  <option value="">All statuses</option>
+                  <option value="index:pending">Index pending</option>
+                  <option value="index:ready">Index ready</option>
+                  <option value="index:failed">Index failed</option>
+                  <option value="ai:not_requested">Not analyzed</option>
+                  <option value="ai:ready">AI analysis ready</option>
+                  <option value="ai:failed">AI analysis failed</option>
+                </select>
+              </label>
+              <button type="submit">Apply filters</button>
+            </form>
+          </div>
+          <div
+            id="library-selection"
+            class="library-drawer library-bulk"
+            hidden
+          >
+            <div>
+              <h3>AI analysis</h3>
+              <button
+                type="button"
+                data-annotate
+                aria-haspopup="dialog"
+                aria-controls="library-analysis-confirm"
+              >
+                Analyze selected GIFs
+              </button>
+            </div>
+            <form data-bulk-tags>
+              <label
+                >Add tags<input
+                  name="tags"
+                  maxlength="327"
+                  placeholder="Separate tags with commas"
+              /></label>
+              <button type="submit">Apply tags</button>
+            </form>
+            <div>
+              <h3>Backup</h3>
+              <label class="library-check"
+                ><input type="checkbox" data-export-manual />Manual tags and
+                corrections</label
+              >
+              <label class="library-check"
+                ><input type="checkbox" data-export-annotations />Saved AI
+                analysis</label
+              >
+              <button type="button" data-export>Back up selected GIFs</button>
+            </div>
+          </div>
+          <dialog
+            class="library-confirm"
+            id="library-analysis-confirm"
+            aria-labelledby="library-confirm-title"
+            aria-describedby="library-confirm-description"
+          >
+            <h2 id="library-confirm-title">Analyze selected GIFs?</h2>
+            <p id="library-confirm-description">
+              For each GIF, up to four frames will be sent to the configured AI
+              vision service. These frames include any text or images visible in
+              the GIF.
+            </p>
+            <form method="dialog">
+              <button value="cancel" autofocus>Cancel</button>
+              <button value="analyze" class="library-primary">Analyze</button>
+            </form>
+          </dialog>
+          <p class="library-notice" role="status"></p>
+          <p
+            class="library-notice"
+            data-analysis-progress
+            aria-live="polite"
+          ></p>
+          <div class="library-gallery-heading">
+            <h2>Collection</h2>
+            <span data-visible-count aria-live="polite"></span>
+          </div>
+          <ul data-assets id="library-gallery" aria-label="GIF collection"></ul>
+          <div class="library-paging">
+            <button
+              type="button"
+              data-more
+              aria-controls="library-gallery"
+              hidden
+            >
+              Load more
+            </button>
+            <button
+              type="button"
+              data-less
+              aria-controls="library-gallery"
+              hidden
+            >
+              Show fewer
             </button>
           </div>
-        </form>
-      </section>
+        </div>
+      </details>
       <section class="intro" aria-labelledby="hero-title">
         <div class="hero-copy">
           <p class="eyebrow">
@@ -227,7 +399,7 @@
                 <input
                   id="file-input"
                   type="file"
-                  accept="image/png,image/jpeg,image/webp"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
                   aria-label="Choose screenshot"
                 />
                 <span id="upload-placeholder"
@@ -257,7 +429,7 @@
                   ><strong>Drop it like it's a screenshot.</strong
                   ><span class="upload-link">or click to choose a file ↗</span
                   ><span class="file-types"
-                    >PNG / JPG / WEBP · MAX 10 MiB</span
+                    >PNG / JPG / WEBP / GIF · MAX 10 MiB</span
                   ></span
                 >
                 <img
@@ -273,11 +445,59 @@
                 <span id="file-name">No image selected</span
                 ><span id="file-size"></span>
               </div>
+              <fieldset id="search-mode" class="choice-group" disabled>
+                <legend>Search mode</legend>
+                <div class="choice-track">
+                  <label>
+                    <input
+                      type="radio"
+                      name="scope"
+                      value="meme50-v2"
+                      checked
+                    />
+                    <span
+                      ><svg viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" />
+                        <ellipse cx="12" cy="12" rx="4" ry="9" />
+                        <path d="M3 12h18" /></svg
+                      >Online search</span
+                    >
+                  </label>
+                  <label>
+                    <input type="radio" name="scope" value="legacy" />
+                    <span
+                      ><svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M3 7a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"
+                        /></svg
+                      >Local only</span
+                    >
+                  </label>
+                </div>
+              </fieldset>
+              <p id="local-hint" class="muted" hidden>
+                Use a PNG, JPEG, or WebP screenshot.
+              </p>
+              <label for="description" class="optional-description"
+                >Description or preference (optional)</label
+              >
+              <textarea
+                id="description"
+                maxlength="500"
+                rows="3"
+                placeholder="For example: a happy reaction, or the same character looking angry"
+              ></textarea>
+              <p class="muted image-disclosure">
+                Resized images or representative frames are sent to external
+                visual and image-search services to understand and find related
+                memes.
+              </p>
               <button id="submit" class="primary full" disabled>
                 Find my GIF ↗
               </button>
-              <button id="new-search" class="quiet full" hidden>
-                Start a new search
+              <button id="new-search" class="primary full" type="button" hidden>
+                <span>Start a new search</span
+                ><span class="new-search-plus" aria-hidden="true">+</span>
               </button>
               <details id="demo-library" class="demo-library" hidden>
                 <summary>No screenshot? Borrow some evidence.</summary>
@@ -304,8 +524,9 @@
                 </p>
               </details>
               <p class="privacy-note">
-                <span aria-hidden="true">▣</span> Your current search stays in
-                this browser.<br />Refresh happens. We get it.
+                <span aria-hidden="true">▣</span> This browser remembers your
+                search.<br />
+                Processing also uses the server and configured image providers.
               </p>
             </div>
           </section>
@@ -324,12 +545,21 @@
                 <h3 id="results-title">The usual suspects</h3>
                 <span id="result-count" class="pill">Awaiting upload</span>
               </div>
-              <div class="search-status" aria-live="polite" aria-atomic="true">
-                <h4 id="status-title">It's quiet. Too quiet.</h4>
-                <p id="status-description">
-                  Drop a screenshot. We'll round up the GIFs for a little
-                  identity parade.
-                </p>
+              <div class="status-band">
+                <div
+                  class="search-status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  <h4 id="status-title">It's quiet. Too quiet.</h4>
+                  <p id="status-description">
+                    Drop a screenshot. We'll round up the GIFs for a little
+                    identity parade.
+                  </p>
+                </div>
+                <button id="refresh" class="secondary" hidden>
+                  Refresh status
+                </button>
               </div>
               <div id="empty-art" class="empty-art" aria-hidden="true">
                 <div class="lineup-lines"></div>
@@ -361,9 +591,7 @@
                 <div class="progress-track"><span></span></div>
                 <p>Asking the pixels some very serious questions.</p>
               </div>
-              <button id="refresh" class="secondary" hidden>
-                Refresh status
-              </button>
+
               <div id="candidates" class="candidates"></div>
               <div id="review-panel" class="review-panel" hidden>
                 <p class="muted">
@@ -378,6 +606,82 @@
                 <p id="review-status" class="feedback" role="status"></p>
               </div>
               <p id="download-status" class="feedback" role="status"></p>
+              <section
+                id="continue-panel"
+                aria-labelledby="continue-title"
+                hidden
+              >
+                <h3 id="continue-title">Continue online</h3>
+                <form id="continue-form">
+                  <label for="continue-description"
+                    >Description or preference (optional)</label
+                  >
+                  <textarea
+                    id="continue-description"
+                    maxlength="500"
+                    rows="2"
+                  ></textarea>
+                  <p class="muted image-disclosure">
+                    Resized images or representative frames are sent to external
+                    visual and image-search services to find related memes.
+                  </p>
+                  <button id="continue-submit" class="secondary" type="submit">
+                    Continue online
+                  </button>
+                </form>
+                <p id="continue-feedback" role="status"></p>
+              </section>
+              <section id="web-results" aria-labelledby="web-title" hidden>
+                <h3 id="web-title">Online results</h3>
+                <p id="web-status" role="status"></p>
+                <div id="meme-controls" class="meme-controls" hidden>
+                  <fieldset
+                    id="media-filter"
+                    class="choice-group"
+                    aria-label="Image type"
+                  >
+                    <div class="choice-track">
+                      <label
+                        ><input
+                          type="radio"
+                          name="media-kind"
+                          value="all"
+                          checked
+                        /><span>All images</span></label
+                      >
+                      <label
+                        ><input
+                          type="radio"
+                          name="media-kind"
+                          value="static"
+                        /><span>Static</span></label
+                      >
+                      <label
+                        ><input
+                          type="radio"
+                          name="media-kind"
+                          value="animated"
+                        /><span>Animated</span></label
+                      >
+                    </div>
+                  </fieldset>
+                  <div class="result-paging">
+                    <button id="previous-page" class="secondary">
+                      Previous
+                    </button>
+                    <button id="next-page" class="secondary">Next</button>
+                  </div>
+                  <span id="page-summary"></span>
+                </div>
+                <button id="meme-retry" class="secondary" hidden>
+                  Retry search
+                </button>
+                <details id="analysis-details" hidden>
+                  <summary>Image analysis</summary>
+                  <p id="meme-analysis"></p>
+                </details>
+                <div id="web-candidates" class="candidates"></div>
+              </section>
               <details id="trace" class="trace" hidden>
                 <summary>Open the case file</summary>
                 <dl>

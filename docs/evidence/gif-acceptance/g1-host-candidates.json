@@ -1,0 +1,20 @@
+{
+  "candidates": [
+    {
+      "relative_path": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378.gif",
+      "sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Rotating_earth_(large).gif",
+      "image_url": "https://upload.wikimedia.org/wikipedia/commons/2/2c/Rotating_earth_%28large%29.gif?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+      "provider": "direct_source_check",
+      "format": "GIF",
+      "frame_count": 44,
+      "score": 0.9999999403953552
+    }
+  ],
+  "failures": [],
+  "diagnostics": [],
+  "redirects": 0,
+  "rejected_low_score": 0,
+  "downloads_used": 1,
+  "model_version": "clip-vit-base-patch32@37000f5cdccec47a3f6f83142bff131370757470"
+}

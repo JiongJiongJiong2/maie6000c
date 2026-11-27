@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>梗图搜索实验 v1</title>
+    <link rel="stylesheet" href="/studio/styles.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/studio/">梗图搜索实验 v1</a
+      ><span id="config">正在连接工作台…</span>
+    </header>
+    <main>
+      <section class="hero">
+        <p>联网搜索模板；截图检索已收藏图片。</p>
+        <p>文字描述会发送给已配置的查询模型和搜索来源；截图留在本机。</p>
+      </section>
+      <section class="workspace">
+        <form id="search-form" class="searchbox">
+          <label for="query">今天想找什么梗？</label
+          ><textarea
+            id="query"
+            maxlength="500"
+            placeholder="上面拒绝下面赞同的 Drake"
+            rows="3"
+          ></textarea>
+          <div class="searchoptions">
+            <label
+              >搜索范围
+              <select id="scope">
+                <option value="all">全部来源</option>
+                <option value="library">我的收藏</option>
+                <option value="web">网络来源</option>
+              </select></label
+            ><label class="file"
+              >＋ 添加参考截图<input
+                id="reference"
+                type="file"
+                accept="image/*"
+            /></label>
+          </div>
+          <div class="formfoot">
+            <button id="clear-reference" type="button" class="secondary">
+              清除截图</button
+            ><span id="reference-name">可只用文字，也可用截图搜索收藏</span
+            ><button type="submit">搜索</button>
+          </div>
+        </form>
+        <aside class="importbox">
+          <h2>导入图片</h2>
+          <form id="import-form">
+            <label
+              >图片文件<input
+                id="upload"
+                required
+                type="file"
+                accept="image/*" /></label
+            ><label
+              >图片名称<input
+                id="upload-title"
+                maxlength="200"
+                placeholder="给这张图起个名字" /></label
+            ><label class="check"
+              ><input
+                id="blank"
+                type="checkbox"
+              />这是无文字的静态空白模板，允许加字</label
+            ><button type="submit" class="secondary">导入并预览 ＋</button>
+          </form>
+          <p>导入后先检查，再手动确认收藏。</p>
+        </aside>
+      </section>
+      <div id="status" role="status" aria-live="polite"></div>
+      <section aria-labelledby="result-title">
+        <div class="sectionhead">
+          <h2 id="result-title">
+            搜索候选 <small id="result-count">等待你的第一个灵感</small>
+          </h2>
+        </div>
+        <div id="warnings"></div>
+        <details id="tracebox" hidden>
+          <summary>查看检索过程</summary>
+          <div id="trace"></div>
+        </details>
+        <div id="results" class="grid">
+          <p class="empty">⌕ 输入一个场景，让梗图来接话。</p>
+        </div>
+      </section>
+      <section aria-labelledby="library-title">
+        <div class="sectionhead">
+          <h2 id="library-title">
+            我的收藏 <small id="library-count"></small>
+          </h2>
+          <button id="refresh" class="textbutton">刷新 ↻</button>
+        </div>
+        <div id="library" class="grid"></div>
+      </section>
+    </main>
+    <dialog id="editor">
+      <form method="dialog">
+        <button class="close" aria-label="关闭编辑器">×</button>
+      </form>
+      <h2>给空白模板加一句</h2>
+      <p>仅支持静态空白模板。生成后请检查预览，再确认收藏。</p>
+      <img id="edit-original" alt="原始空白模板" />
+      <form id="edit-form">
+        <label>顶部文字<input id="top" maxlength="120" /></label
+        ><label>底部文字<input id="bottom" maxlength="120" /></label
+        ><button type="submit">生成新候选 ↗</button>
+      </form>
+      <p id="edit-status" role="status"></p>
+      <div id="edit-preview"></div>
+    </dialog>
+    <script src="/studio/app.js" defer></script>
+  </body>
+</html>

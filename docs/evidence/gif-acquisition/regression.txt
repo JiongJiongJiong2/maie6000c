@@ -1,0 +1,16 @@
+........................................ssss............................ [ 32%]
+........................................................................ [ 64%]
+........................................................................ [ 97%]
+......                                                                   [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/starlette/testclient.py:51
+  /Users/somers/Documents/ChatGPT/600c-course project/maie6000c/.venv/lib/python3.11/site-packages/starlette/testclient.py:51: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/integration/test_search_postgres.py:80: Set TEST_POSTGRES_URL to a disposable PostgreSQL admin connection
+SKIPPED [1] tests/integration/test_search_postgres.py:98: Set TEST_POSTGRES_URL to a disposable PostgreSQL admin connection
+SKIPPED [1] tests/integration/test_search_postgres.py:179: Set TEST_POSTGRES_URL to a disposable PostgreSQL admin connection
+SKIPPED [1] tests/integration/test_search_postgres.py:199: Set TEST_POSTGRES_URL to a disposable PostgreSQL admin connection
+218 passed, 4 skipped, 2 deselected, 1 warning in 3.37s

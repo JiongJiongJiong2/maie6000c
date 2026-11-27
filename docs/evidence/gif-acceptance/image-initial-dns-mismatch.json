@@ -1,0 +1,1 @@
+{"uid": 10001, "model_version": "clip-vit-base-patch32@37000f5cdccec47a3f6f83142bff131370757470", "shape": [512], "finite": true, "dns": {"commons.wikimedia.org": ["198.18.0.10", "198.18.0.10"], "upload.wikimedia.org": ["208.80.153.240", "2620:0:860:ed1a::2:b"]}}

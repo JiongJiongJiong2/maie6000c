@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WhatsApp 网页导入实验</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 620px;
+        padding: 24px;
+        margin: auto;
+        line-height: 1.6;
+        background: #f7f7f1;
+        color: #242424;
+      }
+      button,
+      a.action {
+        display: block;
+        padding: 14px;
+        margin: 16px 0;
+        font-size: 18px;
+      }
+      button {
+        width: 100%;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      #status {
+        padding: 16px;
+        background: #e9e1ff;
+        white-space: pre-wrap;
+      }
+      pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>WhatsApp 网页导入实验 · 第 3 版</h1>
+    <p>
+      本版修正静态对照包：实际交给导入接口的贴纸已从 PNG 改为官方要求的 WebP。
+      动画包原本就是
+      WebP。上一版静态包失败不能作为有效的格式对照；本版仍未证明能导入。
+      最终目标是不安装额外 App，直接添加动态贴纸。
+    </p>
+    <label for="pack-kind">本次测试内容</label>
+    <select id="pack-kind" disabled>
+      <option value="static">A：静态贴纸包（先测这个）</option>
+      <option value="animated">B：动画贴纸包（A 成功后再测）</option>
+    </select>
+    <p>两个包均使用 Mind blown、Laughing tears、Party time，各有 3 张贴纸。</p>
+    <p>
+      第一步会尝试写入测试包，可能替换你当前复制的内容。只有你点击“检查刚写入的数据”时，网页才会读取剪贴板来比对测试包；不展示或上传剪贴板内容。
+    </p>
+    <button id="try-import" disabled>正在准备测试包…</button>
+    <p id="status" role="status" aria-live="polite">正在加载…</p>
+    <a id="open-whatsapp" class="action" href="whatsapp://stickerPack" hidden
+      >第二步：打开 WhatsApp 尝试添加</a
+    >
+    <button id="check-written" hidden>
+      检查刚写入的数据（手动读取剪贴板）
+    </button>
+    <p id="readback-status" role="status" hidden></p>
+    <p>
+      本轮先测
+      A：点击第一步后，先点“检查刚写入的数据”，记录结果，再重新点击第一步并立即点击第二步。
+      这样可以把读取检查和跳转 WhatsApp 分开。若 A 仍报错 1000，不用重复测试 B。
+    </p>
+    <p>
+      只有看到 WhatsApp
+      的添加贴纸包界面，确认后能在贴纸栏找到并发送，才算该包导入成功。A
+      的静态贴纸不算最终动图目标完成。仅打开 WhatsApp 不算成功。
+    </p>
+    <details open>
+      <summary>测试记录（可以截图发给我）</summary>
+      <pre id="diagnostics"></pre>
+    </details>
+    <p>
+      测试用图来自
+      <a href="https://googlefonts.github.io/noto-emoji-animation/"
+        >Google Noto Emoji</a
+      >，按
+      <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>
+      使用，已转换格式。
+    </p>
+    <p><a href="./">返回 GIF 搜索</a></p>
+    <script type="module" src="./whatsapp-import.js"></script>
+  </body>
+</html>

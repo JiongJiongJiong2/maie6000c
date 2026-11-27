@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-10-30T07:52:45.408Z",
+  "scope": "local functional MVP, not retrieval accuracy benchmark",
+  "tests": {
+    "pytest_passed": 98,
+    "pytest_skipped": 6,
+    "mvp_tests_passed": 24,
+    "ruff": "passed"
+  },
+  "live_browser": {
+    "captured_at": "2026-10-30T07:52:45.408Z",
+    "simulated": false,
+    "trace": [
+      {
+        "step": "收藏检索",
+        "detail": "找到 1 个候选"
+      },
+      {
+        "step": "查询理解",
+        "detail": "deepseek：Drake Hotline Bling meme template / Drake rejecting approving meme / Drake yes no meme / Drake comparison meme template"
+      },
+      {
+        "step": "联网来源",
+        "detail": "找到 1 个待验证图片地址"
+      },
+      {
+        "step": "图片验证",
+        "detail": "1 张通过实际解码；尚未写入收藏索引"
+      }
+    ],
+    "warnings": [
+      "当前联网范围是 Imgflip 热门模板目录，并非全网图片搜索。"
+    ],
+    "candidate_count": 2,
+    "saved_id": "b66567c51a1749c5ac1afdd7467afd2e",
+    "sha256": "b6f8b8d7416a9c071098b1d13a5a755147ca8ab6b5da6c9beaac34d3a5b19511",
+    "resized_query_top1": true,
+    "similarity": 0.994026243686676,
+    "refresh_persisted": true,
+    "browser_errors": [],
+    "mobile_no_horizontal_overflow": true
+  },
+  "process_restart": {
+    "collection_persisted": true,
+    "resized_query_top1": true,
+    "saved_id": "b66567c51a1749c5ac1afdd7467afd2e"
+  },
+  "stored_vector": {
+    "dimensions": 512,
+    "model": "clip-vit-base-patch32@37000f5cdccec47a3f6f83142bff131370757470",
+    "norm": 1.0
+  },
+  "limitations": [
+    "One controlled edited-template reuse example, not unseen screenshot evaluation",
+    "Brave adapter has mock contract tests only",
+    "No MCP server or external skill runtime",
+    "No multi-user accounts or remote deployment"
+  ],
+  "evidence_directory": ".cache/meme-agent-verification (ignored; local screenshots and resized query)"
+}

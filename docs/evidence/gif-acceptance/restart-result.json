@@ -1,0 +1,17 @@
+{
+  "interrupted_job": {
+    "job_id": "d49c770e-d6ea-4cf7-9374-5a4097b37b80",
+    "job_kind": "web",
+    "status": "failed",
+    "stage": "failed",
+    "description": "green dancing parrot bobbing its head animated emoji",
+    "result_kind": null,
+    "error": {
+      "code": "worker_interrupted",
+      "message": "Worker stopped during execution; an explicit retry is required"
+    }
+  },
+  "old_candidate_sha256": "ecfacdf40753e363e4022f79ee48ddf55d6b3d537b6a6fa80929718b653b7022",
+  "old_candidate_preserved": true,
+  "passed": true
+}

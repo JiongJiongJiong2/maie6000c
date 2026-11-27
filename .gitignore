@@ -217,3 +217,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Private atomic credential updates
+.meme50-env-*
+
+# Generated locally by experiments/whatsapp_web_import/build_pack.py
+web/whatsapp-demo-pack.json

@@ -1,0 +1,46 @@
+{
+  "items": [
+    {
+      "id": "drake_blank",
+      "url": "https://ilovecollage.com/memes/181913649.jpg",
+      "source_page_url": "https://ilovecollage.com/meme-templates/drake-hotline-bling/",
+      "purpose": "c01 skill rank1; page linked blank template"
+    },
+    {
+      "id": "two_buttons_redraw",
+      "url": "https://quickmeme.io/t/two-buttons.webp",
+      "source_page_url": "https://quickmeme.io/templates/two-buttons",
+      "purpose": "c02 literal rank3; source says original illustration, not original comic"
+    },
+    {
+      "id": "wang_gif_preview",
+      "url": "https://img.soogif.com/bVFIQwJ871S4VmUDQg4zfJIGmpsz7ePl.gif",
+      "source_page_url": "https://www.soogif.com/materialPage/odPPq3-CUPM",
+      "purpose": "c07 skill rank1; public preview, not login-gated HD"
+    },
+    {
+      "id": "wang_blank_preview",
+      "url": "https://img.soogif.com/GXW6fXoNh0ZCPdR1XzppG93YiVL21V30.JPEG",
+      "source_page_url": "https://www.soogif.com/materialPage/1FXV4WwZytA",
+      "purpose": "c07 skill rank5; page says GIF/blank, linked preview is JPEG"
+    },
+    {
+      "id": "jacky_preview",
+      "url": "https://weilegetu.com/images/202201/d5985e0c469293b292d24e53cb3e3b3fmin.gif",
+      "source_page_url": "https://weilegetu.com/image/579.html",
+      "purpose": "c06 literal rank5/skill rank2; source explicitly describes blurred preview"
+    },
+    {
+      "id": "panda_proxy_candidate",
+      "url": "https://static.sf024.com/picurl?url=https%3A%2F%2Fiknow-pic.cdn.bcebos.com%2F4034970a304e251f584d0e3aac86c9177e3e53be%3Fx-bce-process%3Dimage%2Fresize%2Cm_lfit%2Cw_600%2Ch_800%2Climit_1",
+      "source_page_url": "https://ecywang.com/pic/%E7%86%8A%E7%8C%AB%E5%A4%B4%E5%8E%9F%E5%9B%BE%E6%97%A0%E5%AD%97/",
+      "purpose": "c05 skill rank1/rewrite rank4; first linked image; blankness not inferred from page title"
+    },
+    {
+      "id": "panda_blank_candidate",
+      "url": "https://pic1.win4000.com/pic/e/32/37bc4fd164.jpg",
+      "source_page_url": "https://ecywang.com/pic/%E7%86%8A%E7%8C%AB%E5%A4%B4%E5%8E%9F%E5%9B%BE%E6%97%A0%E5%AD%97/",
+      "purpose": "same page seventh image link explicitly titled textless panda-head"
+    }
+  ]
+}

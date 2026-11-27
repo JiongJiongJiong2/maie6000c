@@ -1,0 +1,121 @@
+{
+  "date": "2026-11-28 Asia/Shanghai",
+  "candidate_commit": "48f7693e920d0d5b0fb0fb3989968aa0dd0bc3c4",
+  "candidate_tree": "cb39d9f3435d0b0e7ddbd1a272481eecb2eb3ea5",
+  "runtime_fingerprint": "2c798eb0830fec01df140802640860bfa731cc3284de0000559f2e28679edea7",
+  "migration": "20261121_0008",
+  "fixture": {
+    "credit": "Marvel, Rotating earth (large), CC BY-SA 3.0, Wikimedia Commons",
+    "source": "https://commons.wikimedia.org/wiki/File:Rotating_earth_(large).gif",
+    "source_media": "https://upload.wikimedia.org/wikipedia/commons/2/2c/Rotating_earth_%28large%29.gif?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+    "license": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "type": "Two distinct derived PNG frames of the same independently downloaded public GIF",
+    "online_input_sha256": "aa697ab0d2f6da548dc4fd05969a56ba012028e9682d945ef729f6cf30225265",
+    "offline_input_sha256": "4122e9b8913ecf76805fd35f5cae2180b4fc6f286b0084368bd55000fe0b2088",
+    "description": "I saw this looping Earth GIF on Wikimedia Commons. A blue-green globe spins slowly against a black starfield, with North and South America visible as it turns."
+  },
+  "browser": "Actual Chrome via /web/, real isolated PostgreSQL 16, account registration and fresh login",
+  "local": {
+    "request_id": "acf77975-cf65-48ae-bb5c-ea1688255b62",
+    "id": "386dbe2a-4f21-4404-ba0a-2ea27f51d21b",
+    "result_kind": "no_candidates",
+    "unrelated_candidates": 0
+  },
+  "linked_search": {
+    "initiated_by": "Continue online web button",
+    "job_id": "90bc815b-dd38-4199-a0e5-646ea4868ce6",
+    "profile": "meme50-v2",
+    "result_revision": "7a2daeb1ddf14eabad40776312c17d5f",
+    "vision": "hkgai/t2_hkgai-v3_fp8_1m_e10/visible-facts-v3",
+    "planner": "deepseek/deepseek-flash/query-plan-v6-source-and-theme",
+    "search_provider": "deepseek",
+    "model_calls": 2,
+    "search_calls": 5,
+    "media_attempts": 66,
+    "duration_ms": 137846,
+    "stop_reason": "target_reached",
+    "results": 50,
+    "media_types": {
+      "animated": 4,
+      "static": 46
+    },
+    "target_rank": 1,
+    "target_candidate": "56a59179-11cc-49c9-9d0d-ce9bd2e26027",
+    "distinct_playback_captures": 5,
+    "browser_filter_responses": {
+      "static": {
+        "httpStatus": 200,
+        "total": 46,
+        "firstPage": 20
+      },
+      "animated": {
+        "httpStatus": 200,
+        "total": 4,
+        "firstPage": 4
+      }
+    },
+    "source_queries": [
+      "site:commons.wikimedia.org rotating Earth GIF North South America space"
+    ]
+  },
+  "collection": {
+    "asset_id": "e31733b4-7815-413e-abbb-5f80bdc040f7",
+    "save_receipt_index_status": "pending",
+    "final_index_status": "ready",
+    "dimensions": 512,
+    "indexed_frames": [
+      0,
+      6,
+      12,
+      18,
+      24,
+      30,
+      36,
+      43
+    ],
+    "exactly_one_review_and_save_verified": true,
+    "isolated_from_public_schema": true
+  },
+  "offline": {
+    "restarted_api_and_worker": true,
+    "fetch_service_stopped": true,
+    "suppliers_disabled": true,
+    "network": "API and worker loopback only, new Chrome session with external DNS disabled",
+    "request_id": "64b8039a-d1b1-401a-a444-fdb20499f7b4",
+    "job_id": "2dc3990c-ead5-4661-94d4-ab5d0269dda9",
+    "rank": 1,
+    "asset_id": "e31733b4-7815-413e-abbb-5f80bdc040f7",
+    "score": 0.9848131272427878,
+    "web_jobs": 0,
+    "external_browser_requests": 0
+  },
+  "original": {
+    "sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "online_download_sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "offline_download_sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "candidate_and_both_downloads_byte_identical_to_reference": true,
+    "bytes": 1001718,
+    "frames": 44,
+    "distinct_decoded_frames": 44
+  },
+  "sharing": {
+    "online-candidate": {
+      "capabilities": {
+        "secure": true,
+        "share": true,
+        "canShare": true
+      },
+      "outcome": "prepared_to_open_native_menu"
+    },
+    "offline-saved": {
+      "capabilities": {
+        "secure": true,
+        "share": true,
+        "canShare": true
+      },
+      "outcome": "prepared_to_open_native_menu"
+    }
+  },
+  "share_scope": "The online and saved cards prepared the original file for the system share menu. No external message or native sticker import was attempted.",
+  "previous_pr_evidence": "../../docs/evidence/gif-acquisition/hkgai-web-offline-20261128.json"
+}

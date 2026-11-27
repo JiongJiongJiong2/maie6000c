@@ -98,14 +98,21 @@ def main():
     commands = {
         "api": ["-m", "uvicorn", "services.api.app.main:app", "--host", "127.0.0.1",
                 "--port", "8000"],
+        "media-fetch": ["-m", "services.retrieval.public_fetch", "--bind", "127.0.0.1"],
         "worker": ["-m", "services.worker.app.search_worker"],
     }
     try:
         for name, command in commands.items():
             log = (ROOT / f".cache/local-{name}.log").open("a", encoding="utf-8")
             logs.append(log)
+            process_env = env
+            if name == "media-fetch":
+                system_vars = {"PATH", "SYSTEMROOT", "WINDIR", "SYSTEMDRIVE", "TEMP", "TMP"}
+                process_env = {
+                    key: value for key, value in env.items() if key.upper() in system_vars
+                }
             children.append(subprocess.Popen(
-                [sys.executable, *command], cwd=ROOT, env=env, stdout=log,
+                [sys.executable, *command], cwd=ROOT, env=process_env, stdout=log,
                 stderr=subprocess.STDOUT, creationflags=subprocess.CREATE_NO_WINDOW,
             ))
         print("MemeRetrieve: http://127.0.0.1:8000/web/ (native PostgreSQL)", flush=True)

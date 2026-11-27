@@ -1,5 +1,9 @@
+import { readFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 
+const animatedGif = readFileSync(
+  new URL("./fixtures/two-frames.gif", import.meta.url),
+);
 const requestId = "10000000-0000-4000-8000-000000000001";
 const jobId = "20000000-0000-4000-8000-000000000001";
 const candidateId = "30000000-0000-4000-8000-000000000001";
@@ -81,9 +85,6 @@ test("upload, state progression, authenticated animation, review and download ar
         }
       : complete,
   );
-  await page.locator("#connection-toggle").click();
-  await page.locator("#token").fill("private-test-token");
-  await page.getByRole("button", { name: "Apply and reconnect" }).click();
   const mediaRequest = page.waitForRequest((request) =>
     request.url().endsWith("/media"),
   );
@@ -92,9 +93,7 @@ test("upload, state progression, authenticated animation, review and download ar
     "Looking for your GIF",
   );
   await expect(page.locator(".candidate img")).toBeVisible();
-  expect((await mediaRequest).headers().authorization).toBe(
-    "Bearer private-test-token",
-  );
+  expect((await mediaRequest).headers().authorization).toBeUndefined();
   expect(captured.uploads[0]).toContain('name="image"; filename="crop.png"');
   await expect(page.locator(".download")).toBeHidden();
   await page.getByRole("button", { name: "This is the one" }).click();
@@ -280,23 +279,17 @@ test("401 is actionable, token is not persisted, and cross-origin media is rejec
         }
       : complete,
   );
-  await page.route("**/search-requests", (route) =>
-    route.request().headers().authorization === "Bearer valid-token"
-      ? route.fulfill({ status: 202, json: accepted })
-      : route.fulfill({
-          status: 401,
-          json: { detail: { code: "unauthorized", message: "Token required" } },
-        }),
+  await page.route(
+    "**/search-requests",
+    (route) => route.fulfill({ status: 401, json: { detail: "Sign in" } }),
+    { times: 1 },
   );
   await upload(page);
-  await expect(page.locator("#notice")).toContainText("access token");
-  await page.locator("#connection-toggle").click();
-  await page.locator("#token").fill("valid-token");
-  await page.getByRole("button", { name: "Apply and reconnect" }).click();
+  await expect(page.locator("#notice")).toContainText("Sign in");
   await page.locator("#submit").click();
   await expect(page.locator(".candidate")).toHaveCount(1);
   await page.reload();
-  await expect(page.locator("#token")).toHaveValue("");
+  await expect(page.locator("#token")).toHaveCount(0);
   remote = true;
   await page.locator("#refresh").click();
   await expect(page.locator("#notice")).toContainText("unsupported media URL");
@@ -346,4 +339,760 @@ test("mobile layout fits, controls are labeled, and errors are not HTML", async 
     ),
   ).toBe(true);
   await expect(page.getByLabel("Choose screenshot")).toBeVisible();
+});
+
+test("private library resumes waiting GIFs and requires consent for vision", async ({
+  page,
+}) => {
+  const asset = {
+    asset_id: candidateId,
+    title: "旧收藏",
+    frame_count: 2,
+    media_url: `/saved-assets/${candidateId}/media`,
+    index_status: "ready",
+    annotation_status: "not_requested",
+    tags: [],
+  };
+  const batchId = "40000000-0000-4000-8000-000000000003";
+  const uploads = [];
+  const requests = [];
+  let items = [];
+  let interrupt = true;
+  const receipt = () => ({
+    batch_id: batchId,
+    items,
+    counts: {
+      waiting: items.filter((item) => item.status === "waiting").length,
+    },
+  });
+  await page.route("**/library/assets?limit=8", (route) =>
+    route.fulfill({ json: { assets: [asset], next_cursor: null } }),
+  );
+  await page.route("**/library/imports", (route) => {
+    items = route
+      .request()
+      .postDataJSON()
+      .items.map((item) => ({ ...item, status: "waiting" }));
+    return route.fulfill({ json: receipt() });
+  });
+  await page.route(`**/library/imports/${batchId}`, (route) =>
+    route.fulfill({ json: receipt() }),
+  );
+  await page.route("**/library/imports/*/items/*", (route) => {
+    const item = items.find((item) =>
+      route.request().url().endsWith(item.client_item_id),
+    );
+    uploads.push(item.filename);
+    if (item.filename === "resume.gif" && interrupt) return route.abort();
+    item.status = "imported";
+    return route.fulfill({ json: item });
+  });
+  await page.route("**/library/annotations", (route) => {
+    requests.push(route.request().postDataJSON());
+    return route.fulfill({
+      json: { assets: [{ ...asset, annotation_status: "pending" }] },
+    });
+  });
+  await page.route(`**/library/assets/${candidateId}`, (route) =>
+    route.fulfill({
+      json: { ...asset, annotation_status: "ready", tags: ["cat"] },
+    }),
+  );
+  await page.route("**/library/search", (route) =>
+    route.fulfill({
+      json: {
+        assets:
+          route.request().postDataJSON().query === "猫"
+            ? [{ ...asset, match_reasons: ["猫"], match_reasons_en: ["cat"] }]
+            : [],
+      },
+    }),
+  );
+  await fixtures(page);
+  const openLibrary = async () => {
+    await page.getByText("My GIF Library", { exact: true }).click();
+    await page
+      .getByRole("button", { name: "Import GIFs", exact: true })
+      .click();
+    await expect(page.getByText("旧收藏", { exact: true })).toBeVisible();
+  };
+  const files = [
+    { name: "saved.gif", mimeType: "image/gif", buffer: gif },
+    {
+      name: "resume.gif",
+      mimeType: "image/gif",
+      buffer: Buffer.concat([gif, gif]),
+    },
+  ];
+  await openLibrary();
+  await page.locator("#library-files").setInputFiles(files);
+  await page.getByRole("button", { name: "Import files" }).click();
+  await expect(page.getByText(/resume.gif — Upload interrupted/)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Resume upload" }),
+  ).toBeEnabled();
+
+  await page.reload();
+  await openLibrary();
+  await expect(
+    page.getByRole("button", { name: "Resume upload" }),
+  ).toBeVisible();
+  interrupt = false;
+  await page.locator("#library-files").setInputFiles(files);
+  await page.getByRole("button", { name: "Resume upload" }).click();
+  await expect(page.getByText("resume.gif — Imported")).toBeVisible();
+  expect(uploads.filter((name) => name === "saved.gif")).toHaveLength(1);
+
+  await page.getByRole("checkbox", { name: "Select 旧收藏" }).check();
+  await page.getByRole("button", { name: /Selection tools/ }).click();
+  const vision = page.getByRole("button", {
+    name: "Analyze selected GIFs",
+  });
+  const confirmation = page.getByRole("dialog", {
+    name: "Analyze 1 selected GIF?",
+  });
+  await vision.click();
+  await expect(confirmation).toBeVisible();
+  await expect(confirmation).not.toContainText(/localhost|18101/);
+  await expect(
+    confirmation.getByRole("button", { name: "Cancel" }),
+  ).toBeFocused();
+  await confirmation.getByRole("button", { name: "Cancel" }).click();
+  await expect(vision).toBeFocused();
+  await vision.click();
+  await page.keyboard.press("Escape");
+  await expect(confirmation).toBeHidden();
+  expect(requests).toEqual([]);
+  await vision.click();
+  await confirmation
+    .getByRole("button", { name: "Analyze", exact: true })
+    .click();
+  await expect(page.getByText("AI analysis: 1 ready.")).toBeVisible();
+  expect(requests).toEqual([{ asset_ids: [candidateId], consent: true }]);
+
+  await page.locator("#library-query").fill("猫");
+  await page.locator("#library-query").press("Enter");
+  await expect(page.getByText("Matched: cat")).toBeVisible();
+  await page.locator("#library-query").fill("飞机");
+  await page.locator("#library-query").press("Enter");
+  await expect(page.getByText(/No matches/)).toBeVisible();
+});
+
+test("private library splits imports, keeps selection, and downloads a backup", async ({
+  page,
+}) => {
+  const manifests = [];
+  const batches = new Map();
+  let exported;
+  let added;
+  const names = ["Sample one", "Sample two"];
+  const ids = [candidateId, requestId];
+  const cards = ids.map((asset_id, index) => ({
+    asset_id,
+    title: names[index],
+    frame_count: 2,
+    index_status: "pending",
+    annotation_status: "not_requested",
+    media_url: `/saved-assets/${asset_id}/media`,
+  }));
+  await page.route(/\/library\/assets(?:\?|$)/, (route) => {
+    const filtered = new URL(route.request().url()).searchParams.get("tag");
+    return route.fulfill({
+      json: { assets: filtered ? cards.slice(1) : cards },
+    });
+  });
+  await page.route("**/library/imports", (route) => {
+    const manifest = route.request().postDataJSON();
+    manifests.push(manifest.items.length);
+    const batch_id = `batch-${manifests.length}`;
+    const items = manifest.items.map((item) => ({
+      ...item,
+      status: "waiting",
+    }));
+    const counts = {
+      waiting: items.length,
+      imported: 0,
+      duplicate: 0,
+      rejected: 0,
+    };
+    const batch = { items, batch_id, counts };
+    batches.set(batch_id, batch);
+    return route.fulfill({ json: batch });
+  });
+  await page.route(/\/library\/imports\/batch-[0-9]+$/, (route) =>
+    route.fulfill({
+      json: batches.get(route.request().url().split("/").at(-1)),
+    }),
+  );
+  await page.route("**/library/imports/*/items/*", (route) => {
+    const parts = route.request().url().split("/");
+    const batch = batches.get(parts.at(-3));
+    const item = batch.items.find(
+      (item) => item.client_item_id === parts.at(-1),
+    );
+    item.status = "imported";
+    batch.counts.imported++;
+    batch.counts.waiting--;
+    return route.fulfill({ json: item });
+  });
+  await page.route("**/library/assets/bulk-tags", (route) => {
+    added = route.request().postDataJSON();
+    return route.fulfill({ json: { updated: 2 } });
+  });
+  await page.route("**/library/exports", (route) => {
+    exported = route.request().postDataJSON();
+    return route.fulfill({
+      contentType: "application/zip",
+      body: "mock archive",
+    });
+  });
+
+  await fixtures(page);
+  await page.getByText("My GIF Library", { exact: true }).click();
+  await page.getByRole("button", { name: "Import GIFs", exact: true }).click();
+  await page.getByText("Sample one", { exact: true }).waitFor();
+  await page.locator("#library-files").setInputFiles(
+    Array.from({ length: 21 }, (_, index) => ({
+      name: `batch-file-${index}.gif`,
+      mimeType: "image/gif",
+      buffer: Buffer.concat([gif, Buffer.from([index])]),
+    })),
+  );
+  await page.getByRole("button", { name: "Import files" }).click();
+  await expect(page.getByText("batch-file-20.gif — Imported")).toBeVisible();
+  expect(manifests).toEqual([20, 1]);
+
+  for (const name of names)
+    await page.getByRole("checkbox", { name: `Select ${name}` }).check();
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
+  await page.locator("[data-filters] input[name=tag]").fill("归档");
+  await page
+    .getByRole("button", { name: "Apply filters", exact: true })
+    .click();
+  await expect(page.getByText("Sample one", { exact: true })).toBeHidden();
+  await expect(page.getByText("(2)")).toBeVisible();
+  await page.getByRole("button", { name: /Selection tools/ }).click();
+  await page.locator("[data-bulk-tags] input").fill("归档、保留");
+  await page.getByRole("button", { name: "Apply tags" }).click();
+  await expect(page.getByText("Tags updated for 2 GIFs.")).toBeVisible();
+  expect(added).toEqual({ asset_ids: ids, tags: ["归档", "保留"] });
+
+  await page.locator("[data-export-manual]").check();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Back up selected GIFs" }).click();
+  expect((await download).suggestedFilename()).toBe("private-gifs.zip");
+  expect(exported).toEqual({
+    asset_ids: ids,
+    profile: "original_zip",
+    include_manual: true,
+    include_annotations: false,
+  });
+});
+
+test("backup restore reports each current receipt and only restores successful metadata", async ({
+  page,
+}) => {
+  const { createHash } = await import("node:crypto");
+  const files = ["Large", "Small", "HTTP limit"].map((title, i) => {
+    const bytes = Buffer.concat([gif, Buffer.from([i])]);
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    return {
+      entry: {
+        title,
+        sha256,
+        path: `assets/${sha256}.gif`,
+        byte_size: bytes.length,
+      },
+      upload: { name: `${sha256}.gif`, mimeType: "image/gif", buffer: bytes },
+    };
+  });
+  const manifests = [];
+  const receipts = new Map();
+  const metadata = [];
+  const uploads = [];
+  const historical = {
+    batch_id: "history",
+    items: [
+      {
+        ...files[0].entry,
+        client_item_id: "old",
+        filename: files[0].upload.name,
+        status: "imported",
+        asset_id: "old-asset",
+      },
+    ],
+    counts: { waiting: 0, imported: 1, duplicate: 0, rejected: 0 },
+  };
+  receipts.set("history", historical);
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "private-library-import",
+      JSON.stringify([
+        {
+          manifest: {
+            client_batch_key: "unsubmitted",
+            purpose: "backup_restore",
+            items: [],
+          },
+        },
+        { batch_id: "history" },
+      ]),
+    );
+  });
+  await page.route("**/library/assets?limit=8", (route) =>
+    route.fulfill({ json: { assets: [] } }),
+  );
+  await page.route("**/library/imports", (route) => {
+    const request = route.request().postDataJSON();
+    if (request.client_batch_key === "unsubmitted")
+      return route.fulfill({
+        status: 422,
+        json: { detail: { code: "backup_manifest_required" } },
+      });
+    manifests.push(request);
+    const batch_id = `current-${manifests.length}`;
+    const items = request.items.map((item) =>
+      item.sha256 === files[0].entry.sha256
+        ? { ...item, status: "rejected", error_code: "file_too_large" }
+        : { ...item, status: "waiting" },
+    );
+    const batch = {
+      batch_id,
+      items,
+      counts: {
+        waiting: items.length - 1,
+        imported: 0,
+        duplicate: 0,
+        rejected: 1,
+      },
+    };
+    receipts.set(batch_id, batch);
+    return route.fulfill({ json: batch });
+  });
+  await page.route(/\/library\/imports\/(?:history|current-\d+)$/, (route) =>
+    route.fulfill({
+      json: receipts.get(route.request().url().split("/").at(-1)),
+    }),
+  );
+  await page.route("**/library/imports/*/items/*", (route) => {
+    const parts = route.request().url().split("/");
+    const batch = receipts.get(parts.at(-3));
+    const item = batch.items.find(
+      (item) => item.client_item_id === parts.at(-1),
+    );
+    uploads.push(item.sha256);
+    if (item.sha256 === files[2].entry.sha256)
+      return route.fulfill({
+        status: 413,
+        json: { detail: { code: "file_too_large" } },
+      });
+    Object.assign(item, { status: "imported", asset_id: "small" });
+    batch.counts.waiting--;
+    batch.counts.imported++;
+    return route.fulfill({ json: item });
+  });
+  await page.route("**/library/restores/metadata", (route) => {
+    const request = route.request().postDataJSON();
+    metadata.push(request.uploaded_sha256);
+    return route.fulfill({
+      json: {
+        items: request.uploaded_sha256.map((sha256) => ({
+          sha256,
+          status: "restored",
+        })),
+      },
+    });
+  });
+  await fixtures(page);
+  await page.getByText("My GIF Library", { exact: true }).click();
+  await page.getByRole("button", { name: "Import GIFs", exact: true }).click();
+  await expect(
+    page.getByText(/Previous restore was not started/),
+  ).toBeVisible();
+  await expect(page.getByText(/\.gif — Imported/)).toBeVisible();
+  await page.getByText("Restore a backup", { exact: true }).click();
+  await page.locator("#library-backup-manifest").setInputFiles({
+    name: "manifest.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        version: 1,
+        profile: "original_zip",
+        assets: files.map(({ entry }) => entry),
+      }),
+    ),
+  });
+  const restore = page.getByRole("button", { name: "Verify and restore" });
+  await page
+    .locator("#library-files")
+    .setInputFiles(files.map(({ upload }) => upload));
+  await restore.click();
+  const results = page.locator("[data-restore-results]");
+  await expect(results.getByText("Small — Restored")).toBeVisible();
+  await expect(
+    results.getByText("Large — Exceeds the destination file limit"),
+  ).toBeVisible();
+  await expect(
+    results.getByText("HTTP limit — Exceeds the destination file limit"),
+  ).toBeVisible();
+  expect(manifests[0].backup.assets).toHaveLength(3);
+  expect(metadata).toEqual([[files[1].entry.sha256]]);
+  expect(uploads).not.toContain(files[0].entry.sha256);
+
+  await page.locator("#library-files").setInputFiles(files[0].upload);
+  await restore.click();
+  await expect(results.getByText("Small — Original GIF missing")).toBeVisible();
+  await expect(
+    results.getByText("Large — Exceeds the destination file limit"),
+  ).toBeVisible();
+  expect(metadata).toHaveLength(1);
+});
+
+test("library previews private GIFs automatically and collapses extra pages", async ({
+  page,
+}) => {
+  const requests = [];
+  const tokens = [];
+  const first = {
+    asset_id: candidateId,
+    title: "Laugh",
+    frame_count: 6,
+    index_status: "ready",
+    annotation_status: "ready",
+    media_url: "/saved-assets/first/media",
+    caption_en: "Laughing until it hurts.",
+  };
+  const second = {
+    ...first,
+    asset_id: requestId,
+    title: "Wave",
+    media_url: "/saved-assets/extra/media",
+  };
+  await page.route(/\/library\/assets\?/, (route) => {
+    const cursor = new URL(route.request().url()).searchParams.get("cursor");
+    requests.push(cursor);
+    return route.fulfill({
+      json: cursor
+        ? { assets: [second], next_cursor: null }
+        : { assets: [first], next_cursor: "page-two" },
+    });
+  });
+  let failOnce = true;
+  await page.route("**/saved-assets/*/media", async (route) => {
+    tokens.push(route.request().headers().authorization);
+    if (route.request().url().includes("/extra/") && failOnce) {
+      failOnce = false;
+      return route.fulfill({ status: 503, json: {} });
+    }
+    return route.fulfill({ body: gif, contentType: "image/gif" });
+  });
+  await fixtures(page);
+  await page.getByText("My GIF Library", { exact: true }).click();
+  const gallery = page.locator("#library-gallery");
+  const preview = gallery.getByRole("img", { name: "Laugh" });
+  await expect(preview).toBeVisible();
+  expect(
+    await preview.evaluate((img) => img.complete && img.naturalWidth > 0),
+  ).toBeTruthy();
+  await expect(
+    gallery.getByRole("link", { name: "Download GIF" }),
+  ).toHaveAttribute("href", /^blob:/);
+  const firstUrl = await preview.getAttribute("src");
+  await page.getByRole("button", { name: "Load more" }).click();
+  await gallery.getByRole("button", { name: "Retry preview" }).click();
+  const extra = gallery.getByRole("img", { name: "Wave" });
+  await expect(extra).toBeVisible();
+  const extraUrl = await extra.getAttribute("src");
+  await gallery.getByRole("checkbox", { name: "Select Wave" }).check();
+  await page.getByRole("button", { name: "Show fewer" }).click();
+  await expect(extra).toHaveCount(0);
+  await expect(preview).toHaveAttribute("src", firstUrl);
+  expect(
+    await page.evaluate(
+      (url) =>
+        fetch(url).then(
+          () => false,
+          () => true,
+        ),
+      extraUrl,
+    ),
+  ).toBe(true);
+  await expect(page.locator("[data-selection]")).toContainText("(1)");
+  await page.getByRole("button", { name: "Load more" }).click();
+  await expect(
+    gallery.getByRole("checkbox", { name: "Select Wave" }),
+  ).toBeChecked();
+  expect(requests).toEqual([null, "page-two", "page-two"]);
+  expect(tokens.every((token) => token === undefined)).toBe(true);
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.getByRole("button", { name: "Filters", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Apply filters" }),
+  ).toBeVisible();
+  const library = page.locator("#private-library");
+  expect(await library.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
+    true,
+  );
+  expect(
+    await library.evaluate(async (el) => {
+      await document.fonts.ready;
+      return (
+        getComputedStyle(el.querySelector("input")).fontFamily.includes(
+          "Computer Modern",
+        ) &&
+        [...document.fonts].some(
+          (font) =>
+            font.family.includes("Computer Modern") && font.status === "loaded",
+        )
+      );
+    }),
+  ).toBe(true);
+});
+
+test("selected GIFs show completed AI tags without a refresh or an index retry", async ({
+  page,
+}) => {
+  const batch = [
+    { asset_id: candidateId, title: "Wave" },
+    { asset_id: requestId, title: "Applause" },
+  ].map((asset) => ({
+    ...asset,
+    frame_count: 2,
+    index_status: "failed",
+    annotation_status: "not_requested",
+    media_url: `/saved-assets/${asset.asset_id}/media`,
+    tags: [],
+  }));
+  const actions = [];
+  let mediaReads = 0;
+  const statusReads = new Map();
+  await page.route(/\/library\/assets\?/, (route) => {
+    const next = new URL(route.request().url()).searchParams.has("cursor");
+    return route.fulfill({
+      json: {
+        assets: [batch[next ? 1 : 0]],
+        next_cursor: next ? null : "next",
+      },
+    });
+  });
+  await page.route("**/saved-assets/*/media", (route) => {
+    mediaReads++;
+    return route.fulfill({ contentType: "image/gif", body: gif });
+  });
+  await page.route("**/saved-assets/*/index-retry", (route) => {
+    actions.push("index retry");
+    return route.fulfill({ json: {} });
+  });
+  await page.route("**/library/annotations", (route) => {
+    const body = route.request().postDataJSON();
+    actions.push(body);
+    return route.fulfill({
+      json: {
+        assets: body.asset_ids.map((asset_id) => ({
+          asset_id,
+          annotation_status: "pending",
+        })),
+      },
+    });
+  });
+  await page.route(/\/library\/assets\/[\w-]+$/, (route) => {
+    const id = new URL(route.request().url()).pathname.split("/").at(-1);
+    const asset = batch.find((a) => a.asset_id === id);
+    const n = (statusReads.get(id) || 0) + 1;
+    statusReads.set(id, n);
+    if (n === 1)
+      return route.fulfill({
+        json: { ...asset, annotation_status: "running" },
+      });
+    return route.fulfill({
+      json:
+        id === requestId
+          ? {
+              ...asset,
+              annotation_status: "ready",
+              tags: ["celebration"],
+              ocr_text: "Bravo!",
+            }
+          : {
+              ...asset,
+              annotation_status: "failed",
+              annotation_error: "provider_timeout",
+            },
+    });
+  });
+  await fixtures(page);
+  await page.getByText("My GIF Library", { exact: true }).click();
+  await page.getByRole("button", { name: "Load more" }).click();
+  for (const asset of batch)
+    await page.getByRole("checkbox", { name: `Select ${asset.title}` }).check();
+  const card = page
+    .locator(".library-card")
+    .filter({ has: page.getByRole("heading", { name: "Applause" }) });
+  await expect(card.getByRole("link", { name: "Download GIF" })).toBeVisible();
+  const preview = await card.getByRole("img").getAttribute("src");
+  const reads = mediaReads;
+  await card.getByText("Edit details", { exact: true }).click();
+  await card.getByLabel("Title", { exact: true }).fill("Unsaved title");
+  await page.getByRole("button", { name: /Selection tools/ }).click();
+  await page.getByRole("button", { name: "Analyze selected GIFs" }).click();
+  await page
+    .getByRole("dialog", { name: "Analyze 2 selected GIFs?" })
+    .getByRole("button", { name: "Analyze", exact: true })
+    .click();
+  await expect(card.getByText("celebration", { exact: true })).toBeVisible({
+    timeout: 10000,
+  });
+  await expect(card.getByText("Image text: Bravo!")).toBeVisible();
+  await expect(
+    page.getByText(/Analysis failed \(provider_timeout\)/),
+  ).toBeVisible();
+  await expect(card.getByLabel("Title", { exact: true })).toHaveValue(
+    "Unsaved title",
+  );
+  await expect(card.getByRole("checkbox")).toBeChecked();
+  await expect(card.getByRole("img")).toHaveAttribute("src", preview);
+  expect(mediaReads).toBe(reads);
+  expect(actions).toEqual([
+    { asset_ids: [candidateId, requestId], consent: true },
+  ]);
+  await expect(page.getByRole("button", { name: "Show fewer" })).toBeVisible();
+});
+
+test("legacy share waits for confirmation and falls back to original download", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(navigator, "canShare", {
+      configurable: true,
+      value: undefined,
+    });
+  });
+  const { reviews } = await fixtures(page);
+  await page.route("**/candidates/*/media", (route) =>
+    route.fulfill({ contentType: "image/gif", body: animatedGif }),
+  );
+  await upload(page);
+  const share = page.locator(".share-gif");
+  await expect(share).toBeHidden();
+  await page.getByRole("button", { name: "This is the one" }).click();
+  await share.click();
+  await expect(page.getByText(/暂不支持分享/)).toBeVisible();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: /Download GIF/ }).click();
+  expect(readFileSync(await (await download).path())).toEqual(animatedGif);
+  expect(reviews).toHaveLength(1);
+});
+
+test("saved local GIF shares its permanent file even with failed indexing", async ({
+  page,
+}) => {
+  const asset = "50000000-0000-4000-8000-000000000001";
+  await page.addInitScript(() => {
+    navigator.canShare = () => true;
+    navigator.share = async ({ files }) => {
+      window.shared = Array.from(new Uint8Array(await files[0].arrayBuffer()));
+    };
+  });
+  const { reviews } = await fixtures(page, {
+    ...complete,
+    candidates: [
+      {
+        ...candidate,
+        asset_id: asset,
+        save_status: "saved",
+        index_status: "failed",
+      },
+    ],
+  });
+  await page.route(`**/saved-assets/${asset}/media`, (route) =>
+    route.fulfill({ contentType: "image/gif", body: animatedGif }),
+  );
+  await upload(page);
+  await page.getByRole("button", { name: /Share GIF/ }).click();
+  await page.getByRole("button", { name: /Open share menu/ }).click();
+  await expect
+    .poll(() => page.evaluate(() => window.shared))
+    .toEqual([...animatedGif]);
+  expect(reviews).toHaveLength(0);
+});
+
+test("share media errors stay on the card and never invoke the share menu", async ({
+  page,
+}) => {
+  const asset = "50000000-0000-4000-8000-000000000001";
+  await page.addInitScript(() => {
+    window.shareCalls = 0;
+    navigator.canShare = () => true;
+    navigator.share = async () => {
+      window.shareCalls++;
+    };
+  });
+  await fixtures(page, {
+    ...complete,
+    candidates: [{ ...candidate, asset_id: asset, save_status: "saved" }],
+  });
+  let failure = 401;
+  await page.route(`**/saved-assets/${asset}/media`, (route) =>
+    failure
+      ? route.fulfill({ status: failure })
+      : route.fulfill({ contentType: "image/png", body: png }),
+  );
+  await upload(page);
+  const share = page.getByRole("button", { name: /Share GIF/ });
+  const card = page.locator(".candidate").filter({ has: share });
+  await share.click();
+  await expect(card.getByText("Sign in to open your library.")).toBeVisible();
+  failure = 410;
+  await share.click();
+  await expect(card.getByText(/GIF has expired/)).toBeVisible();
+  failure = 0;
+  await share.click();
+  await expect(card.getByText(/原文件不是 GIF/)).toBeVisible();
+  await expect(share).toBeEnabled();
+  expect(await page.evaluate(() => window.shareCalls)).toBe(0);
+});
+
+test("changing the screenshot discards an in-flight GIF preparation", async ({
+  page,
+}) => {
+  const asset = "50000000-0000-4000-8000-000000000001";
+  await page.addInitScript(() => {
+    window.shareCalls = 0;
+    navigator.canShare = () => true;
+    navigator.share = async () => {
+      window.shareCalls++;
+    };
+  });
+  await fixtures(page, {
+    ...complete,
+    candidates: [{ ...candidate, asset_id: asset, save_status: "saved" }],
+  });
+  let respond;
+  const held = new Promise((resolve) => {
+    respond = resolve;
+  });
+  await page.route(`**/saved-assets/${asset}/media`, async (route) => {
+    await held;
+    await route.fulfill({ contentType: "image/gif", body: animatedGif });
+  });
+  await upload(page);
+  const pending = page.waitForRequest(`**/saved-assets/${asset}/media`);
+  await page.getByRole("button", { name: /Share GIF/ }).click();
+  await pending;
+  await page.locator("#file-input").setInputFiles({
+    name: "replacement.png",
+    mimeType: "image/png",
+    buffer: png,
+  });
+  await expect(page.locator("#file-name")).toHaveText("replacement.png");
+  respond();
+  await expect(page.locator(".share-gif")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /Open share menu/ }),
+  ).toHaveCount(0);
+  expect(await page.evaluate(() => window.shareCalls)).toBe(0);
 });

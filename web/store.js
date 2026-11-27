@@ -3,7 +3,12 @@ let database;
 function open() {
   if (!database)
     database = new Promise((resolve, reject) => {
-      const request = indexedDB.open("memeretrieve-web", 1);
+      const request = indexedDB.open(
+        document.documentElement.dataset.account
+          ? "memeretrieve-web:" + document.documentElement.dataset.account
+          : "memeretrieve-web",
+        1,
+      );
       request.onupgradeneeded = () =>
         request.result.createObjectStore("session");
       request.onsuccess = () => resolve(request.result);
@@ -14,7 +19,7 @@ function open() {
   return database;
 }
 
-async function transaction(write, value) {
+async function transaction(write, value, key = "current") {
   try {
     const db = await open();
     return await new Promise((resolve, reject) => {
@@ -22,9 +27,9 @@ async function transaction(write, value) {
       const store = tx.objectStore("session");
       const request = write
         ? value === null
-          ? store.delete("current")
-          : store.put(value, "current")
-        : store.get("current");
+          ? store.delete(key)
+          : store.put(value, key)
+        : store.get(key);
       tx.oncomplete = () => resolve(write ? undefined : request.result);
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error);
@@ -38,3 +43,6 @@ async function transaction(write, value) {
 
 export const loadSession = () => transaction(false);
 export const saveSession = (value) => transaction(true, value);
+
+export const loadFavorite = (key) => transaction(false, undefined, key);
+export const saveFavorite = (key, value) => transaction(true, value, key);

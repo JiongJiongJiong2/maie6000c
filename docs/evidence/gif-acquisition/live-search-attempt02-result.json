@@ -1,0 +1,102 @@
+{
+  "status": "failed",
+  "result_kind": "no_results",
+  "stop_reason": "media_processing_failed",
+  "candidates": [],
+  "trace": [
+    {
+      "round": 1,
+      "step": "plan",
+      "elapsed_ms": 0,
+      "details": {
+        "query": "Rotating earth large Wikimedia Commons GIF"
+      }
+    },
+    {
+      "round": 1,
+      "step": "search",
+      "elapsed_ms": 3635,
+      "details": {
+        "provider": "ddgs",
+        "new_sources": 4,
+        "rejected": 0
+      }
+    },
+    {
+      "round": 1,
+      "step": "resolve_sources",
+      "elapsed_ms": 3667,
+      "details": {
+        "page_requests": 0,
+        "pages_used": 0,
+        "media_count": 0,
+        "reasons": {
+          "unsupported_source": 4
+        },
+        "redirects": 0,
+        "hosts": [
+          "commons.wikimedia.org",
+          "en.wikipedia.org",
+          "wiki2.org"
+        ]
+      }
+    },
+    {
+      "round": 2,
+      "step": "plan",
+      "elapsed_ms": 3667,
+      "details": {
+        "query": "Rotating earth large Wikimedia Commons GIF GIF 动态表情 原图"
+      }
+    },
+    {
+      "round": 2,
+      "step": "search",
+      "elapsed_ms": 10862,
+      "details": {
+        "provider": "ddgs",
+        "new_sources": 6,
+        "rejected": 0
+      }
+    },
+    {
+      "round": 2,
+      "step": "resolve_sources",
+      "elapsed_ms": 10863,
+      "details": {
+        "page_requests": 0,
+        "pages_used": 0,
+        "media_count": 0,
+        "reasons": {
+          "unsupported_source": 6
+        },
+        "redirects": 0,
+        "hosts": [
+          "danjana.ro",
+          "steamcommunity.com",
+          "www.mk.co.kr"
+        ]
+      }
+    },
+    {
+      "round": 0,
+      "step": "stop",
+      "elapsed_ms": 10863,
+      "details": {
+        "reason": "media_processing_failed",
+        "search_calls": 2,
+        "planner_calls": 0,
+        "downloads_used": 0
+      }
+    }
+  ],
+  "warnings": [
+    "resolve_unsupported_source",
+    "resolve_source_unavailable"
+  ],
+  "search_calls": 2,
+  "planner_calls": 0,
+  "downloads_used": 0,
+  "model_version": null,
+  "agent_version": "web-search-v1"
+}

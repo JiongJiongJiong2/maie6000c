@@ -1,0 +1,16 @@
+{
+  "sources": [
+    {
+      "title": "",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Rotating_earth_(large).gif",
+      "image_url": "https://upload.wikimedia.org/wikipedia/commons/2/2c/Rotating_earth_%28large%29.gif?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+      "snippet": "",
+      "provider": "direct_source_check"
+    }
+  ],
+  "failures": [],
+  "page_requests": 1,
+  "redirects": 0,
+  "diagnostics": [],
+  "reasons": {}
+}

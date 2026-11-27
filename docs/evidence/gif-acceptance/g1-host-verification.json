@@ -1,0 +1,22 @@
+{
+  "executed_at": "2026-11-11T20:45:11.394834+08:00",
+  "implementation_sha256": "62f1c0dea6a7f10c10cca0c0fa5fdb8250046bd1c71d5042d9755d14d73c4118",
+  "baseline_sha": "c34d9f6c55a1febbe78fcbf275baab70536424d7",
+  "image_sha256": "fb69020693a4a54cda6d987a8611158e036c713d0f300c898d7474947219434c",
+  "threshold": "0.82",
+  "sample_rule": "uniform min(8, frame_count); max normalized dot product",
+  "target_confirmation": "requires independent human review",
+  "check": "direct_source_check",
+  "provider": "manual source",
+  "passed": true,
+  "elapsed_seconds": 5.884451917139813,
+  "files": [
+    {
+      "sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+      "byte_size": 1001718,
+      "frame_count": 44,
+      "score": 0.9999999403953552,
+      "relative_path": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378.gif"
+    }
+  ]
+}

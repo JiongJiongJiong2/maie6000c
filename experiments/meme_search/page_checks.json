@@ -1,0 +1,24 @@
+{
+  "date_local": "2026-10-30",
+  "items": [
+    {
+      "url": "https://www.sohu.com/a/751573522_121124731",
+      "host_web_open": "cache_miss",
+      "local_httpx_status": 403,
+      "continued_bypass": false
+    },
+    {
+      "url": "https://weilegetu.com/image/579.html",
+      "host_web_open": "timeout",
+      "local_httpx_status": 200,
+      "observed_media_link": "/images/202201/d5985e0c469293b292d24e53cb3e3b3fmin.gif"
+    },
+    {
+      "url": "https://api.imgflip.com/get_memes",
+      "local_httpx_status": 200,
+      "success": true,
+      "template_count": 100,
+      "used_for_search_ranking": false
+    }
+  ]
+}

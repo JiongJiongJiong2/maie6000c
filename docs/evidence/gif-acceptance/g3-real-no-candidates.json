@@ -1,0 +1,156 @@
+{
+  "executed_at": "2026-11-11T20:57:01.616159+08:00",
+  "code_baseline": "c34d9f6c55a1febbe78fcbf275baab70536424d7",
+  "implementation_sha256": "3f90c8f002a8bcc33f115a26f5a1c12c981c9ec062cedfd1dc416e3821cb98fe",
+  "configuration": {
+    "SEARCH_AGENT_PROVIDER": null,
+    "SEARCH_AGENT_MODE": null,
+    "SEARCH_AGENT_DDGS_BACKEND": null,
+    "SEARCH_AGENT_DOMAINS": null,
+    "RETRIEVAL_MIN_SIMILARITY": null
+  },
+  "input_sha256": "fb69020693a4a54cda6d987a8611158e036c713d0f300c898d7474947219434c",
+  "description": "green dancing parrot bobbing its head animated emoji",
+  "expected": "no_candidates",
+  "transport": "actual HTTP; independent worker; no injected search/embedding",
+  "files": [],
+  "passed": true,
+  "request_id": "fa4df033-d80f-4303-af1b-314d914b71ec",
+  "local_job_id": "418a02e7-cbbf-4e96-bf6d-e4a23c0a5150",
+  "local_result": {
+    "request_id": "fa4df033-d80f-4303-af1b-314d914b71ec",
+    "job_id": "418a02e7-cbbf-4e96-bf6d-e4a23c0a5150",
+    "status": "completed",
+    "job_kind": "local",
+    "stage": "completed",
+    "local_job_id": "418a02e7-cbbf-4e96-bf6d-e4a23c0a5150",
+    "web_searches": [],
+    "result_kind": "no_candidates",
+    "candidates": [],
+    "error": null
+  },
+  "local_candidates": [],
+  "web_job_id": "06c4e477-9146-4c19-aaab-bae9b7626fd8",
+  "same_key_replay": true,
+  "changed_description_conflict": true,
+  "web_result": {
+    "job_id": "06c4e477-9146-4c19-aaab-bae9b7626fd8",
+    "job_kind": "web",
+    "status": "completed",
+    "stage": "completed",
+    "description": "green dancing parrot bobbing its head animated emoji",
+    "result_kind": "no_candidates",
+    "error": null
+  },
+  "job_kind": "web",
+  "retry_link_matches": true,
+  "execution": {
+    "model_version": null,
+    "agent_version": "web-search-v1",
+    "stop_reason": "round_limit",
+    "search_calls": 2,
+    "planner_calls": 0,
+    "downloads_used": 1,
+    "duration_ms": 6429,
+    "trace": [
+      {
+        "round": 1,
+        "step": "plan",
+        "elapsed_ms": 0,
+        "details": {
+          "query": "green dancing parrot bobbing its head animated emoji site:cultofthepartyparrot.com"
+        }
+      },
+      {
+        "round": 1,
+        "step": "search",
+        "elapsed_ms": 1498,
+        "details": {
+          "provider": "ddgs",
+          "backend": "yahoo",
+          "new_sources": 2,
+          "rejected": 0
+        }
+      },
+      {
+        "round": 1,
+        "step": "resolve_sources",
+        "elapsed_ms": 2388,
+        "details": {
+          "page_requests": 1,
+          "pages_used": 1,
+          "media_count": 1,
+          "reasons": {
+            "unsupported_source": 1
+          },
+          "redirects": 0,
+          "diagnostics": [],
+          "hosts": [
+            "cultofthepartyparrot.com"
+          ]
+        }
+      },
+      {
+        "round": 1,
+        "step": "prepare_candidates",
+        "elapsed_ms": 4606,
+        "details": {
+          "candidates": 0,
+          "downloads_used": 1,
+          "rejected": 0,
+          "rejected_low_score": 1,
+          "redirects": 0,
+          "diagnostics": [],
+          "failure_codes": []
+        }
+      },
+      {
+        "round": 2,
+        "step": "plan",
+        "elapsed_ms": 4606,
+        "details": {
+          "query": "green dancing parrot bobbing its head animated emoji GIF 动态表情 原图 site:cultofthepartyparrot.com"
+        }
+      },
+      {
+        "round": 2,
+        "step": "search",
+        "elapsed_ms": 6043,
+        "details": {
+          "provider": "ddgs",
+          "backend": "yahoo",
+          "new_sources": 0,
+          "rejected": 0
+        }
+      },
+      {
+        "round": 2,
+        "step": "resolve_sources",
+        "elapsed_ms": 6044,
+        "details": {
+          "page_requests": 0,
+          "pages_used": 1,
+          "media_count": 0,
+          "reasons": {},
+          "redirects": 0,
+          "diagnostics": [],
+          "hosts": []
+        }
+      },
+      {
+        "round": 0,
+        "step": "stop",
+        "elapsed_ms": 6044,
+        "details": {
+          "reason": "round_limit",
+          "search_calls": 2,
+          "planner_calls": 0,
+          "downloads_used": 1
+        }
+      }
+    ],
+    "warnings": [
+      "resolve_unsupported_source"
+    ]
+  }
+}

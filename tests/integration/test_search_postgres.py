@@ -4,7 +4,7 @@ import io
 import os
 import warnings
 from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from threading import Barrier
 from uuid import UUID, uuid4
@@ -12,24 +12,35 @@ from uuid import UUID, uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from fastapi import UploadFile
+from fastapi import HTTPException, UploadFile
 from PIL import Image
 from sqlalchemy import create_engine, func, inspect, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 
-from services.api.app.search import create_review, create_search, retry_search
+from services.api.app.meme_search import candidate_preview, draft_preview, previews
+from services.api.app.search import (
+    create_review,
+    create_search,
+    read_media,
+    retry_search,
+    save_candidate,
+)
 from services.common.config import get_settings
 from services.common.db import make_session_factory
 from services.common.models import utcnow
 from services.common.search_models import (
     Candidate,
+    MemeCandidateDraft,
     ReferenceAsset,
     ReviewDecision,
+    SearchExecution,
     SearchJob,
     SearchRequest,
 )
-from services.common.search_schemas import RetryCreate, ReviewCreate
+from services.common.search_schemas import RetryCreate, ReviewCreate, SaveCreate
+from services.common.storage import atomic_write, sha256
+from services.worker.app.meme_worker import finalize
 from services.worker.app.search_worker import claim_next_search_job
 
 
@@ -75,6 +86,102 @@ def new_request(db) -> SearchRequest:
     db.add(request)
     db.flush()
     return request
+
+
+def test_postgres_meme_duration_preserves_session_timezone(postgres_backend, monkeypatch):
+    _, factory, _ = postgres_backend
+    started = datetime(2026, 11, 28, 4, 20, tzinfo=timezone.utc)
+    finished = started + timedelta(seconds=21, milliseconds=250)
+    monkeypatch.setattr("services.worker.app.meme_worker.utcnow", lambda: finished)
+
+    with factory() as db:
+        request = new_request(db)
+        job = SearchJob(
+            request_id=request.id,
+            search_profile="meme50-v2",
+            job_kind="web",
+            status="running",
+            started_at=started,
+            analysis={},
+        )
+        db.add(job)
+        db.flush()
+        job_id = job.id
+        db.commit()
+
+    with factory() as db:
+        db.execute(text("SET LOCAL TIME ZONE 'Asia/Shanghai'"))
+        assert db.get(SearchJob, job_id).started_at.utcoffset() == timedelta(hours=8)
+        finalize(db, job_id, {"status": "completed", "candidate_keys": []})
+
+    with factory() as db:
+        assert db.get(SearchExecution, job_id).duration_ms == 21_250
+
+
+def test_postgres_candidate_and_draft_expiry(postgres_backend, monkeypatch):
+    _, factory, _ = postgres_backend
+    now = datetime(2026, 11, 28, 4, 20, tzinfo=timezone.utc)
+    expired = now - timedelta(seconds=1)
+    monkeypatch.setattr("services.api.app.search.utcnow", lambda: now)
+    monkeypatch.setattr("services.api.app.meme_search.utcnow", lambda: now)
+
+    with factory() as db:
+        job = SearchJob(
+            request_id=new_request(db).id,
+            job_kind="web",
+            status="completed",
+            result_kind="candidates",
+            started_at=expired,
+            finished_at=expired,
+        )
+        db.add(job)
+        db.flush()
+        candidate = Candidate(
+            job_id=job.id,
+            rank=1,
+            similarity_score=0.9,
+            frame_count=2,
+            media_format="GIF",
+            source_url="https://example.org/animation",
+            local_cache_path="candidate.gif",
+            cache_expires_at=expired,
+        )
+        drafts = [
+            MemeCandidateDraft(
+                job_id=job.id,
+                draft_key=key,
+                local_path="draft.gif",
+                preview_path="draft.png",
+                data={"content_group_id": key, "score": 0.9, "metadata": {}},
+                expires_at=when,
+            )
+            for key, when in [("expired", expired), ("current", now + timedelta(seconds=1))]
+        ]
+        db.add_all([candidate, *drafts])
+        db.commit()
+        job_id, candidate_id = UUID(job.id), UUID(candidate.id)
+        expired_id, current_id = (UUID(draft.id) for draft in drafts)
+        create_review(
+            job_id,
+            ReviewCreate(candidate_id=candidate_id, decision="accept", client_review_key="review"),
+            db,
+        )
+
+    with factory() as db:
+        db.execute(text("SET LOCAL TIME ZONE 'Asia/Shanghai'"))
+        stored_expiry = db.get(Candidate, str(candidate_id)).cache_expires_at
+        assert stored_expiry.utcoffset() == timedelta(hours=8)
+        for read in (read_media, candidate_preview):
+            with pytest.raises(HTTPException) as error:
+                read(candidate_id, db)
+            assert error.value.status_code == 410 and error.value.detail["code"] == "media_expired"
+        with pytest.raises(HTTPException) as error:
+            save_candidate(candidate_id, SaveCreate(client_save_key="expired-save"), db)
+        assert error.value.status_code == 410 and error.value.detail["code"] == "media_expired"
+        with pytest.raises(HTTPException) as error:
+            draft_preview(job_id, expired_id, db)
+        assert error.value.status_code == 410 and error.value.detail["code"] == "preview_expired"
+        assert [item["draft_id"] for item in previews(job_id, db)["items"]] == [str(current_id)]
 
 
 def test_postgres_migration_round_trip_and_metadata(postgres_backend):
@@ -288,3 +395,229 @@ def test_database_constraints_reject_invalid_states_and_cross_job_review(postgre
         with pytest.raises(IntegrityError):
             db.commit()
         db.rollback()
+
+
+def test_meme50_upgrade_preserves_old_review_fk_and_accepts_fifty_static(postgres_backend):
+    engine, factory, config = postgres_backend
+    # Seed real legacy candidate and composite review FK before the new upgrade.
+    with factory() as db:
+        request = new_request(db)
+        job = SearchJob(
+            request_id=request.id,
+            status="completed",
+            result_kind="candidates",
+            started_at=utcnow(),
+            finished_at=utcnow(),
+        )
+        db.add(job)
+        db.flush()
+        candidate = Candidate(
+            job_id=job.id,
+            rank=1,
+            similarity_score=0.8,
+            source_url="https://example.org/legacy",
+            local_cache_path="legacy.gif",
+            frame_count=2,
+            media_sha256="a" * 64,
+            cache_expires_at=utcnow() + timedelta(days=1),
+        )
+        db.add(candidate)
+        db.flush()
+        review = ReviewDecision(
+            job_id=job.id,
+            candidate_id=candidate.id,
+            decision="accept",
+            client_review_key=str(uuid4()),
+        )
+        db.add(review)
+        db.commit()
+        job_id, candidate_id, review_id = job.id, candidate.id, review.id
+    command.downgrade(config, "20261109_0003")
+    command.upgrade(config, "head")
+    with factory() as db:
+        assert db.get(Candidate, candidate_id).media_sha256 == "a" * 64
+        assert db.get(Candidate, candidate_id).media_kind == "animated"
+        assert db.get(ReviewDecision, review_id).candidate_id == candidate_id
+        assert db.get(SearchJob, job_id).result_count == 1
+        request = new_request(db)
+        request.search_profile = "meme50-v2"
+        job = SearchJob(
+            request_id=request.id, search_profile="meme50-v2", job_kind="web", target_count=50
+        )
+        db.add(job)
+        db.flush()
+        for rank in range(1, 51):
+            db.add(
+                Candidate(
+                    job_id=job.id,
+                    rank=rank,
+                    similarity_score=0.7,
+                    source_url=f"https://example.org/{rank}",
+                    local_cache_path=f"{rank}.png",
+                    frame_count=1,
+                    media_format="PNG",
+                    mime_type="image/png",
+                    media_kind="static",
+                    content_group_id=str(rank),
+                    cache_expires_at=utcnow() + timedelta(days=1),
+                )
+            )
+        db.commit()
+        assert (
+            db.scalar(select(func.count()).select_from(Candidate).where(Candidate.job_id == job.id))
+            == 50
+        )
+    with pytest.raises(RuntimeError, match="Cannot downgrade"):
+        command.downgrade(config, "20261109_0003")
+    assert "meme_candidate_drafts" in inspect(engine).get_table_names()
+    command.check(config)
+
+
+def test_save_first_gif_and_replay_with_immediate_foreign_keys(postgres_backend):
+    _, factory, _ = postgres_backend
+    gif = io.BytesIO()
+    Image.new("RGB", (12, 12), "red").save(
+        gif, format="GIF", save_all=True, append_images=[Image.new("RGB", (12, 12), "blue")]
+    )
+    data = gif.getvalue()
+    atomic_write(get_settings().media_root, "candidate.gif", data)
+    with factory() as db:
+        job = SearchJob(
+            request_id=new_request(db).id, job_kind="web",
+            status="completed", result_kind="candidates",
+            started_at=utcnow(), finished_at=utcnow(),
+        )
+        db.add(job)
+        db.flush()
+        candidate = Candidate(
+            job_id=job.id, rank=1, similarity_score=0.95, frame_count=2,
+            source_url="https://example.org/gif", local_cache_path="candidate.gif",
+            media_sha256=sha256(data), cache_expires_at=utcnow() + timedelta(hours=1),
+        )
+        db.add(candidate)
+        db.commit()
+        candidate_id = UUID(candidate.id)
+        create_review(
+            UUID(job.id),
+            ReviewCreate(candidate_id=candidate_id, decision="accept", client_review_key="review"),
+            db,
+        )
+        payload = SaveCreate(client_save_key="save")
+        saved = save_candidate(candidate_id, payload, db)
+        assert saved.index_status == "pending"
+        assert save_candidate(candidate_id, payload, db).asset_id == saved.asset_id
+        assert db.get(Candidate, str(candidate_id)).saved_asset_id == str(saved.asset_id)
+
+
+def test_private_import_and_candidate_save_share_one_asset(postgres_backend):
+    from services.api.app.library import Manifest, create_import, upload_item
+    from services.common.search_models import SavedAsset
+
+    _, factory, config = postgres_backend
+    command.downgrade(config, "20261111_0004")
+    buffer = io.BytesIO()
+    Image.new("RGB", (12, 12), "green").save(
+        buffer, format="GIF", save_all=True, append_images=[Image.new("RGB", (12, 12), "blue")]
+    )
+    legacy = buffer.getvalue()
+    path = f"saved/{sha256(legacy)}.gif"
+    atomic_write(get_settings().media_root, path, legacy)
+    with factory() as db:
+        old = SavedAsset(sha256=sha256(legacy), title="Legacy", source_url="", image_url="",
+                         provider="test", gif_path=path, frame_count=2, index_status="ready")
+        db.add(old)
+        db.commit()
+        old_id = old.id
+
+    command.upgrade(config, "head")
+    buffer = io.BytesIO()
+    Image.new("RGB", (12, 12), "red").save(
+        buffer, format="GIF", save_all=True, append_images=[Image.new("RGB", (12, 12), "blue")]
+    )
+    data = buffer.getvalue()
+    atomic_write(get_settings().media_root, "candidate.gif", data)
+    with factory() as db:
+        assert db.get(SavedAsset, old_id).index_status == "ready"
+        assert (get_settings().media_root / path).read_bytes() == legacy
+        job = SearchJob(request_id=new_request(db).id, job_kind="web", status="completed",
+                        result_kind="candidates", started_at=utcnow(), finished_at=utcnow())
+        db.add(job)
+        db.flush()
+        candidate = Candidate(
+            job_id=job.id, rank=1, similarity_score=0.95, frame_count=2,
+            source_url="https://example.org/gif", local_cache_path="candidate.gif",
+            media_sha256=sha256(data), cache_expires_at=utcnow() + timedelta(hours=1),
+        )
+        db.add(candidate)
+        db.commit()
+        candidate_id = UUID(candidate.id)
+        create_review(UUID(job.id), ReviewCreate(candidate_id=candidate_id, decision="accept",
+                      client_review_key="library-race-review"), db)
+        batches = []
+        for _ in range(2):
+            item_id = str(uuid4())
+            batch = create_import(Manifest(client_batch_key=str(uuid4()), items=[{
+                "client_item_id": item_id, "filename": "same.gif",
+                "byte_size": len(data), "sha256": sha256(data),
+            }]), db)
+            batches.append((UUID(batch["batch_id"]), item_id))
+
+    barrier = Barrier(3)
+
+    def run(index):
+        with factory() as db:
+            barrier.wait(timeout=5)
+            if index == 2:
+                asset = save_candidate(candidate_id, SaveCreate(client_save_key="library-race"), db)
+                return str(asset.asset_id), "saved"
+            receipt = upload_item(*batches[index], db, data)
+            return receipt["asset_id"], receipt["status"]
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        results = list(executor.map(run, range(3)))
+    assert len({asset_id for asset_id, _ in results}) == 1
+    assert {status for _, status in results[:2]} <= {"imported", "duplicate"}
+    with factory() as db:
+        saved = db.scalar(select(SavedAsset).where(SavedAsset.sha256 == sha256(data)))
+        assert saved.id == results[0][0]
+        assert (get_settings().media_root / saved.gif_path).read_bytes() == data
+
+
+def test_upgrade_backfills_existing_import_batches_without_changing_replay(postgres_backend):
+    from services.api.app.library import Manifest, create_import
+    from services.common.library_models import ImportBatch
+
+    engine, factory, config = postgres_backend
+    payload = Manifest(
+        client_batch_key="legacy-replay",
+        items=[{
+            "client_item_id": "pending",
+            "filename": "old.gif",
+            "byte_size": 42,
+            "sha256": "a" * 64,
+        }],
+    )
+    with factory() as db:
+        initial = create_import(payload, db)
+    command.downgrade(config, "20261117_0006")
+    assert "purpose" not in {
+        column["name"] for column in inspect(engine).get_columns("library_import_batches")
+    }
+    command.upgrade(config, "head")
+    with factory() as db:
+        assert db.get(ImportBatch, initial["batch_id"]).purpose == "upload"
+        assert create_import(payload, db) == initial
+
+
+def test_account_workspaces_and_migrations(postgres_backend, monkeypatch):
+    from services.common import db as database
+    from test_library_accounts import verify_account_libraries
+
+    engine, factory, config = postgres_backend
+    monkeypatch.setenv("PRIVATE_LIBRARY_ENABLED", "true")
+    monkeypatch.setenv("ACCOUNT_LOGIN_ENABLED", "true")
+    get_settings.cache_clear()
+    monkeypatch.setattr(database, "_ENGINE", engine)
+    monkeypatch.setattr(database, "_SESSION_FACTORY", factory)
+    verify_account_libraries(engine)
+    command.upgrade(config, "head")

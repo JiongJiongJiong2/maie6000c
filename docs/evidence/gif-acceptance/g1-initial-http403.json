@@ -1,0 +1,19 @@
+{
+  "sources": [],
+  "failures": [
+    "source_unavailable"
+  ],
+  "page_requests": 1,
+  "redirects": 0,
+  "diagnostics": [
+    {
+      "code": "download_failed",
+      "reason": "http_403",
+      "stage": "http",
+      "http_status": 403
+    }
+  ],
+  "reasons": {
+    "http_403": 1
+  }
+}

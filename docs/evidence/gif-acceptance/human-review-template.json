@@ -1,0 +1,56 @@
+{
+  "instructions": "Only the real user/team member fills these fields. Agent must not infer or sign acceptance.",
+  "cases": [
+    {
+      "case_id": "1",
+      "real_screenshot_path": null,
+      "real_screenshot_sha256": null,
+      "user_description": null,
+      "independent_target_page": null,
+      "permission_reference": null,
+      "web_job_id": null,
+      "candidate_id": null,
+      "original_version_verdict": null,
+      "action_subtitle_crop_notes": null,
+      "human_reviewer": null,
+      "review_date": null
+    },
+    {
+      "case_id": "2",
+      "real_screenshot_path": null,
+      "real_screenshot_sha256": null,
+      "user_description": null,
+      "independent_target_page": null,
+      "permission_reference": null,
+      "web_job_id": null,
+      "candidate_id": null,
+      "original_version_verdict": null,
+      "action_subtitle_crop_notes": null,
+      "human_reviewer": null,
+      "review_date": null
+    },
+    {
+      "case_id": "3",
+      "real_screenshot_path": null,
+      "real_screenshot_sha256": null,
+      "user_description": null,
+      "independent_target_page": null,
+      "permission_reference": null,
+      "web_job_id": null,
+      "candidate_id": null,
+      "original_version_verdict": null,
+      "action_subtitle_crop_notes": null,
+      "human_reviewer": null,
+      "review_date": null
+    }
+  ],
+  "independent_reproduction": {
+    "member": null,
+    "date": null,
+    "code_snapshot_sha256": null,
+    "request_id": null,
+    "web_job_id": null,
+    "api_gif_sha256": null,
+    "result": null
+  }
+}

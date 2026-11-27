@@ -1,10 +1,16 @@
 # MemeRetrieve architecture
 
+## meme50-v2 implementation
+
+The formal web client now defaults to an image-first, optional-description web job with no local-job placeholder. [The current architecture and data-flow contract](meme50.md) documents cloud frame processing, explicit entity verification, reverse image search, shared budgets, credential-free pinned public egress, verified drafts, generic media and revision-bound results. Historical W07/W04 limits below remain attached to those profiles. The v2 implementation is not yet live-search or quality accepted: provider credentials are absent; see [the verification record](meme50-verification.md).
+
 ## W07 implementation
 
 The [current W07 data-flow diagram](../submissions/week07/assets/10-w07-system-flow.png) has an [editable Mermaid source](../submissions/week07/assets/w07-system-flow.mmd). The captured Windows profile runs native PostgreSQL 16.15 in place of the Docker database described below; the API, database schema, independent worker and retrieval path are the same. See [fresh evidence](../submissions/week07/README.md).
 
 The current demo is a same-origin web client served by FastAPI. Host Python runs the API and an independent database-backed worker; Docker runs PostgreSQL 16. The API stores the uploaded crop and commits request/job rows before returning 202. The worker claims pending jobs, invokes `services/retrieval/`, and persists candidates or a typed failure. Polling displays pending, running, completed, or failed. Completed searches distinguish candidates from no_candidates. Review and GIF download are separate outcomes.
+
+The post-midterm backend path adds a user-triggered web job to the same persisted screenshot request. Web candidates remain temporary and retain their provider/page/media provenance; acceptance, durable GIF collection, and index readiness are separate records and states. The worker persists bounded search traces and runs saved-asset index updates behind a hard timeout. A saved GIF is searchable only after the retrieval-owned index adapter reports a successful atomic update; missing adapters produce explicit failed states rather than fabricated candidates or readiness.
 
 The corpus contains 12 Google Noto Animated Emoji GIFs with provenance and checksums in [the catalog](demo-corpus.json). CPU CLIP ViT-B/32 is pinned to `37000f5cdccec47a3f6f83142bff131370757470`. Eight frames per GIF produce 96 indexed vectors. Fresh query inference ranks distinct GIFs by best-frame cosine similarity; the experimental 0.82 threshold is not a calibrated confidence. Model/index versions and manifest checks protect against stale indexes.
 

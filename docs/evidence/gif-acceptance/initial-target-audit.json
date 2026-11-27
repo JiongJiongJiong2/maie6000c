@@ -1,0 +1,12 @@
+{
+  "request_id": "eb43024a-61ee-459f-8e83-57b9009cbc7e",
+  "local_job_id": "529ca97d-0628-4006-a505-e0a7e888e30d",
+  "counts": {
+    "reference": 0,
+    "saved": 0,
+    "previous_candidates": 0,
+    "exact_local_target": 0
+  },
+  "outside_production_lookup_before_first_request": true,
+  "engineering_reference_cache_note": "Known target stored only in separate proposal folder; never used as a candidate fallback"
+}
