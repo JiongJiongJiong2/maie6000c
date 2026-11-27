@@ -92,7 +92,8 @@ def validate_image(data: bytes, *, animated_gif: bool = False) -> int:
 def atomic_write(root: Path, relative: str, data: bytes) -> Path:
     target = contained_path(root, relative)
     target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = target.with_name(f"{target.name}.{uuid4().hex}.tmp")
+    # Hashed media names already occupy much of the Windows account path budget.
+    temporary = target.with_name(f"{uuid4().hex}.tmp")
     try:
         with temporary.open("xb") as output:
             output.write(data)

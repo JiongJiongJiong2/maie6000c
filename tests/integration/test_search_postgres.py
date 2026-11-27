@@ -4,7 +4,7 @@ import io
 import os
 import warnings
 from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from threading import Barrier
 from uuid import UUID, uuid4
@@ -26,11 +26,13 @@ from services.common.search_models import (
     Candidate,
     ReferenceAsset,
     ReviewDecision,
+    SearchExecution,
     SearchJob,
     SearchRequest,
 )
 from services.common.search_schemas import RetryCreate, ReviewCreate, SaveCreate
 from services.common.storage import atomic_write, sha256
+from services.worker.app.meme_worker import finalize
 from services.worker.app.search_worker import claim_next_search_job
 
 
@@ -76,6 +78,36 @@ def new_request(db) -> SearchRequest:
     db.add(request)
     db.flush()
     return request
+
+
+def test_postgres_meme_duration_preserves_session_timezone(postgres_backend, monkeypatch):
+    _, factory, _ = postgres_backend
+    started = datetime(2026, 11, 28, 4, 20, tzinfo=timezone.utc)
+    finished = started + timedelta(seconds=21, milliseconds=250)
+    monkeypatch.setattr("services.worker.app.meme_worker.utcnow", lambda: finished)
+
+    with factory() as db:
+        request = new_request(db)
+        job = SearchJob(
+            request_id=request.id,
+            search_profile="meme50-v2",
+            job_kind="web",
+            status="running",
+            started_at=started,
+            analysis={},
+        )
+        db.add(job)
+        db.flush()
+        job_id = job.id
+        db.commit()
+
+    with factory() as db:
+        db.execute(text("SET LOCAL TIME ZONE 'Asia/Shanghai'"))
+        assert db.get(SearchJob, job_id).started_at.utcoffset() == timedelta(hours=8)
+        finalize(db, job_id, {"status": "completed", "candidate_keys": []})
+
+    with factory() as db:
+        assert db.get(SearchExecution, job_id).duration_ms == 21_250
 
 
 def test_postgres_migration_round_trip_and_metadata(postgres_backend):

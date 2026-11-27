@@ -160,6 +160,51 @@ def test_school_only_cli_does_not_request_google_or_secondary_key(tmp_path, monk
     assert "controlled-school-key" not in output
 
 
+@pytest.mark.parametrize(("entered_key", "expected_exit"), [("controlled-hkgai-key", 0), ("", 2)])
+def test_hkgai_cli_prompts_only_for_its_own_key(
+    tmp_path, monkeypatch, capsys, entered_key, expected_exit
+):
+    config = configure_meme50
+    monkeypatch.setitem(config.MemeSettings.model_config, "env_file", ".env")
+    monkeypatch.setattr(config, "ROOT", tmp_path)
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / ".env"
+    path.write_text(
+        "MEME50_HKUST_API_KEY=controlled-school-key\nDEEPSEEK_API_KEY=controlled-search\n"
+    )
+
+    monkeypatch.setattr("sys.argv", ["configure_meme50", "--provider", "hkgai", "--vision-only"])
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr(
+        "builtins.input",
+        lambda prompt: ""
+        if prompt == "MEME50_HKGAI_MODEL [t2_hkgai-v3_fp8_1m_e10]: "
+        else pytest.fail("must only ask for the HKGAI model"),
+    )
+    prompts = []
+
+    def secret(prompt):
+        prompts.append(prompt)
+        return entered_key
+
+    monkeypatch.setattr(config.getpass, "getpass", secret)
+    with pytest.raises(SystemExit) as exit_info:
+        config.main()
+    assert exit_info.value.code == expected_exit
+    assert prompts == ["MEME50_HKGAI_API_KEY: "]
+    values = dotenv_values(path)
+    assert values["MEME50_VISION_PROVIDER"] == "hkgai"
+    assert values["MEME50_PROVIDER_POLICY"] == "hkgai-deepseek-v1"
+    assert values["MEME50_HKGAI_MODEL"] == "t2_hkgai-v3_fp8_1m_e10"
+    assert values.get("MEME50_HKGAI_API_KEY", "") == entered_key
+    assert values["MEME50_HKUST_API_KEY"] == "controlled-school-key"
+    assert values["DEEPSEEK_API_KEY"] == "controlled-search"
+    output = capsys.readouterr().out
+    assert '"vision_provider": "hkgai"' in output
+    assert '"authorization_verified": false' in output
+    assert "controlled-" not in output
+
+
 def test_search_only_cli_preserves_school_key_and_model(tmp_path, monkeypatch):
     from scripts import configure_meme50 as config
     from services.search_agent.meme_types import MemeSettings
@@ -172,9 +217,11 @@ def test_search_only_cli_preserves_school_key_and_model(tmp_path, monkeypatch):
     config.merge_private_env(
         path,
         {
-            "MEME50_VISION_PROVIDER": "hkust",
+            "MEME50_VISION_PROVIDER": "hkgai",
+            "MEME50_PROVIDER_POLICY": "hkgai-deepseek-v1",
             "MEME50_HKUST_API_KEY": "controlled-school-key",
             "MEME50_HKUST_MODEL": "gemini-2.5-flash-lite",
+            "MEME50_HKGAI_API_KEY": "controlled-hkgai-key",
         },
     )
     monkeypatch.setattr("sys.argv", ["configure_meme50", "--search-only"])
@@ -198,6 +245,9 @@ def test_search_only_cli_preserves_school_key_and_model(tmp_path, monkeypatch):
     assert prompts == ["DEEPSEEK_API_KEY: "]
     assert dotenv_values(path)["MEME50_HKUST_API_KEY"] == "controlled-school-key"
     assert dotenv_values(path)["MEME50_HKUST_MODEL"] == "gemini-2.5-flash-lite"
+    assert dotenv_values(path)["MEME50_VISION_PROVIDER"] == "hkgai"
+    assert dotenv_values(path)["MEME50_PROVIDER_POLICY"] == "hkgai-deepseek-v1"
+    assert dotenv_values(path)["MEME50_HKGAI_API_KEY"] == "controlled-hkgai-key"
 
 
 def test_explicit_test_credentials_override_all_dotenv_aliases(tmp_path):
@@ -206,6 +256,7 @@ def test_explicit_test_credentials_override_all_dotenv_aliases(tmp_path):
     path = tmp_path / ".env"
     fields = {
         "hkust_api_key": "MEME50_HKUST_API_KEY",
+        "hkgai_api_key": "MEME50_HKGAI_API_KEY",
         "gemini_api_key": "MEME50_GEMINI_API_KEY",
         "google_vision_api_key": "MEME50_GOOGLE_VISION_API_KEY",
         "brave_api_key": "MEME50_BRAVE_API_KEY",
@@ -218,7 +269,7 @@ def test_explicit_test_credentials_override_all_dotenv_aliases(tmp_path):
     assert all(
         (
             getattr(settings, name).get_secret_value()
-            if name == "deepseek_api_key"
+            if name in {"deepseek_api_key", "hkgai_api_key"}
             else getattr(settings, name)
         )
         == "controlled-constructor-value"

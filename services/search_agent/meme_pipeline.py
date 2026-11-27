@@ -18,6 +18,7 @@ from .captions import caption_overlap, caption_phrases, product_listing, wants_p
 from .entity_verifier import REFERENCE_SIMILARITY, verify_entities
 from .meme_fetch import FetchClient
 from .meme_deepseek import DeepSeekWeb, DeepSeekQueryPlanner, retrieval_queries
+from .meme_providers import vision_client
 from .meme_types import Ledger, MediaSource, MemeSettings, PipelineError, PreparedMedia, Query
 from .page_media import page_sources
 from .visual_analysis import analyze_image
@@ -146,6 +147,7 @@ def search_memes(
         stage("preprocessing")
         data = Path(image_path).read_bytes()
         input_meta = inspect_media(data)
+        vision = None if analyze else vision_client(settings, ledger)
         if saved_analysis is not None:
             analysis = saved_analysis.model_copy(deep=True)
             query_frames, _ = representative_frames(data, count=4)
@@ -202,7 +204,9 @@ def search_memes(
             ]
         reverse_ok = False
         if reverse is None:
-            ledger.note("reverse_image_disabled", reason="hkust-deepseek-only")
+            ledger.note(
+                "reverse_image_disabled", reason="provider_policy", policy=settings.provider_policy
+            )
         for frame in query_frames[:2] if reverse is not None else []:
             try:
                 sources, ocr, entities = reverse.search(frame)
@@ -235,9 +239,8 @@ def search_memes(
         review_enabled = bool(
             phrases
             and input_meta.frame_count == 1
-            and not analyze
-            and settings.hkust_api_key
-            and settings.vision_provider == "hkust"
+            and vision is not None
+            and vision.api_key
             and ledger.counts["model_calls"] < settings.max_model_calls
         )
         shortlist_floor = (

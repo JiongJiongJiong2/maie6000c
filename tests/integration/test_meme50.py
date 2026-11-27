@@ -158,9 +158,12 @@ def test_fifty_stable_results_filters_and_integrity(client, db_session):
     assert client.get(static["media_url"]).status_code == 503
 
 
-def test_worker_stream_drafts_final_and_missing_final(client, db_session, monkeypatch):
-    monkeypatch.setenv("MEME50_VISION_PROVIDER", "hkust")
+@pytest.mark.parametrize("provider", ["hkust", "hkgai"])
+def test_worker_stream_drafts_final_and_missing_final(client, db_session, monkeypatch, provider):
+    monkeypatch.setenv("MEME50_VISION_PROVIDER", provider)
+    monkeypatch.setenv("MEME50_PROVIDER_POLICY", f"{provider}-deepseek-v1")
     monkeypatch.setenv("MEME50_HKUST_API_KEY", "controlled-school-key")
+    monkeypatch.setenv("MEME50_HKGAI_API_KEY", "controlled-hkgai-key")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "controlled-deepseek-key")
     accepted = upload(client).json()
     job = db_session.get(SearchJob, accepted["job_id"])
@@ -172,7 +175,10 @@ def test_worker_stream_drafts_final_and_missing_final(client, db_session, monkey
     from pathlib import Path
 
     def stream(payload, timeout):
-        assert payload["settings"]["vision_provider"] == "hkust"
+        assert payload["settings"]["vision_provider"] == provider
+        assert payload["settings"]["provider_policy"] == f"{provider}-deepseek-v1"
+        assert "hkgai_api_key" not in payload["settings"]
+        assert "controlled-hkgai-key" not in str(payload)
         assert "hkust_api_key" not in payload["settings"]
         assert "deepseek_api_key" not in payload["settings"]
         assert "controlled-deepseek-key" not in str(payload)
@@ -213,6 +219,7 @@ def test_worker_stream_drafts_final_and_missing_final(client, db_session, monkey
     db_session.expire_all()
     assert db_session.get(SearchJob, job.id).status == "completed"
     assert "hkust_api_key" not in db_session.get(SearchJob, job.id).configuration
+    assert "hkgai_api_key" not in db_session.get(SearchJob, job.id).configuration
     assert "deepseek_api_key" not in db_session.get(SearchJob, job.id).configuration
     assert client.get(f"/search-jobs/{job.id}/results").json()["total_all"] == 1
     assert db_session.scalar(
@@ -229,7 +236,10 @@ def test_worker_stream_drafts_final_and_missing_final(client, db_session, monkey
     assert failed.status == "failed" and failed.error_code == "runner_missing_final"
 
 
-def test_retry_resumes_search_from_same_images_planned_queries(client, db_session, monkeypatch):
+@pytest.mark.parametrize("changed", [None, "provider", "vision_model", "planner_model"])
+def test_retry_reuses_planned_queries_only_under_same_policy(
+    client, db_session, monkeypatch, changed
+):
     from services.search_agent import meme_pipeline
     from services.search_agent.meme_types import VisualAnalysis
     from types import SimpleNamespace
@@ -246,6 +256,13 @@ def test_retry_resumes_search_from_same_images_planned_queries(client, db_sessio
     retry = db_session.get(SearchJob, response.json()["job_id"])
     retry.status, retry.started_at = "running", utcnow()
     db_session.commit()
+    if changed == "provider":
+        monkeypatch.setenv("MEME50_PROVIDER_POLICY", "hkgai-deepseek-v1")
+        monkeypatch.setenv("MEME50_VISION_PROVIDER", "hkgai")
+    if changed == "vision_model":
+        monkeypatch.setenv("MEME50_HKUST_MODEL", "other-model")
+    if changed == "planner_model":
+        monkeypatch.setenv("MEME50_DEEPSEEK_MODEL", "other-planner")
     searches = []
     monkeypatch.setattr(meme_pipeline, "analyze_image", lambda *args: pytest.fail("re-analyzed"))
     monkeypatch.setattr(
@@ -253,6 +270,9 @@ def test_retry_resumes_search_from_same_images_planned_queries(client, db_sessio
     )
 
     def stream(payload, timeout):
+        if changed:
+            assert "saved_analysis" not in payload
+            return iter([])
         saved = VisualAnalysis.model_validate(payload["saved_analysis"])
         events = []
         meme_pipeline.search_memes(
@@ -276,6 +296,9 @@ def test_retry_resumes_search_from_same_images_planned_queries(client, db_sessio
         retry.id, factory=make_session_factory(db_session.get_bind()), event_stream=stream
     )
     db_session.expire_all()
+    if changed:
+        assert retry.error_code == "runner_missing_final"
+        return
     assert retry.status == "completed"
     assert searches == [query["text"]]
     assert retry.analysis["queries"] == [query]

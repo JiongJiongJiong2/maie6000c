@@ -87,6 +87,27 @@ def test_search_returns_actual_pages_or_direct_urls_not_invented_images(monkeypa
     assert ledger.counts["queries"] == ledger.counts["search_calls"] == 1
 
 
+@pytest.mark.parametrize("namespace", ["File:", "File%3A", "file:"])
+def test_search_treats_commons_file_namespace_as_page_and_preserves_direct_urls(
+    monkeypatch, namespace
+):
+    page = f"https://commons.wikimedia.org/wiki/{namespace}Example.gif"
+    original = "https://upload.wikimedia.org/wikipedia/commons/a/ab/Example.gif?download=1"
+    ordinary = "https://cdn.example.org/reaction/Gesture.GIF?size=full"
+    monkeypatch.setattr(
+        deepseek,
+        "bounded_json",
+        lambda *a, **k: {"results": [{"url": url} for url in (page, original, ordinary)]},
+    )
+    s = settings()
+    items = deepseek.DeepSeekWeb(s, Ledger(s)).search("animated reaction GIF", 3)
+    assert [(item.source_url, item.source_type, item.media_url) for item in items] == [
+        (page, "page", None),
+        (original, "direct", original),
+        (ordinary, "direct", ordinary),
+    ]
+
+
 def test_verification_binds_to_actual_search_url_and_query_limit(monkeypatch):
     def request(method, url, ledger, **kwargs):
         assert len(kwargs["json"]["query"]) == 128 and kwargs["json"]["count"] == 5

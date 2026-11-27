@@ -2,6 +2,21 @@
 
 计划日期为 2026-11-27。范围和四人分工沿用[后半程项目计划](final-project-plan.md)。本轮在 PR #10 的私人表情库代码线上推进。正式入口为 `/web/`，主流程是截图本地检索、主动联网续搜、找回原 GIF、确认收藏和后续本地复用。私人库的批量导入、备份还原和可选识别一并做集成回归。
 
+## 11 月 28 日开发交付快照
+
+当日核对 GitHub 共 18 个分支。开始验收时，`dev` 在 `1e8feb0`，已集成多帧截图检索、持久化搜索、在线候选获取、动画校验、去重和原件下载。最近一次有完整记录的真实网页任务返回 48 个文件，含 25 个动画，逐个验证了解码和原件 SHA-256。该记录可支撑这些功能的演示；真实用户截图的原 GIF Top-3 命中率另按独立样本统计。[真实媒体验收](meme50-dedup-fix-20261113.md)
+
+| 分支（按已有提交归属） | 开发进展与处置 |
+| --- | --- |
+| `main`、`dev` | `main` 在 W07 发布点 `1631d78`。本次产品开发集成目标为 `dev`。 |
+| `codex/private-meme-library`、`codex/saved-gif-reuse`、`codex/continue-web-search` | [PR #10](https://github.com/JiongJiongJiong2/maie6000c/pull/10) 包含后两条分支的收藏建索引和关联续搜提交，亦包括批量导入、备份还原、账户隔离、字幕搜索与 Windows 配置修复。11 月 27 日实测了 DeepSeek API 和重启后的离线复用，11 月 28 日的验收覆盖正式网页按钮及可选 HKGAI 识图。 |
+| `codex/share-gif`、`codex/yuanjian-retrieval-validation`、`codex/chat-import-experiments` | 原 GIF 分享、检索评估与 Safari/Windows 兼容、聊天应用导入实验存在独立改动。若演示需要某设备，先核对该设备所需提交和真机表现。原生聊天贴纸导入不在原期末核心范围。 |
+| `feature/w07-retrieval` | [PR #4](https://github.com/JiongJiongJiong2/maie6000c/pull/4) 为早期检索实现，现有 `dev` 已有多帧检索；独有验证与当前实现需要逐项比对后再处置。 |
+| `codex/meme-search-pilot`、`codex/real-gif-acquisition`、`feature/backend-final-integration` | 三条分支的提交均已进入 `dev`。 |
+| `codex/w07-fullstack-demo`、`codex/w07-integration`、`codex/w07-submission`、`docs/w07-dev-setup`、`feature/w03-readiness-case-jobs`、`feature/w07-backend` | 六条分支的提交均已进入 `dev`，可按既有里程碑追溯。 |
+
+开发冻结优先签收一条用户可复演的路径：网页本地未命中、主动续搜、看见并下载原动画、收藏、服务重启后换帧离线检索、再次下载字节相同的原件。团队可并行准备演示和启动说明。至少 30 个真实需求的 A/B/C 对照、真人判分、四位成员独立复现和完整 W13 提交物仍需收尾；当前 `submissions/` 有 W03、W04 和 W07，W13 有模板。四位成员的职责和验收口径见下表。[W13 模板](../templates/submissions/week13/README.md)
+
 ## 完成目标
 
 > 在同一个可复现的候选版本上，用一张有独立目标凭证、目标 GIF 起初不在本地的截图，从正式 `/web/` 完成本地检索、主动联网续搜、原 GIF 播放与下载、确认收藏和索引就绪。重启 API 与 worker 并禁用外部供应商后，以新请求从本地找回同一资产，下载原件的 SHA-256 与首次联网取得的原件一致。随后完成真实需求 A/B/C 对照、真人判分、四位成员独立复现和 W13 材料，提交团队评审。团队验收后另行确认 `dev → main`、期末标签及课程提交。

@@ -188,19 +188,28 @@ def test_finalizer_empty_artifacts_and_fake_provider_success_are_pending():
     assert result["gates"]["A0"] == "pending"  # No actual calls / runtime binding.
 
 
-def test_hkust_deepseek_policy_gates_require_real_calls_and_downloaded_media(tmp_path):
-    configuration = acceptance.public_configuration()
+@pytest.mark.parametrize(
+    ("vision_provider", "vision_model"),
+    [("hkust", "gemini-2.5-flash-lite"), ("hkgai", "t2_hkgai-v3_fp8_1m_e10")],
+)
+def test_vision_policy_gates_require_real_calls_and_downloaded_media(
+    tmp_path, vision_provider, vision_model
+):
+    policy = f"{vision_provider}-deepseek-v1"
+    configuration = acceptance.public_configuration(
+        acceptance.MemeSettings(vision_provider=vision_provider, provider_policy=policy)
+    )
     calls = [
         dict(
             name=name,
             provider=provider,
             endpoint_type=endpoint,
             status="passed",
-            model="deepseek-flash" if name == "query_planning" else "gemini-2.5-flash-lite",
+            model="deepseek-flash" if name == "query_planning" else vision_model,
             ledger_delta={counter: 1},
         )
         for name, provider, endpoint, counter in [
-            ("visual", "hkust", "chat/completions", "model_calls"),
+            ("visual", vision_provider, "chat/completions", "model_calls"),
             ("query_planning", "deepseek", "chat/completions", "model_calls"),
             ("keyword_web", "deepseek", "v1/tools/search", "search_calls"),
             ("web_verification", "deepseek", "v1/tools/search", "search_calls"),
@@ -208,7 +217,8 @@ def test_hkust_deepseek_policy_gates_require_real_calls_and_downloaded_media(tmp
     ]
     probe = dict(
         status="passed",
-        provider_policy="hkust-deepseek-v1",
+        provider_policy=policy,
+        vision_provider=vision_provider,
         calls=calls,
         configuration_fingerprint=acceptance.digest(configuration),
         code_fingerprint="controlled-code",
@@ -229,6 +239,12 @@ def test_hkust_deepseek_policy_gates_require_real_calls_and_downloaded_media(tmp
     entries = [(dict(case_id="controlled"), tmp_path, dict(job=job))]
     result = acceptance.finalize_data(probe, entries, {}, {}, [], {}, {}, dict(cases=[]))
     assert result["gates"]["A0"] == result["gates"]["A2"] == "passed"
+    calls[0]["model"] = "unexpected-model"
+    assert (
+        acceptance.finalize_data(probe, entries, {}, {}, [], {}, {}, dict(cases=[]))["gates"]["A0"]
+        == "pending"
+    )
+    calls[0]["model"] = vision_model
     job["progress"]["counts"]["valid_media"] = 0
     assert (
         acceptance.finalize_data(probe, entries, {}, {}, [], {}, {}, dict(cases=[]))["gates"]["A2"]
@@ -239,6 +255,56 @@ def test_hkust_deepseek_policy_gates_require_real_calls_and_downloaded_media(tmp
         acceptance.finalize_data(probe, entries, {}, {}, [], {}, {}, dict(cases=[]))["gates"]["A0"]
         == "pending"
     )
+
+
+def test_hkgai_probe_reports_endpoint_and_fingerprints_model(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from services.search_agent.meme_types import Query, VisualAnalysis
+
+    settings = acceptance.MemeSettings(
+        vision_provider="hkgai",
+        provider_policy="hkgai-deepseek-v1",
+        hkgai_api_key="controlled-hkgai-key",
+    )
+    config = acceptance.public_configuration(settings)
+    fingerprint = acceptance.digest(config)
+    assert set(config).isdisjoint({"hkgai_api_key", "deepseek_api_key"})
+    changed = settings.model_copy(update={"hkgai_model": "another-model"})
+    assert fingerprint != acceptance.digest(acceptance.public_configuration(changed))
+    monkeypatch.setattr(acceptance, "MemeSettings", lambda: settings)
+    monkeypatch.setattr(
+        acceptance,
+        "snapshot",
+        lambda _: {"code_fingerprint": "test", "configuration_fingerprint": fingerprint},
+    )
+
+    queries = [Query(text="animated cat", angle="visual")]
+
+    def analyze(_, description, config, ledger):
+        assert description == "" and config.vision_provider == "hkgai"
+        ledger.take("model_calls")
+        return VisualAnalysis(queries=queries), []
+
+    def plan(*_):
+        return queries
+
+    monkeypatch.setattr(acceptance, "analyze_image", analyze)
+    monkeypatch.setattr(acceptance.DeepSeekQueryPlanner, "plan", plan)
+    monkeypatch.setattr(acceptance.DeepSeekWeb, "search", lambda *_: [])
+    monkeypatch.setattr(acceptance.DeepSeekWeb, "verify", lambda *_: [])
+    image = tmp_path / "input.png"
+    Image.new("RGB", (12, 12)).save(image)
+    out = tmp_path / "probe"
+    acceptance.probe(SimpleNamespace(image=image, out=out))
+    report = json.loads((out / "probe.json").read_text())
+    assert report["vision_provider"] == "hkgai"
+    visual = report["calls"][0]
+    assert visual["provider"] == "hkgai"
+    assert visual["endpoint_type"] == "chat/completions"
+    assert visual["model"] == "t2_hkgai-v3_fp8_1m_e10"
+    assert visual["configuration_fingerprint"] == fingerprint
+    assert "controlled-hkgai-key" not in json.dumps(report)
 
 
 def test_error_diagnostics_drop_messages_and_unknown_reason():

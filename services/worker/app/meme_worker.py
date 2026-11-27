@@ -8,7 +8,7 @@ import subprocess
 import sys
 import threading
 import time
-from datetime import timedelta, timezone
+from datetime import timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -195,6 +195,8 @@ def publish_event(db, job_id, event, work):
 def finalize(db, job_id, payload):
     from sqlalchemy import select
 
+    from .search_worker import elapsed_seconds
+
     job = db.get(SearchJob, job_id)
     if job.status != "running":
         raise ProtocolError("job_not_running")
@@ -317,10 +319,7 @@ def finalize(db, job_id, payload):
                 search_calls=ledger.get("search_calls", 0),
                 planner_calls=ledger.get("model_calls", 0),
                 downloads_used=ledger.get("media_attempts", 0),
-                duration_ms=int(
-                    (job.finished_at - job.started_at.replace(tzinfo=timezone.utc)).total_seconds()
-                    * 1000
-                ),
+                duration_ms=int(elapsed_seconds(job.started_at, job.finished_at) * 1000),
                 trace=payload.get("trace", []),
                 warnings=payload.get("warnings", []),
             )
@@ -341,6 +340,7 @@ def process_meme_job(job_id, *, factory=None, event_stream=None):
         exclude={
             "gemini_api_key",
             "hkust_api_key",
+            "hkgai_api_key",
             "deepseek_api_key",
             "google_vision_api_key",
             "brave_api_key",
@@ -365,10 +365,20 @@ def process_meme_job(job_id, *, factory=None, event_stream=None):
         )
         if job.retry_of_job_id:
             previous = db.get(SearchJob, job.retry_of_job_id)
+            vision_field = {"hkust": "hkust_model", "hkgai": "hkgai_model"}.get(
+                config.vision_provider, "vision_model"
+            )
             if (
                 previous
                 and previous.request_id == request.id
                 and previous.description == job.description
+                and previous.configuration.get("provider_policy", "hkust-deepseek-v1")
+                == config.provider_policy
+                and all(
+                    previous.configuration.get(field, MemeSettings.model_fields[field].default)
+                    == public_config[field]
+                    for field in (vision_field, "deepseek_model")
+                )
                 and previous.analysis
             ):
                 try:

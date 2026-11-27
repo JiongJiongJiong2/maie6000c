@@ -11,13 +11,19 @@ from services.common.media import MediaMetadata
 from services.search_agent.models import Source, Candidate
 
 
+VISION_PROVIDER_POLICIES = {
+    "hkust-deepseek-v1": "hkust",
+    "hkgai-deepseek-v1": "hkgai",
+}
+
+
 class MemeSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", extra="ignore", env_prefix="MEME50_", populate_by_name=True
     )
     vision_model: str = "gemini-3.8-flash"
-    provider_policy: Literal["hkust-deepseek-v1"] = "hkust-deepseek-v1"
-    vision_provider: Literal["gemini", "hkust"] = "hkust"
+    provider_policy: Literal["hkust-deepseek-v1", "hkgai-deepseek-v1"] = "hkust-deepseek-v1"
+    vision_provider: Literal["gemini", "hkust", "hkgai"] = "hkust"
     deepseek_model: str = Field(
         default="deepseek-flash",
         validation_alias=AliasChoices("deepseek_model", "MEME50_DEEPSEEK_MODEL", "DEEPSEEK_MODEL"),
@@ -36,6 +42,13 @@ class MemeSettings(BaseSettings):
         repr=False,
         exclude=True,
         validation_alias=AliasChoices("hkust_api_key", "MEME50_HKUST_API_KEY", "HKUST_API_KEY"),
+    )
+    hkgai_model: str = "t2_hkgai-v3_fp8_1m_e10"
+    hkgai_api_key: SecretStr = Field(
+        default_factory=lambda: SecretStr(""),
+        repr=False,
+        exclude=True,
+        validation_alias=AliasChoices("MEME50_HKGAI_API_KEY", "HKGAI_API_KEY", "hkgai_api_key"),
     )
     gemini_api_key: str = Field(
         default="",
@@ -83,7 +96,11 @@ class MemeSettings(BaseSettings):
 
     @property
     def effective_vision_model(self):
-        return self.hkust_model if self.vision_provider == "hkust" else self.vision_model
+        if self.vision_provider == "hkust":
+            return self.hkust_model
+        if self.vision_provider == "hkgai":
+            return self.hkgai_model
+        return self.vision_model
 
 
 class EntityHypothesis(BaseModel):

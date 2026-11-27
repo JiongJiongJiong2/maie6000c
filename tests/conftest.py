@@ -21,6 +21,8 @@ def isolated_meme50_credentials(monkeypatch, request):
     for name in (
         "MEME50_HKUST_API_KEY",
         "HKUST_API_KEY",
+        "MEME50_HKGAI_API_KEY",
+        "HKGAI_API_KEY",
         "MEME50_GEMINI_API_KEY",
         "GEMINI_API_KEY",
         "GOOGLE_API_KEY",
@@ -29,7 +31,9 @@ def isolated_meme50_credentials(monkeypatch, request):
         "MEME50_BRAVE_API_KEY",
         "BRAVE_API_KEY",
         "MEME50_VISION_PROVIDER",
+        "MEME50_PROVIDER_POLICY",
         "MEME50_HKUST_MODEL",
+        "MEME50_HKGAI_MODEL",
         "MEME50_VISION_MODEL",
         "MEME50_DEEPSEEK_API_KEY",
         "DEEPSEEK_API_KEY",

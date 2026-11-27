@@ -7,7 +7,7 @@ import re
 import httpx
 
 from services.common.media import png_bytes
-from .meme_types import MediaSource, PipelineError
+from .meme_types import VISION_PROVIDER_POLICIES, MediaSource, PipelineError
 
 
 def provider_diagnostic(status, error=None):
@@ -105,6 +105,7 @@ def bounded_json(method, url, ledger, **kwargs):
 
 class GeminiVision:
     provider = "gemini"
+    model_pattern = r"[a-zA-Z0-9.\-]+"
 
     def __init__(self, settings, ledger):
         self.settings, self.ledger = settings, ledger
@@ -117,11 +118,14 @@ class GeminiVision:
     def model(self):
         return self.settings.vision_model
 
-    def analyze(self, frames, user_text, evidence=None):
+    def validate_configuration(self):
         if not self.api_key:
             raise PipelineError("visual_provider_unconfigured")
-        if not re.fullmatch(r"[a-zA-Z0-9.\-]+", self.model):
+        if not re.fullmatch(self.model_pattern, self.model):
             raise PipelineError("visual_model_config")
+
+    def analyze(self, frames, user_text, evidence=None):
+        self.validate_configuration()
         self.ledger.take("model_calls")
         prompt = {
             "task": "Analyze visible meme content and propose varied image search queries. "
@@ -286,28 +290,16 @@ class GeminiVision:
             if any("http" in q.text or "site:" in q.text for q in analysis.queries):
                 raise ValueError
             return analysis
-        except (KeyError, IndexError, TypeError, ValueError):
+        except (KeyError, IndexError, TypeError, ValueError, AttributeError):
             raise PipelineError("visual_response_invalid") from None
 
 
-class HKUSTVision(GeminiVision):
-    """School gateway, with fixed HTTPS destination and its custom auth header.
-
-    Primary and secondary HKUST keys are interchangeable. Neither is a Google
-    Cloud Vision or Brave credential. No credential is sent to a fallback host.
-    """
-
-    provider = "hkust"
-
-    @property
-    def api_key(self):
-        return self.settings.hkust_api_key
-
-    @property
-    def model(self):
-        return self.settings.hkust_model
+class ChatCompletionsVision(GeminiVision):
+    def request_options(self):
+        return {"response_format": {"type": "json_object"}}
 
     def request(self, frames, prompt):
+        self.validate_configuration()
         content = [{"type": "text", "text": json.dumps(prompt, ensure_ascii=False)}]
         content.extend(
             {
@@ -318,18 +310,24 @@ class HKUSTVision(GeminiVision):
             }
             for f in frames[:4]
         )
+        self.ledger.note(
+            "vision_request",
+            provider=self.provider,
+            model=self.model,
+            provider_policy=self.settings.provider_policy,
+        )
         data = bounded_json(
             "POST",
-            "https://hkust.azure-api.net/hkust-genai/v1/chat/completions",
+            self.endpoint,
             self.ledger,
-            headers={"api-key": self.api_key},
+            headers=self.auth_headers(),
             json={
                 "model": self.model,
                 "messages": [{"role": "user", "content": content}],
                 "temperature": 0.1,
                 "max_tokens": 2200,
-                "response_format": {"type": "json_object"},
                 "stream": False,
+                **self.request_options(),
             },
         )
         if data.get("error"):
@@ -346,15 +344,64 @@ class HKUSTVision(GeminiVision):
 
     def response_text(self, data):
         choice = data["choices"][0]
-        if choice.get("finish_reason") not in {None, "stop"}:
+        if not isinstance(choice, dict) or choice.get("finish_reason") not in {None, "stop"}:
             raise ValueError
-        return choice["message"]["content"]
+        content = choice["message"]["content"]
+        if not isinstance(content, str):
+            raise ValueError
+        return content
+
+
+class HKUSTVision(ChatCompletionsVision):
+    """School gateway with a fixed HTTPS destination and a school key."""
+
+    provider = "hkust"
+    endpoint = "https://hkust.azure-api.net/hkust-genai/v1/chat/completions"
+
+    @property
+    def api_key(self):
+        return self.settings.hkust_api_key
+
+    @property
+    def model(self):
+        return self.settings.hkust_model
+
+    def auth_headers(self):
+        return {"api-key": self.api_key}
+
+
+class HKGAIVision(ChatCompletionsVision):
+    """HKGAI gateway with its own bearer credential and fixed HTTPS destination."""
+
+    provider = "hkgai"
+    endpoint = "https://api1.hkgai.net/v1/chat/completions"
+    model_pattern = r"[a-zA-Z0-9_.\-]+"
+
+    @property
+    def api_key(self):
+        return self.settings.hkgai_api_key.get_secret_value()
+
+    @property
+    def model(self):
+        return self.settings.hkgai_model
+
+    def auth_headers(self):
+        return {"Authorization": "Bearer " + self.api_key}
+
+    def request_options(self):
+        return {"chat_template_kwargs": {"enable_thinking": False}}
+
+    def response_text(self, data):
+        content = super().response_text(data).strip()
+        fenced = re.fullmatch(r"```(?:json)?[ \t]*\r?\n(.*?)\r?\n```", content, re.I | re.S)
+        return fenced[1] if fenced else content
 
 
 def vision_client(settings, ledger):
-    if settings.vision_provider != "hkust":
+    if VISION_PROVIDER_POLICIES.get(settings.provider_policy) != settings.vision_provider:
         raise PipelineError("provider_policy_violation")
-    return HKUSTVision(settings, ledger)
+    client_class = {"hkust": HKUSTVision, "hkgai": HKGAIVision}[settings.vision_provider]
+    return client_class(settings, ledger)
 
 
 class GoogleImageSearch:

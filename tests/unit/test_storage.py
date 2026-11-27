@@ -46,3 +46,17 @@ def test_atomic_write_replaces_target_without_leaving_temp_files(tmp_path):
     target = atomic_write(tmp_path, "inputs/test.image", b"second")
     assert target.read_bytes() == b"second"
     assert list(target.parent.glob("*.tmp")) == []
+
+
+def test_hashed_media_temporary_path_fits_when_original_fits(tmp_path, monkeypatch):
+    media_name = "a" * 64 + ".gif"
+    original_open = Path.open
+
+    def open_with_limited_path(path, *args, **kwargs):
+        if len(path.name) > len(media_name):
+            raise FileNotFoundError("Temporary name exceeded the original path budget")
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", open_with_limited_path)
+    target = atomic_write(tmp_path, f"originals/{media_name}", b"original")
+    assert target.read_bytes() == b"original"

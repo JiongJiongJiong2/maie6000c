@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 from .captions import caption_phrases, generic_subject
 from .meme_providers import bounded_json, provider_failure
 from .meme_types import MediaSource, PipelineError, Query
+from .resolvers import is_commons_file_page
 
 
 def check_business_error(data, ledger):
@@ -309,13 +310,15 @@ class DeepSeekWeb:
             if not isinstance(url, str):
                 continue
             try:
-                direct = PurePosixPath(urlsplit(url).path).suffix.lower() in {
+                parsed = urlsplit(url)
+                image_suffix = PurePosixPath(parsed.path).suffix.lower() in {
                     ".png",
                     ".jpg",
                     ".jpeg",
                     ".webp",
                     ".gif",
                 }
+                direct = image_suffix and not is_commons_file_page(parsed)
                 results.append(
                     MediaSource(
                         source_url=url,
