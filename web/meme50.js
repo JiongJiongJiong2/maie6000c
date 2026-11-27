@@ -1,4 +1,4 @@
-import { ApiError, sameOriginPath } from "./api.js";
+import { ApiError, combineSignals, sameOriginPath } from "./api.js";
 let signature = "";
 const urls = new Set();
 let observer;
@@ -99,7 +99,7 @@ export function renderMemeResults(container, result, api, signal, callbacks) {
   disposeMemeResults();
   signature = next;
   cardWork = new AbortController();
-  const cardSignal = AbortSignal.any([signal, cardWork.signal]);
+  const cardSignal = combineSignals([signal, cardWork.signal]);
   container.replaceChildren();
   container.classList.add("meme50-grid");
   observer = new IntersectionObserver(
@@ -189,14 +189,22 @@ export function renderMemeResults(container, result, api, signal, callbacks) {
     body.append(score);
     if (!provisional) {
       if (item.media_kind === "animated") body.append(play);
+      const mediaUrl = () => download.dataset.mediaUrl || item.media_url;
       const download = button("Download image ↓", () =>
         callbacks.download({
           ...item,
-          media_url: download.dataset.mediaUrl || item.media_url,
+          media_url: mediaUrl(),
         }),
       );
       body.append(download);
       if (item.media_format === "GIF" && item.frame_count > 1) {
+        callbacks.share(
+          body,
+          download,
+          item.candidate_id,
+          mediaUrl,
+          cardSignal,
+        );
         callbacks.favorite(result.job_id, item, body, download, cardSignal);
       }
       if (item.source_url) {

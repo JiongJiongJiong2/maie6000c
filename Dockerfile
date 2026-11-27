@@ -8,7 +8,8 @@ WORKDIR /app
 
 COPY pyproject.toml README.md /app/
 COPY services /app/services
-COPY web/account-scraps.webp web/account-stickers.webp web/account-folder.webp web/account.html web/account.js web/index.html web/styles.css web/app.js web/api.js web/store.js web/meme50.js web/library.js /app/web/
+COPY web/account-scraps.webp web/account-stickers.webp web/account-folder.webp web/account.html web/account.js web/index.html web/styles.css web/app.js web/api.js web/store.js web/meme50.js web/library.js web/share.js /app/web/
+COPY web/whatsapp-* /app/web/
 COPY web/fonts /app/web/fonts
 COPY scripts /app/scripts
 COPY alembic /app/alembic

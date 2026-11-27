@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -13,7 +14,7 @@ from PIL import Image
 
 from services.common.config import get_settings
 from services.common.reference_assets import Manifest
-from services.common.storage import contained_path, read_gif, sha256
+from services.common.storage import atomic_write, contained_path, read_gif, sha256
 from services.retrieval.encoder import MODEL_VERSION, encode_image, encode_images
 
 FRAMES_PER_GIF = 8
@@ -56,8 +57,7 @@ def build_index() -> dict:
     }
     path = index_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".tmp")
-    with temporary.open("wb") as output:
+    with io.BytesIO() as output:
         np.savez_compressed(
             output,
             embeddings=embeddings,
@@ -65,7 +65,7 @@ def build_index() -> dict:
             frame_numbers=np.asarray(frame_numbers),
             metadata=json.dumps(metadata),
         )
-    temporary.replace(path)
+        atomic_write(path.parent, path.name, output.getvalue())
     return metadata
 
 
@@ -100,6 +100,7 @@ def search(image_path: Path, top_k: int = 3) -> dict:
         if (
             embeddings.shape != (len(ids), 512)
             or not np.isfinite(embeddings).all()
+            or not np.any(embeddings != 0, axis=1).all()
             or set(ids) != {str(asset.reference_asset_id) for asset in manifest.assets}
         ):
             raise ValueError("The GIF index does not match the corpus")

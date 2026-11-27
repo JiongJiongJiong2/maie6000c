@@ -1,0 +1,465 @@
+{
+  "kind": "derived_frame_demo_ablation_not_held_out",
+  "model_version": "clip-vit-base-patch32@37000f5cdccec47a3f6f83142bff131370757470",
+  "manifest_sha256": "6c894b4b57a5e97089103ce844ea39bf85ead7e9a4086cc60782718d2dfcb2ed",
+  "threshold": 0.82,
+  "sample_count": 12,
+  "includes_cold_model_load": true,
+  "top3_hits": {
+    "first_frame": 11,
+    "multi_frame": 12
+  },
+  "cases": [
+    {
+      "asset_id": "755d2971-1b1d-58ae-9576-71bda109e403",
+      "sha256": "ed0f5e16efdbed5d64db46c41cdbbe6bc9a1d8ca2fd8466553a4230b63c59f14",
+      "frame_count": 59,
+      "query_frame": 19,
+      "elapsed_seconds": 13.294134200001281,
+      "rankings": {
+        "first_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "755d2971-1b1d-58ae-9576-71bda109e403",
+              "score": 0.9917708886342274
+            },
+            {
+              "reference_asset_id": "b7fffe8a-329d-5513-ad9f-fd85852f0c42",
+              "score": 0.960410198220913
+            },
+            {
+              "reference_asset_id": "d209a199-e328-562c-8ebf-27c5cb064d32",
+              "score": 0.9396342914140945
+            }
+          ],
+          "top3_hit": true
+        },
+        "multi_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "755d2971-1b1d-58ae-9576-71bda109e403",
+              "score": 0.9942107390068884
+            },
+            {
+              "reference_asset_id": "b7fffe8a-329d-5513-ad9f-fd85852f0c42",
+              "score": 0.9719975554932461
+            },
+            {
+              "reference_asset_id": "b37e1091-ea6e-5963-926b-d30730f55d59",
+              "score": 0.943758801590576
+            }
+          ],
+          "top3_hit": true
+        }
+      }
+    },
+    {
+      "asset_id": "b7fffe8a-329d-5513-ad9f-fd85852f0c42",
+      "sha256": "ca8981b48c104a6bc4d66b7d7962f4339b5290fae5b16f519ddabe37ca4fff7b",
+      "frame_count": 60,
+      "query_frame": 20,
+      "elapsed_seconds": 0.0930781000006391,
+      "rankings": {
+        "first_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "b7fffe8a-329d-5513-ad9f-fd85852f0c42",
+              "score": 0.9534180104076722
+            },
+            {
+              "reference_asset_id": "755d2971-1b1d-58ae-9576-71bda109e403",
+              "score": 0.9492349382960725
+            },
+            {
+              "reference_asset_id": "ac8b7a58-cd70-5bd4-89d4-47eadf8555e2",
+              "score": 0.9140486966160779
+            }
+          ],
+          "top3_hit": true
+        },
+        "multi_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "b7fffe8a-329d-5513-ad9f-fd85852f0c42",
+              "score": 0.9945588209176677
+            },
+            {
+              "reference_asset_id": "755d2971-1b1d-58ae-9576-71bda109e403",
+              "score": 0.9697258811492286
+            },
+            {
+              "reference_asset_id": "b37e1091-ea6e-5963-926b-d30730f55d59",
+              "score": 0.9198295791868176
+            }
+          ],
+          "top3_hit": true
+        }
+      }
+    },
+    {
+      "asset_id": "0c17d521-773a-5efc-b90f-51ff84dbcf5e",
+      "sha256": "9bc24379d9d52a3a863f7a7bd53bef063cd8651fd90e3a035fcb710897c75ad5",
+      "frame_count": 63,
+      "query_frame": 21,
+      "elapsed_seconds": 0.08349060000000463,
+      "rankings": {
+        "first_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "0c17d521-773a-5efc-b90f-51ff84dbcf5e",
+              "score": 0.9863213686036119
+            },
+            {
+              "reference_asset_id": "ac8b7a58-cd70-5bd4-89d4-47eadf8555e2",
+              "score": 0.9272543011609162
+            },
+            {
+              "reference_asset_id": "b7fffe8a-329d-5513-ad9f-fd85852f0c42",
+              "score": 0.9218406837572815
+            }
+          ],
+          "top3_hit": true
+        },
+        "multi_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "0c17d521-773a-5efc-b90f-51ff84dbcf5e",
+              "score": 0.99798749460696
+            },
+            {
+              "reference_asset_id": "755d2971-1b1d-58ae-9576-71bda109e403",
+              "score": 0.9380375284406703
+            },
+            {
+              "reference_asset_id": "b7fffe8a-329d-5513-ad9f-fd85852f0c42",
+              "score": 0.9305519545800607
+            }
+          ],
+          "top3_hit": true
+        }
+      }
+    },
+    {
+      "asset_id": "b37e1091-ea6e-5963-926b-d30730f55d59",
+      "sha256": "e444668200b557ed13fb92d11337c6ad1f6d943f0e82cdca6fe243d10e6c674b",
+      "frame_count": 85,
+      "query_frame": 28,
+      "elapsed_seconds": 0.08432510000056936,
+      "rankings": {
+        "first_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "b37e1091-ea6e-5963-926b-d30730f55d59",
+              "score": 0.9467862904714366
+            },
+            {
+              "reference_asset_id": "ac8b7a58-cd70-5bd4-89d4-47eadf8555e2",
+              "score": 0.8893138791744093
+            },
+            {
+              "reference_asset_id": "68758067-9890-5096-b661-8b8c818ca1f9",
+              "score": 0.880798761257978
+            }
+          ],
+          "top3_hit": true
+        },
+        "multi_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "b37e1091-ea6e-5963-926b-d30730f55d59",
+              "score": 0.9966267180441264
+            },
+            {
+              "reference_asset_id": "ac8b7a58-cd70-5bd4-89d4-47eadf8555e2",
+              "score": 0.8898972658380444
+            },
+            {
+              "reference_asset_id": "68758067-9890-5096-b661-8b8c818ca1f9",
+              "score": 0.8818087469344107
+            }
+          ],
+          "top3_hit": true
+        }
+      }
+    },
+    {
+      "asset_id": "d209a199-e328-562c-8ebf-27c5cb064d32",
+      "sha256": "3a057adcb1fba20116436fb1892da7bade652a16039fa5bee74cdf15f075bec5",
+      "frame_count": 60,
+      "query_frame": 20,
+      "elapsed_seconds": 0.08132280000063474,
+      "rankings": {
+        "first_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "d209a199-e328-562c-8ebf-27c5cb064d32",
+              "score": 0.9738226513422106
+            },
+            {
+              "reference_asset_id": "755d2971-1b1d-58ae-9576-71bda109e403",
+              "score": 0.905943375557456
+            },
+            {
+              "reference_asset_id": "ac8b7a58-cd70-5bd4-89d4-47eadf8555e2",
+              "score": 0.8842817993524221
+            }
+          ],
+          "top3_hit": true
+        },
+        "multi_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "d209a199-e328-562c-8ebf-27c5cb064d32",
+              "score": 0.9935805707395211
+            },
+            {
+              "reference_asset_id": "755d2971-1b1d-58ae-9576-71bda109e403",
+              "score": 0.9415131250665993
+            },
+            {
+              "reference_asset_id": "ac8b7a58-cd70-5bd4-89d4-47eadf8555e2",
+              "score": 0.9080633367423872
+            }
+          ],
+          "top3_hit": true
+        }
+      }
+    },
+    {
+      "asset_id": "ac8b7a58-cd70-5bd4-89d4-47eadf8555e2",
+      "sha256": "021a790d5e4f989cbf59cdf83180de6cd80de4dc3cca7666a3bb33a81da97342",
+      "frame_count": 83,
+      "query_frame": 27,
+      "elapsed_seconds": 0.07660199999918405,
+      "rankings": {
+        "first_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "755d2971-1b1d-58ae-9576-71bda109e403",
+              "score": 0.8757609098462709
+            },
+            {
+              "reference_asset_id": "b7fffe8a-329d-5513-ad9f-fd85852f0c42",
+              "score": 0.8753450836175176
+            },
+            {
+              "reference_asset_id": "ac8b7a58-cd70-5bd4-89d4-47eadf8555e2",
+              "score": 0.8705195607852687
+            }
+          ],
+          "top3_hit": true
+        },
+        "multi_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "ac8b7a58-cd70-5bd4-89d4-47eadf8555e2",
+              "score": 0.9579276996922204
+            },
+            {
+              "reference_asset_id": "b7fffe8a-329d-5513-ad9f-fd85852f0c42",
+              "score": 0.9062079269059709
+            },
+            {
+              "reference_asset_id": "755d2971-1b1d-58ae-9576-71bda109e403",
+              "score": 0.8760090327279784
+            }
+          ],
+          "top3_hit": true
+        }
+      }
+    },
+    {
+      "asset_id": "a6f8e8d8-703a-5608-86cd-160672bcfc7d",
+      "sha256": "a9b8b73c95385d121fd476e0aca68337001b423ba352c5d7c12c8b462977b6d8",
+      "frame_count": 60,
+      "query_frame": 20,
+      "elapsed_seconds": 0.08311170000160928,
+      "rankings": {
+        "first_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "a6f8e8d8-703a-5608-86cd-160672bcfc7d",
+              "score": 0.9949163161785248
+            },
+            {
+              "reference_asset_id": "b7fffe8a-329d-5513-ad9f-fd85852f0c42",
+              "score": 0.8322187672253349
+            },
+            {
+              "reference_asset_id": "b37e1091-ea6e-5963-926b-d30730f55d59",
+              "score": 0.8291716119138357
+            }
+          ],
+          "top3_hit": true
+        },
+        "multi_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "a6f8e8d8-703a-5608-86cd-160672bcfc7d",
+              "score": 0.997367719833818
+            },
+            {
+              "reference_asset_id": "b7fffe8a-329d-5513-ad9f-fd85852f0c42",
+              "score": 0.8322187672253349
+            },
+            {
+              "reference_asset_id": "b37e1091-ea6e-5963-926b-d30730f55d59",
+              "score": 0.8308998227592461
+            }
+          ],
+          "top3_hit": true
+        }
+      }
+    },
+    {
+      "asset_id": "68758067-9890-5096-b661-8b8c818ca1f9",
+      "sha256": "cc4b16879b5f7264a37d7000783776b817b2f8f9e8084672c01d0849ab1bd27c",
+      "frame_count": 60,
+      "query_frame": 20,
+      "elapsed_seconds": 0.07459380000000237,
+      "rankings": {
+        "first_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "68758067-9890-5096-b661-8b8c818ca1f9",
+              "score": 0.9999400585042839
+            },
+            {
+              "reference_asset_id": "b7fffe8a-329d-5513-ad9f-fd85852f0c42",
+              "score": 0.9430327010519193
+            },
+            {
+              "reference_asset_id": "ac8b7a58-cd70-5bd4-89d4-47eadf8555e2",
+              "score": 0.9420924900480685
+            }
+          ],
+          "top3_hit": true
+        },
+        "multi_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "68758067-9890-5096-b661-8b8c818ca1f9",
+              "score": 0.9999400585042839
+            },
+            {
+              "reference_asset_id": "ac8b7a58-cd70-5bd4-89d4-47eadf8555e2",
+              "score": 0.9430718057330196
+            },
+            {
+              "reference_asset_id": "b7fffe8a-329d-5513-ad9f-fd85852f0c42",
+              "score": 0.9430327010519193
+            }
+          ],
+          "top3_hit": true
+        }
+      }
+    },
+    {
+      "asset_id": "1eb36407-ccbb-59ba-a8ba-e8cd25ab75ba",
+      "sha256": "8d7352283c1a945867f3a56770f8de3eed8042915302a3e741b747ebe0ab2d82",
+      "frame_count": 71,
+      "query_frame": 23,
+      "elapsed_seconds": 0.09971629999927245,
+      "rankings": {
+        "first_frame": {
+          "matches": [],
+          "top3_hit": false
+        },
+        "multi_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "1eb36407-ccbb-59ba-a8ba-e8cd25ab75ba",
+              "score": 0.9062416642173048
+            }
+          ],
+          "top3_hit": true
+        }
+      }
+    },
+    {
+      "asset_id": "ff859474-827f-509e-909e-92c10827844b",
+      "sha256": "2a53e434118916a967f30b9968d1e3fd3cf6a4978d39bdb3551c9fb4c8c1fccf",
+      "frame_count": 72,
+      "query_frame": 24,
+      "elapsed_seconds": 0.11674250000032771,
+      "rankings": {
+        "first_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "ff859474-827f-509e-909e-92c10827844b",
+              "score": 0.9747836438307154
+            }
+          ],
+          "top3_hit": true
+        },
+        "multi_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "ff859474-827f-509e-909e-92c10827844b",
+              "score": 0.9988807016767396
+            }
+          ],
+          "top3_hit": true
+        }
+      }
+    },
+    {
+      "asset_id": "f6186287-4150-520c-a33e-040985e8f34f",
+      "sha256": "d8785d856b415fed27d3fafde40cc34bfb2ef9f2bffeecc9cbe7b3428e0f7e3e",
+      "frame_count": 33,
+      "query_frame": 11,
+      "elapsed_seconds": 0.09913609999966866,
+      "rankings": {
+        "first_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "f6186287-4150-520c-a33e-040985e8f34f",
+              "score": 0.9794472453644119
+            }
+          ],
+          "top3_hit": true
+        },
+        "multi_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "f6186287-4150-520c-a33e-040985e8f34f",
+              "score": 0.9933742064782427
+            },
+            {
+              "reference_asset_id": "85f9ca08-f181-54ec-9799-f13551db1cc2",
+              "score": 0.8211460281901815
+            }
+          ],
+          "top3_hit": true
+        }
+      }
+    },
+    {
+      "asset_id": "85f9ca08-f181-54ec-9799-f13551db1cc2",
+      "sha256": "86879c45175f3901a8676d9b0bb5132c7a98b20a9f40487c21e4c896ce196616",
+      "frame_count": 42,
+      "query_frame": 14,
+      "elapsed_seconds": 0.10952740000175254,
+      "rankings": {
+        "first_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "85f9ca08-f181-54ec-9799-f13551db1cc2",
+              "score": 0.8517835994440013
+            }
+          ],
+          "top3_hit": true
+        },
+        "multi_frame": {
+          "matches": [
+            {
+              "reference_asset_id": "85f9ca08-f181-54ec-9799-f13551db1cc2",
+              "score": 0.9645415473037726
+            }
+          ],
+          "top3_hit": true
+        }
+      }
+    }
+  ]
+}

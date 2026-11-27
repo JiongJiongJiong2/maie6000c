@@ -12,18 +12,26 @@ from uuid import UUID, uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from fastapi import UploadFile
+from fastapi import HTTPException, UploadFile
 from PIL import Image
 from sqlalchemy import create_engine, func, inspect, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 
-from services.api.app.search import create_review, create_search, retry_search, save_candidate
+from services.api.app.meme_search import candidate_preview, draft_preview, previews
+from services.api.app.search import (
+    create_review,
+    create_search,
+    read_media,
+    retry_search,
+    save_candidate,
+)
 from services.common.config import get_settings
 from services.common.db import make_session_factory
 from services.common.models import utcnow
 from services.common.search_models import (
     Candidate,
+    MemeCandidateDraft,
     ReferenceAsset,
     ReviewDecision,
     SearchExecution,
@@ -108,6 +116,72 @@ def test_postgres_meme_duration_preserves_session_timezone(postgres_backend, mon
 
     with factory() as db:
         assert db.get(SearchExecution, job_id).duration_ms == 21_250
+
+
+def test_postgres_candidate_and_draft_expiry(postgres_backend, monkeypatch):
+    _, factory, _ = postgres_backend
+    now = datetime(2026, 11, 28, 4, 20, tzinfo=timezone.utc)
+    expired = now - timedelta(seconds=1)
+    monkeypatch.setattr("services.api.app.search.utcnow", lambda: now)
+    monkeypatch.setattr("services.api.app.meme_search.utcnow", lambda: now)
+
+    with factory() as db:
+        job = SearchJob(
+            request_id=new_request(db).id,
+            job_kind="web",
+            status="completed",
+            result_kind="candidates",
+            started_at=expired,
+            finished_at=expired,
+        )
+        db.add(job)
+        db.flush()
+        candidate = Candidate(
+            job_id=job.id,
+            rank=1,
+            similarity_score=0.9,
+            frame_count=2,
+            media_format="GIF",
+            source_url="https://example.org/animation",
+            local_cache_path="candidate.gif",
+            cache_expires_at=expired,
+        )
+        drafts = [
+            MemeCandidateDraft(
+                job_id=job.id,
+                draft_key=key,
+                local_path="draft.gif",
+                preview_path="draft.png",
+                data={"content_group_id": key, "score": 0.9, "metadata": {}},
+                expires_at=when,
+            )
+            for key, when in [("expired", expired), ("current", now + timedelta(seconds=1))]
+        ]
+        db.add_all([candidate, *drafts])
+        db.commit()
+        job_id, candidate_id = UUID(job.id), UUID(candidate.id)
+        expired_id, current_id = (UUID(draft.id) for draft in drafts)
+        create_review(
+            job_id,
+            ReviewCreate(candidate_id=candidate_id, decision="accept", client_review_key="review"),
+            db,
+        )
+
+    with factory() as db:
+        db.execute(text("SET LOCAL TIME ZONE 'Asia/Shanghai'"))
+        stored_expiry = db.get(Candidate, str(candidate_id)).cache_expires_at
+        assert stored_expiry.utcoffset() == timedelta(hours=8)
+        for read in (read_media, candidate_preview):
+            with pytest.raises(HTTPException) as error:
+                read(candidate_id, db)
+            assert error.value.status_code == 410 and error.value.detail["code"] == "media_expired"
+        with pytest.raises(HTTPException) as error:
+            save_candidate(candidate_id, SaveCreate(client_save_key="expired-save"), db)
+        assert error.value.status_code == 410 and error.value.detail["code"] == "media_expired"
+        with pytest.raises(HTTPException) as error:
+            draft_preview(job_id, expired_id, db)
+        assert error.value.status_code == 410 and error.value.detail["code"] == "preview_expired"
+        assert [item["draft_id"] for item in previews(job_id, db)["items"]] == [str(current_id)]
 
 
 def test_postgres_migration_round_trip_and_metadata(postgres_backend):

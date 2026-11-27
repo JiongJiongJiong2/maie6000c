@@ -1,3 +1,21 @@
+// Safari versions without AbortSignal.any still need shared cancellation.
+export function combineSignals(signals) {
+  if (typeof AbortSignal.any === "function") return AbortSignal.any(signals);
+  const controller = new AbortController();
+  const abort = (event) => {
+    for (const signal of signals) signal.removeEventListener("abort", abort);
+    controller.abort(event.target.reason);
+  };
+  for (const signal of signals) {
+    if (signal.aborted) {
+      abort({ target: signal });
+      return controller.signal;
+    }
+    signal.addEventListener("abort", abort, { once: true });
+  }
+  return controller.signal;
+}
+
 export class ApiError extends Error {
   constructor(message, status = 0, code = "network_error") {
     super(message);

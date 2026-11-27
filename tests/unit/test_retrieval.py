@@ -32,6 +32,31 @@ def test_stale_model_or_manifest_index_is_rejected_before_inference(tmp_path, mo
         retrieval.search(tmp_path / "missing.png")
 
 
+def test_reference_index_rejects_zero_frame_vector_before_inference(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    path = tmp_path / "index.npz"
+    embeddings = np.zeros((2, 512), dtype=np.float32)
+    embeddings[0, 0] = 1.0
+    np.savez(
+        path,
+        embeddings=embeddings,
+        asset_ids=np.asarray(["asset", "asset"]),
+        metadata=json.dumps(
+            {
+                "manifest_sha256": "matched",
+                "model_version": retrieval.MODEL_VERSION,
+                "index_format": retrieval.INDEX_FORMAT,
+            }
+        ),
+    )
+    manifest = SimpleNamespace(assets=[SimpleNamespace(reference_asset_id="asset")])
+    monkeypatch.setattr(retrieval, "corpus", lambda: (manifest, "matched"))
+    monkeypatch.setattr(retrieval, "index_path", lambda: path)
+    with pytest.raises(ValueError, match="index does not match the corpus"):
+        retrieval.search(tmp_path / "not-read.png")
+
+
 @pytest.mark.parametrize("top_k", [0, -1, 4, True, "3", 1.5])
 def test_invalid_top_k_is_rejected_before_loading_index(tmp_path, top_k):
     with pytest.raises(ValueError, match="top_k"):

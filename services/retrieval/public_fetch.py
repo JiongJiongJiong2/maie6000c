@@ -5,6 +5,7 @@ version-specific. httpcore retains the ORIGINAL URL host for Host, SNI and TLS
 verification; only connect_tcp receives the already validated numeric address.
 """
 
+import argparse
 import ipaddress
 import json
 import socket
@@ -259,4 +260,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    ThreadingHTTPServer(("0.0.0.0", 8120), Handler).serve_forever()
+    parser = argparse.ArgumentParser(description="Run the public media fetch service")
+    parser.add_argument("--bind", default="0.0.0.0")
+    args = parser.parse_args()
+    ThreadingHTTPServer((args.bind, 8120), Handler).serve_forever()
