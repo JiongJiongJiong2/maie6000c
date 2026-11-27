@@ -61,6 +61,10 @@ def fail(status: int, code: str, message: str) -> HTTPException:
 
 def authorize(request: Request, db: Annotated[Session, Depends(get_db)]) -> None:
     settings = get_settings()
+    if settings.account_login_enabled:
+        if not getattr(request.state, "account", None):
+            raise fail(401, "unauthorized", "Sign in to open your library.")
+        return
     token = settings.device_token
     if not token.strip():
         try:

@@ -12,13 +12,35 @@
 
 上传原字节及 SHA → 直接创建 web job → 本地解码、规范化和代表帧 → HKUST 看图/OCR → 不确定身份的显式 DeepSeek 网页核验及至多一次 HKUST 对照图片修正 → DeepSeek Flash 规划查询 → DeepSeek 官方网页检索 → 来源 rank 融合、公开页面提取、原媒体获取 → 固定 CLIP 图像/文本多帧评分 → SHA 与内容分组 → 验证草稿 → 单次最终事务、稳定 revision、筛选分页。当前无像素反搜服务，网页检索不伪装为以图反搜。
 
-图片**会外发**：最多四张、最大边 768 的派生 PNG 帧发送给 HKUST 网关；视觉事实、OCR、偏好及核验线索发送给 DeepSeek。原文件名、本机路径和独立目标 URL 不作为识别输入。图中文字及检索片段只作不可信数据，不能授予工具权限。证据关系绑定实际返回的出处 ID/URL，支持、冲突和未解决状态分别保留。
+带字幕的静态表情包优先按原句、可能的出处及笑点检索。已下载的图片先比较完整画面及去除上下字幕条后的主体。模型调用配额有余量时，HKUST 会收到参考帧和至多三张候选预览拼图，对前 18 个候选的模板及笑点进行复核。默认展示阈值为 `0.50`，可用 `MEME50_MINIMUM_SCORE` 调整。
+
+图片**会外发**：识别阶段将上传图片转换为最多四张最大边长 768 像素的 PNG 代表帧，发送给 HKUST 网关。字幕复核另发送参考帧及候选拼图。视觉事实、OCR、偏好及核验线索发送给 DeepSeek。原文件名、本机路径和独立目标 URL 不作为识别输入。图中文字及检索片段只作不可信数据，不能授予工具权限。证据关系绑定实际返回的出处 ID/URL，支持、冲突和未解决状态分别保留。
 
 API 不加载 CLIP 权重。独立 worker 调用 JSONL 子进程；父进程限制行长 256 KiB、总输出 4 MiB、截止时间和事件顺序，验证每个原文件及预览后写草稿。EOF、重复 final、越界路径、SHA/格式不一致不能发布成功。硬超时杀死进程组。最终结果最多 50 个内容组，草稿不属于稳定排序。
 
 媒体出口 `media-fetch` 不接收模型/数据库凭据、不挂载媒体卷、不加入数据库所在默认网络。公网 URL 每跳校验；解析结果全部为公网，实际 TCP 连接固定到校验后的数字 IP，再复核 socket peer。httpcore 保留原 host、TLS 证书验证和 SNI；没有关闭证书验证。不是单纯 DNS 预检查。Docker 默认非 root、只读文件系统、去除 capabilities。公开 CDN 无需增加源码白名单。系统 DNS 遇 fake IP 会明确失败；可选 `MEME50_DNS_MODE=doh` 使用 Cloudflare `1.1.1.1` 的验证 HTTPS DNS 服务，该服务只收到域名，不收到图片。
 
 直接媒体优先；通用页面支持 og/twitter、JSON-LD、srcset、合理 lazy 属性和相对链接，每页最多四项，排除明显图标。Tenor v2 使用真实公开 WebP 主素材及带自身永久链接的相关卡片，每页最多十四项，共享原有全局预算；旧 GIF 路径和 Commons/parrot 专用解析保留。当前没有浏览器渲染兜底；需 JS、登录或拒绝访问的来源会保留失败并尝试其他结果，不承诺任意站点可抓取。
+
+## 无提示词的组合梗检索
+
+上传图片后可以把描述留空。识图会记录主体、画风、动作、道具和布局。发现疑似拼贴或身份线索不确定时，系统用画面细节搜索有配图说明的公共梗图库 Memedex，同时用另一条查询搜索开放网页。两条查询都通过已有的 DeepSeek 搜索接口，并为后续搜图保留查询额度。
+
+系统最多取六个候选条目的主图，在本机与上传图片的代表帧做 CLIP 比对。余弦相似度达到 0.88 的配图优先进入正常的解码、排序和去重流程。搜索结果中的数字是排序分数。页面会显示与画面、来源说明均吻合的条目标题。组合查询缺少近似配图时，还会在查询额度内补搜 Imgflip 的空白模板。即使相关配图已经凑够数量，检索也会继续到找到视觉近似项或用完预算。缺少收录或原图下载失败时，开放网页检索还会继续尝试其他来源。
+
+### 无提示词实测
+
+本机验收使用真实的学校识图和 DeepSeek 搜索服务。每次将图片作为新请求提交，文件名统一为 `upload.bin`，描述留空，跳过历史分析。原截图通过正式上传、任务队列、排序和媒体下载接口验证，返回的图片能解码，内容哈希与结果记录一致。测试任务使用临时数据库。
+
+| 上传画面 | 实测结果 |
+| --- | --- |
+| 棕色糖豆人闭眼托腮 | 自动识别出 M&M 和 IShowSpeed。默认最多 50 张时实际返回 15 张，同款排第 1，图片为 736 × 1308。另一次仅取 1 张也返回了同款。[对应来源](https://thememedex.com/meme/7067) |
+| 女人指着餐桌旁的白猫 | 识别出 Taylor Armstrong 和 Smudge，双画面模板排第 1。[输入模板](https://imgflip.com/memetemplate/Woman-Yelling-At-Cat) |
+| 肌肉柴犬与小柴犬 | 识别出 Doge 和 Cheems，对应的双角色模板排第 1。[返回来源](https://thememedex.com/meme/761) |
+| 普通笑哭 emoji | 识别为笑哭表情，没有添加第二个角色。 |
+| 伯尼戴手套坐在《阿甘正传》的长椅上 | 自动识别出 Bernie Sanders 和 Forrest Gump。补搜后返回的前 5 张仍以伯尼相关配图为主，未验证同款。模板库专项查询的返回列表也没有包含输入模板。[输入模板](https://imgflip.com/memetemplate/293926620/Bernie-gloves) |
+
+这些案例分别检查角色识别、组合查询和首屏找回同款，不能用于估计全网命中率。
 
 ## 格式、评分和限制
 
@@ -56,7 +78,9 @@ MEME50_DNS_MODE=system
 # 正式网页 http://127.0.0.1:8000/web/
 ```
 
-启动器保留专用数据库密码文件 `.cache/local-demo.env`，启动已有 PostgreSQL 及只绑定 `127.0.0.1:8120` 的隔离 fetch 容器，执行迁移，再启动 API 和独立 worker。已有历史库先备份；不以删除库获得干净演示。首次本地库准备按 [旧启动说明](local-demo.md) 执行。完整 Compose：`docker compose up -d --build db media-fetch api worker`，先按原说明准备共享模型卷；worker 的 retrieval 依赖在 `worker` target，API 不装 torch。运行 `alembic upgrade head` 到 `20261111_0004`；有新 profile 或静态/高 rank 数据时降级明确拒绝且不删数据。
+macOS 用户打开 Docker Desktop 后，可双击[启动私人库试搜.command](../scripts/启动私人库试搜.command)。启动器使用本机试用库，并在服务就绪后打开浏览器。
+
+启动器保留专用数据库密码文件 `.cache/local-demo.env`，启动已有 PostgreSQL 及只绑定 `127.0.0.1:8120` 的隔离 fetch 容器，执行迁移，再启动 API 和独立 worker。已有历史库先备份；不以删除库获得干净演示。首次本地库准备按 [旧启动说明](local-demo.md) 执行。已用 `scripts/download_model.py` 下载 CLIP 的机器可运行 `docker compose -f compose.yaml -f compose.local-model.yaml up -d --build db media-fetch api worker`，直接复用本机权重。已有模型卷的部署沿用 `docker compose up -d --build db media-fetch api worker`。worker 的 retrieval 依赖在 `worker` target，API 不装 torch。运行 `alembic upgrade head` 到 `20261111_0004`；有新 profile 或静态/高 rank 数据时降级明确拒绝且不删数据。
 
 前台启动器 Ctrl-C 停 API/worker，数据库与 fetch 保留；如需停止容器，使用原项目名和 `.cache/local-compose.yaml` 执行 `docker compose ... stop`，不要使用 `down -v`。日志 `.cache/local-api.log`、`.cache/local-worker.log`；关联 request/job ID 排错。正常检索不足、部分服务故障和全部失败分别报告。重试生成新 attempt，历史失败不改成成功。草稿保留一天，最终候选沿用媒体保留天数；清理跳过活跃 job，原输入和收藏沿用原规则。
 

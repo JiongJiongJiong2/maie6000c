@@ -203,6 +203,7 @@ def test_worker_stream_drafts_final_and_missing_final(client, db_session, monkey
             payload={
                 "status": "completed",
                 "candidate_keys": [meta.sha256],
+                "final_scores": {meta.sha256: 0.78},
                 "ledger": {"model_calls": 3},
                 "stop_reason": "controlled_test",
             },
@@ -214,6 +215,9 @@ def test_worker_stream_drafts_final_and_missing_final(client, db_session, monkey
     assert "hkust_api_key" not in db_session.get(SearchJob, job.id).configuration
     assert "deepseek_api_key" not in db_session.get(SearchJob, job.id).configuration
     assert client.get(f"/search-jobs/{job.id}/results").json()["total_all"] == 1
+    assert db_session.scalar(
+        select(Candidate.similarity_score).where(Candidate.job_id == job.id)
+    ) == pytest.approx(0.78)
     # No final event must never be converted into success.
     second = upload(client).json()
     second_job = db_session.get(SearchJob, second["job_id"])
@@ -223,3 +227,55 @@ def test_worker_stream_drafts_final_and_missing_final(client, db_session, monkey
     db_session.expire_all()
     failed = db_session.get(SearchJob, second_job.id)
     assert failed.status == "failed" and failed.error_code == "runner_missing_final"
+
+
+def test_retry_resumes_search_from_same_images_planned_queries(client, db_session, monkeypatch):
+    from services.search_agent import meme_pipeline
+    from services.search_agent.meme_types import VisualAnalysis
+    from types import SimpleNamespace
+
+    job = db_session.get(SearchJob, upload(client).json()["job_id"])
+    query = {"text": "candy mascot reaction GIF", "angle": "identity", "language": "en"}
+    job.analysis = {"queries": [query], "planner_version": "prior-plan"}
+    job.status, job.stage, job.error_code = "failed", "failed", "model_unavailable"
+    job.started_at = job.finished_at = utcnow()
+    job.error_detail = "Model unavailable"
+    db_session.commit()
+    response = client.post(f"/search-jobs/{job.id}/retry", json={"client_retry_key": str(uuid4())})
+    assert response.status_code == 202
+    retry = db_session.get(SearchJob, response.json()["job_id"])
+    retry.status, retry.started_at = "running", utcnow()
+    db_session.commit()
+    searches = []
+    monkeypatch.setattr(meme_pipeline, "analyze_image", lambda *args: pytest.fail("re-analyzed"))
+    monkeypatch.setattr(
+        meme_pipeline.DeepSeekQueryPlanner, "plan", lambda *args: pytest.fail("re-planned")
+    )
+
+    def stream(payload, timeout):
+        saved = VisualAnalysis.model_validate(payload["saved_analysis"])
+        events = []
+        meme_pipeline.search_memes(
+            payload["image_path"],
+            payload["description"],
+            payload["work_dir"],
+            saved_analysis=saved,
+            keywords=SimpleNamespace(search=lambda text, limit: searches.append(text) or []),
+            embeddings=SimpleNamespace(
+                load_model=lambda: None,
+                encode_images=lambda frames: [],
+                encode_texts=lambda texts: [[]],
+            ),
+            emit=lambda kind, data: events.append(
+                RunnerEvent(seq=len(events) + 1, type=kind, payload=data)
+            ),
+        )
+        return iter(events)
+
+    process_meme_job(
+        retry.id, factory=make_session_factory(db_session.get_bind()), event_stream=stream
+    )
+    db_session.expire_all()
+    assert retry.status == "completed"
+    assert searches == [query["text"]]
+    assert retry.analysis["queries"] == [query]

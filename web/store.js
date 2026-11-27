@@ -3,7 +3,12 @@ let database;
 function open() {
   if (!database)
     database = new Promise((resolve, reject) => {
-      const request = indexedDB.open("memeretrieve-web", 1);
+      const request = indexedDB.open(
+        document.documentElement.dataset.account
+          ? "memeretrieve-web:" + document.documentElement.dataset.account
+          : "memeretrieve-web",
+        1,
+      );
       request.onupgradeneeded = () =>
         request.result.createObjectStore("session");
       request.onsuccess = () => resolve(request.result);

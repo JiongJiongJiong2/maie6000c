@@ -27,7 +27,8 @@ os.environ.update(
     MEDIA_ROOT=str(storage / "media"),
     REFERENCE_ROOT=str(storage / "reference"),
     MODEL_CACHE_ROOT=str(storage / "models"),
-    DEVICE_TOKEN="web-test-token",
+    PRIVATE_LIBRARY_ENABLED="true",
+    ACCOUNT_LOGIN_ENABLED="true",
     LOG_LEVEL="WARNING",
 )
 
@@ -64,6 +65,9 @@ def build_app():
         spec.loader.exec_module(module)
         app.include_router(module.router)
 
+    from services.common.accounts import registry
+
+    registry.create_all(get_engine())
     Base.metadata.create_all(get_engine())
     prepare_storage()
     frames = []
@@ -82,8 +86,7 @@ def build_app():
     data = buffer.getvalue()
     atomic_write(get_settings().reference_root, "fixture.gif", data)
     asset_id = str(uuid4())
-    factory = get_session_factory()
-    with factory() as db:
+    with get_session_factory()() as db:
         db.add(
             ReferenceAsset(
                 id=asset_id,
@@ -110,17 +113,20 @@ def build_app():
     def complete(mode: str):
         if mode not in {"candidates", "no_candidates", "unavailable"}:
             raise HTTPException(status_code=400)
-        with factory() as db:
+        with get_session_factory()() as db:
             job = search_worker.claim_next_search_job(db)
             if job is None:
                 raise HTTPException(status_code=409, detail="No pending job")
             job_id = job.id
         if mode == "unavailable":
-            # Exercise the real missing-retrieval path, not a fake HTTP error.
+            # Exercise worker failure handling independently of locally installed models.
+            def unavailable(_):
+                raise search_worker.RetrievalError("retrieval_unavailable", "Retrieval unavailable")
+
             try:
-                search_worker.process_search_job(job_id)
+                search_worker.process_search_job(job_id, unavailable)
             except search_worker.RetrievalError as exc:
-                with factory() as db:
+                with get_session_factory()() as db:
                     search_worker.fail_job(db, job_id, exc.code, str(exc))
         else:
             result = RetrievalResult(
@@ -135,7 +141,7 @@ def build_app():
 
     @app.get("/__test__/counts/{request_id}")
     def counts(request_id: str):
-        with factory() as db:
+        with get_session_factory()() as db:
             job_ids = select(SearchJob.id).where(SearchJob.request_id == request_id)
             return {
                 "requests": db.scalar(

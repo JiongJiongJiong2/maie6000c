@@ -501,3 +501,17 @@ def test_upgrade_backfills_existing_import_batches_without_changing_replay(postg
     with factory() as db:
         assert db.get(ImportBatch, initial["batch_id"]).purpose == "upload"
         assert create_import(payload, db) == initial
+
+
+def test_account_workspaces_and_migrations(postgres_backend, monkeypatch):
+    from services.common import db as database
+    from test_library_accounts import verify_account_libraries
+
+    engine, factory, config = postgres_backend
+    monkeypatch.setenv("PRIVATE_LIBRARY_ENABLED", "true")
+    monkeypatch.setenv("ACCOUNT_LOGIN_ENABLED", "true")
+    get_settings.cache_clear()
+    monkeypatch.setattr(database, "_ENGINE", engine)
+    monkeypatch.setattr(database, "_SESSION_FACTORY", factory)
+    verify_account_libraries(engine)
+    command.upgrade(config, "head")

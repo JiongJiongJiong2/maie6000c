@@ -51,7 +51,21 @@ test("empty text submits v2 once, pages fifty, filters, downloads and restores",
         result_revision: "frozen",
         partial: false,
         progress: {},
-        analysis: { observations: ["controlled visible facts"] },
+        analysis: {
+          observations: ["controlled visible facts"],
+          entity_hypotheses: [
+            { name: "Paper astronaut", status: "supported" },
+            { name: "Unverified character", status: "uncertain" },
+          ],
+          evidence: [
+            { title: "Unconfirmed caption", relation: "unresolved" },
+            {
+              title: "Paper astronaut in a landscape",
+              relation: "supports",
+              matching_media_url: "https://example.org/collage.png",
+            },
+          ],
+        },
       },
     }),
   );
@@ -76,22 +90,103 @@ test("empty text submits v2 once, pages fifty, filters, downloads and restores",
       },
     });
   });
-  await page.route("**/candidates/*/preview", (r) =>
-    r.fulfill({ contentType: "image/png", body: png }),
+  const previews = await page.evaluate(() =>
+    [
+      [160, 640],
+      [800, 200],
+    ].map(([width, height]) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      return canvas.toDataURL("image/png").split(",")[1];
+    }),
   );
+  await page.route("**/candidates/*/preview", (route) => {
+    const rank = Number(new URL(route.request().url()).pathname.split("/")[2]);
+    return route.fulfill({
+      contentType: "image/png",
+      body: Buffer.from(previews[(rank - 1) % previews.length], "base64"),
+    });
+  });
   await page.route("**/candidates/*/media", (r) =>
     r.fulfill({ contentType: "image/png", body: png }),
   );
   await page.goto("/web/");
+  await expect(page.locator("#search-mode label span")).toHaveText([
+    "Online search",
+    "Local only",
+  ]);
   await expect(page.locator("#submit")).toBeDisabled();
   await page
     .locator("#file-input")
     .setInputFiles({ name: "random.png", mimeType: "image/png", buffer: png });
+  const online = page.getByRole("radio", {
+    name: "Online search",
+    exact: true,
+  });
+  const local = page.getByRole("radio", { name: "Local only", exact: true });
+  await expect(online).toBeChecked();
+  await online.press("ArrowRight");
+  await expect(local).toBeChecked();
+  await expect(local).toBeFocused();
+  await expect(page.locator("#description")).toBeHidden();
+  await local.press("ArrowLeft");
+  await expect(online).toBeChecked();
+  await expect(page.locator("#description")).toBeVisible();
   await expect(page.locator("#submit")).toBeEnabled();
   await page.locator("#submit").click();
   await expect(page.locator(".candidate")).toHaveCount(20);
+  await page.evaluate(() => document.fonts.ready);
+  for (const width of [1440, 1024, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const card of (
+      await page.locator("#web-candidates article").all()
+    ).slice(0, 2)) {
+      await card.scrollIntoViewIfNeeded();
+      await expect
+        .poll(() => card.locator("img").evaluate((img) => img.naturalWidth))
+        .toBeGreaterThan(0);
+      const contained = await card.evaluate((node) => {
+        const frame = node
+          .querySelector(".candidate-media")
+          .getBoundingClientRect();
+        const image = node.querySelector("img");
+        const box = image.getBoundingClientRect();
+        const body = node
+          .querySelector(".candidate-body")
+          .getBoundingClientRect();
+        return (
+          getComputedStyle(image).objectFit === "contain" &&
+          box.top >= frame.top - 1 &&
+          box.bottom <= frame.bottom + 1 &&
+          box.left >= frame.left - 1 &&
+          box.right <= frame.right + 1 &&
+          frame.bottom <= body.top + 1
+        );
+      });
+      expect(contained, `preview inside its frame at ${width}px`).toBe(true);
+    }
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+  await page.setViewportSize({ width: 1440, height: 1040 });
   expect(uploads).toHaveLength(1);
   expect(uploads[0]).toContain("meme50-v2");
+  await expect(page.locator("#meme-analysis")).toContainText(
+    "Recognized: Paper astronaut",
+  );
+  await expect(page.locator("#meme-analysis")).not.toContainText(
+    "Unverified character",
+  );
+  await expect(page.locator("#meme-analysis")).toContainText(
+    "Paper astronaut in a landscape",
+  );
+  await expect(page.locator("#meme-analysis")).not.toContainText(
+    "Unconfirmed caption",
+  );
   expect(uploads[0]).toMatch(/name="description"\r\n\r\n\r\n/);
   await expect(page.locator("#review-panel")).toBeHidden();
   await page.locator("#next-page").click();
@@ -99,13 +194,20 @@ test("empty text submits v2 once, pages fifty, filters, downloads and restores",
   await page.locator("#next-page").click();
   await expect(page.locator(".candidate")).toHaveCount(10);
   await expect(page.locator("#next-page")).toBeDisabled();
-  await page.locator("#media-filter").selectOption("static");
+  await page
+    .getByRole("radio", { name: "All images", exact: true })
+    .press("ArrowRight");
+  await expect(
+    page.getByRole("radio", { name: "Static", exact: true }),
+  ).toBeChecked();
   await expect(page.locator(".candidate")).toHaveCount(20);
   await expect(
     page.getByRole("button", { name: "Play animation", exact: true }),
   ).toHaveCount(0);
   await page.reload();
-  await expect(page.locator("#media-filter")).toHaveValue("static");
+  await expect(
+    page.getByRole("radio", { name: "Static", exact: true }),
+  ).toBeChecked();
   await expect(page.locator(".candidate")).toHaveCount(20);
   const downloadPromise = page.waitForEvent("download");
   await page
@@ -118,12 +220,12 @@ test("empty text submits v2 once, pages fifty, filters, downloads and restores",
   const animatedRequest = page.waitForRequest((r) =>
     r.url().includes("media_kind=animated"),
   );
-  await page.locator("#media-filter").selectOption("animated");
+  await page.getByRole("radio", { name: "Animated", exact: true }).check();
   await animatedRequest;
   const finalStaticResponse = page.waitForResponse((r) =>
     r.url().includes("media_kind=static"),
   );
-  await page.locator("#media-filter").selectOption("static");
+  await page.getByRole("radio", { name: "Static", exact: true }).check();
   await finalStaticResponse;
   await expect(page.locator("#refresh")).toBeEnabled();
   await expect(
@@ -132,6 +234,9 @@ test("empty text submits v2 once, pages fifty, filters, downloads and restores",
   await page.locator("#next-page").click();
   await expect(page.locator(".candidate")).toHaveCount(5);
   await expect(page.locator(".candidate").first()).toContainText("#41");
+  await page.getByRole("button", { name: "Start a new search" }).click();
+  await expect(page.locator("#submit")).toBeEnabled();
+  await expect(page.locator("#web-results")).toBeHidden();
   expect(errors).toEqual([]);
 });
 
@@ -271,7 +376,7 @@ test("favorites replay both keys, recover index status after refresh, and switch
   await expect(page.getByText(/Saved, searchable locally/)).toBeVisible();
   await page.reload();
   await expect(page.getByText(/Saved, searchable locally/)).toBeVisible();
-  await page.locator("#search-mode").selectOption("legacy");
+  await page.getByRole("radio", { name: "Local only", exact: true }).check();
   await page.locator("#submit").click();
   await expect(
     page.getByRole("button", { name: /Download GIF/ }),
@@ -331,7 +436,7 @@ test("local results survive linked search acknowledgement loss, retry, and refre
     latest = {
       ...linked,
       status: "failed",
-      error: { message: "Provider unavailable" },
+      error: { message: "图片检索服务暂不可用，请稍后重试。" },
     };
     return creates.length === 1
       ? route.abort()
@@ -359,7 +464,7 @@ test("local results survive linked search acknowledgement loss, retry, and refre
     }),
   );
   await page.goto("/web/");
-  await page.locator("#search-mode").selectOption("legacy");
+  await page.getByRole("radio", { name: "Local only", exact: true }).check();
   await page.locator("#file-input").setInputFiles({
     name: "screenshot.png",
     mimeType: "image/png",
@@ -379,7 +484,9 @@ test("local results survive linked search acknowledgement loss, retry, and refre
     "green parrot",
   );
   await page.locator("#continue-submit").click();
-  await expect(page.locator("#web-status")).toHaveText("Provider unavailable");
+  await expect(page.locator("#web-status")).toHaveText(
+    "Image search is temporarily unavailable. Please try again later.",
+  );
   await expect(page.locator("#candidates .candidate")).toHaveCount(1);
   await page.locator("#meme-retry").click();
   await expect(page.locator("#web-candidates .candidate")).toHaveCount(1);

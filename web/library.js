@@ -1,10 +1,11 @@
-const storageKey = "private-library-import";
 const statusLabels = {
-  waiting: "等待上传",
-  imported: "已导入",
-  duplicate: "已存在",
-  rejected: "格式不支持",
+  waiting: "Waiting",
+  imported: "Imported",
+  duplicate: "Already in library",
+  rejected: "Rejected",
 };
+const analysisInProgress = (status) =>
+  status === "pending" || status === "running";
 const element = (tag, text = "") => {
   const node = document.createElement(tag);
   node.textContent = text;
@@ -12,6 +13,9 @@ const element = (tag, text = "") => {
 };
 
 export function mountLibrary(api, newKey) {
+  const storageKey = api.account
+    ? "private-library-import:" + api.account
+    : "private-library-import";
   const panel = document.querySelector("#private-library");
   const picker = panel.querySelector("#library-files");
   const backupPicker = panel.querySelector("#library-backup-manifest");
@@ -23,27 +27,173 @@ export function mountLibrary(api, newKey) {
   const resume = panel.querySelector("[data-resume]");
   const refresh = panel.querySelector("[data-refresh]");
   const more = panel.querySelector("[data-more]");
+  const less = panel.querySelector("[data-less]");
+  const visibleCount = panel.querySelector("[data-visible-count]");
   const feedback = panel.querySelector("[role=status]");
   const receipts = panel.querySelector("[data-receipts]");
   const assets = panel.querySelector("[data-assets]");
   const query = panel.querySelector("input[type=search]");
   const annotate = panel.querySelector("[data-annotate]");
+  const confirmation = panel.querySelector("#library-analysis-confirm");
+  for (const input of [picker, backupPicker]) {
+    const description = document.getElementById(
+      input.getAttribute("aria-describedby"),
+    );
+    input.addEventListener("change", () => {
+      const files = input.files;
+      description.textContent =
+        files.length > 1
+          ? `${files.length} files chosen`
+          : files[0]?.name || "No file chosen";
+    });
+  }
   const errors = new Map();
-  const scanLabels = ["角色", "动作", "情绪", "语气"];
+  const scanLabels = ["Subjects", "Actions", "Emotions", "Tone"];
   let submittedQuery = "";
   let active = false;
   let batches = [];
   let states = [];
   let cursor = null;
   let media = new AbortController();
-  const urls = new Set();
+  const pages = [];
+  const analysisProgress = panel.querySelector("[data-analysis-progress]");
+  const pendingAnalysis = new Set();
+  const analysisBatch = new Map();
+  let analysisTimer;
+  let analysisRequest;
+  let connectionVersion = 0;
+  const tools = [...panel.querySelectorAll("[data-tool]")];
+  function openTool(current) {
+    for (const button of tools) {
+      const opened = button === current;
+      button.setAttribute("aria-expanded", String(opened));
+      document.getElementById(button.getAttribute("aria-controls")).hidden =
+        !opened;
+    }
+  }
+  for (const button of tools) {
+    button.addEventListener("click", () =>
+      openTool(button.getAttribute("aria-expanded") === "true" ? null : button),
+    );
+  }
+
+  function showAnalysisProgress(note = "") {
+    const counts = new Map();
+    for (const status of analysisBatch.values())
+      counts.set(status, (counts.get(status) || 0) + 1);
+    const labels = {
+      pending: "queued",
+      running: "analyzing",
+      ready: "ready",
+      failed: "failed",
+      unavailable: "unavailable",
+    };
+    const parts = Object.entries(labels)
+      .filter(([status]) => counts.has(status))
+      .map(([status, label]) => `${counts.get(status)} ${label}`);
+    const message = [
+      parts.length ? `AI analysis: ${parts.join(" · ")}.` : "",
+      note,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    if (analysisProgress.textContent !== message)
+      analysisProgress.textContent = message;
+  }
+
+  function pauseAnalysis() {
+    clearTimeout(analysisTimer);
+    analysisTimer = undefined;
+    analysisRequest?.abort();
+    analysisRequest = null;
+  }
+
+  function scheduleAnalysis(delay = 2000) {
+    if (
+      !panel.open ||
+      document.hidden ||
+      !pendingAnalysis.size ||
+      analysisTimer !== undefined ||
+      analysisRequest
+    )
+      return;
+    analysisTimer = setTimeout(checkAnalysis, delay);
+  }
+
+  async function checkAnalysis() {
+    analysisTimer = undefined;
+    const request = new AbortController();
+    analysisRequest = request;
+    let retry = false;
+    // Rotate through large selections without fetching the GIFs or rebuilding the gallery.
+    await Promise.all(
+      [...pendingAnalysis].slice(0, 6).map(async (id) => {
+        try {
+          const asset = await api.request(
+            `/library/assets/${encodeURIComponent(id)}`,
+            { signal: request.signal },
+          );
+          if (request.signal.aborted) return;
+          pendingAnalysis.delete(id);
+          if (analysisInProgress(asset.annotation_status))
+            pendingAnalysis.add(id);
+          if (analysisBatch.has(id))
+            analysisBatch.set(id, asset.annotation_status);
+          for (const page of pages) page.annotations.get(id)?.(asset);
+        } catch (error) {
+          if (request.signal.aborted) return;
+          pendingAnalysis.delete(id);
+          if ([401, 403, 404].includes(error.status)) {
+            if (analysisBatch.has(id)) analysisBatch.set(id, "unavailable");
+          } else {
+            pendingAnalysis.add(id);
+            retry = true;
+          }
+        }
+      }),
+    );
+    if (request.signal.aborted) return;
+    analysisRequest = null;
+    showAnalysisProgress(
+      retry ? "Connection interrupted. Checking again shortly." : "",
+    );
+    scheduleAnalysis(retry ? 5000 : 2000);
+  }
+
+  function releasePages(start) {
+    for (const page of pages.splice(start)) {
+      page.controller.abort();
+      page.observer?.disconnect();
+      for (const url of page.urls) URL.revokeObjectURL(url);
+      for (const node of page.nodes) node.remove();
+    }
+  }
+
+  function updatePaging() {
+    cursor = pages.at(-1)?.cursor || null;
+    more.hidden = !cursor || !!submittedQuery;
+    less.hidden = pages.length < 2;
+    const count = pages.reduce((total, page) => total + page.nodes.length, 0);
+    visibleCount.textContent = count
+      ? `${count} ${count === 1 ? "GIF" : "GIFs"} shown`
+      : "";
+  }
 
   function dispose() {
     media.abort();
     media = new AbortController();
-    for (const url of urls) URL.revokeObjectURL(url);
-    urls.clear();
+    releasePages(0);
     assets.replaceChildren();
+    updatePaging();
+  }
+
+  async function mediaUrl(path, page) {
+    const blob = await api.media(path, page.controller.signal);
+    if (page.controller.signal.aborted)
+      throw new DOMException("Aborted", "AbortError");
+    const url = URL.createObjectURL(blob);
+    page.urls.add(url);
+    return url;
   }
 
   function json(path, method, body) {
@@ -67,14 +217,14 @@ export function mountLibrary(api, newKey) {
       const counts = batch.counts;
       const group = element(
         "li",
-        `批次 ${index + 1}：成功 ${counts.imported}、重复 ${counts.duplicate}、拒绝 ${counts.rejected}、待续传 ${counts.waiting}`,
+        `Batch ${index + 1} · ${counts.imported ?? 0} imported, ${counts.duplicate ?? 0} duplicates, ${counts.rejected ?? 0} rejected, ${counts.waiting} waiting`,
       );
       const items = element("ul");
       for (const item of batch.items) {
         const label =
           errors.get(item.client_item_id)?.label ||
           (item.error_code === "file_too_large"
-            ? "文件超过大小限制"
+            ? "File exceeds size limit"
             : statusLabels[item.status]);
         items.append(element("li", `${item.filename} — ${label}`));
       }
@@ -111,9 +261,14 @@ export function mountLibrary(api, newKey) {
       }
       renderReceipts();
     }
-    if (needsManifest) report("旧还原请求未建立。请重新选择备份清单。");
+    if (needsManifest)
+      report(
+        "Previous restore was not started. Select the backup manifest again.",
+      );
     else if (batches.some((batch) => batch.counts.waiting))
-      report("请重新选择尚未上传的 GIF，再点继续上传。");
+      report(
+        "Open Import GIFs, select the remaining files and choose Resume upload.",
+      );
   }
 
   async function beginImport(selected, backup = null) {
@@ -150,39 +305,34 @@ export function mountLibrary(api, newKey) {
 
   function updateSelection() {
     panel.querySelector("[data-selection]").textContent = selection.size
-      ? `已选 ${selection.size} 张`
+      ? ` (${selection.size})`
       : "";
   }
 
-  function previewMatches(parent, asset) {
+  function previewMatches(parent, asset, page) {
     const button = element(
       "button",
-      `查看可能重复的 ${asset.possible_duplicates.length} 张 GIF`,
+      `Review similar GIFs (${asset.possible_duplicates.length})`,
     );
     button.type = "button";
     button.addEventListener("click", async () => {
       button.disabled = true;
-      const { signal } = media;
+      const { signal } = page.controller;
       try {
+        const matches = document.createDocumentFragment();
         for (const id of asset.possible_duplicates) {
           const match = await api.request(
             `/library/assets/${encodeURIComponent(id)}`,
             { signal },
           );
-          const blob = await api.request(match.media_url, {
-            media: true,
-            signal,
-          });
-          if (signal.aborted) return;
-          const url = URL.createObjectURL(blob);
-          urls.add(url);
           const photo = element("img");
-          photo.src = url;
+          photo.src = await mediaUrl(match.media_url, page);
           photo.alt = match.title;
           const figure = element("figure");
           figure.append(photo, element("figcaption", match.title));
-          parent.append(figure);
+          matches.append(figure);
         }
+        parent.append(matches);
         button.hidden = true;
       } catch (error) {
         if (!signal.aborted) report(errorMessage(error));
@@ -193,102 +343,141 @@ export function mountLibrary(api, newKey) {
     parent.append(button);
   }
 
-  function card(asset) {
+  function card(asset, page) {
     const li = element("li");
-    const title = element("strong", asset.title);
-    const state = element(
-      "p",
-      `${asset.frame_count} 帧 · 图片索引 ${asset.index_status} · AI ${asset.annotation_status}`,
-    );
-    const show = element("button", "预览与下载");
-    show.type = "button";
-    show.addEventListener("click", async () => {
-      show.disabled = true;
-      const { signal } = media;
-      try {
-        const blob = await api.request(asset.media_url, {
-          media: true,
-          signal,
-        });
-        if (signal.aborted) return;
-        const url = URL.createObjectURL(blob);
-        urls.add(url);
-        const image = element("img");
-        image.src = url;
-        image.alt = asset.title;
-        const download = element("a", "下载原 GIF");
-        download.download = `${asset.asset_id}.gif`;
-        download.href = url;
-        li.append(image, download);
-        show.hidden = true;
-      } catch (error) {
-        if (!signal.aborted) report(error.message);
-      } finally {
-        show.disabled = false;
-      }
-    });
+    li.className = "library-card";
+    const preview = element("div");
+    preview.className = "library-thumb";
     const select = element("input");
     select.type = "checkbox";
     select.value = asset.asset_id;
     select.checked = selection.has(asset.asset_id);
+    select.setAttribute("aria-label", `Select ${asset.title}`);
     select.addEventListener("change", () => {
       if (select.checked) selection.add(asset.asset_id);
       else selection.delete(asset.asset_id);
       updateSelection();
     });
-    const selectLabel = element("label");
-    selectLabel.append(select, document.createTextNode(` 选择 ${asset.title}`));
-    li.append(title, state, selectLabel, show);
-    if (asset.index_status === "failed") {
-      const retry = element("button", "重试图片索引");
-      retry.type = "button";
-      retry.addEventListener("click", () =>
-        run(async () => {
-          await api.request(`/saved-assets/${asset.asset_id}/index-retry`, {
-            method: "POST",
-          });
-          await loadAssets();
-        }),
-      );
-      li.append(retry);
+    const pick = element("label");
+    pick.className = "library-pick";
+    pick.append(select);
+    const progress = element("span", "Loading GIF…");
+    const download = element("a", "Download GIF");
+    download.hidden = true;
+    download.download = `${asset.asset_id}.gif`;
+    async function loadPreview() {
+      progress.textContent = "Loading GIF…";
+      try {
+        const url = await mediaUrl(asset.media_url, page);
+        if (page.controller.signal.aborted) return;
+        const image = element("img");
+        image.alt = asset.title;
+        image.src = url;
+        progress.replaceWith(image);
+        download.href = url;
+        download.hidden = false;
+      } catch (error) {
+        if (page.controller.signal.aborted) return;
+        const retry = element("button", "Retry preview");
+        retry.type = "button";
+        retry.title = errorMessage(error);
+        retry.addEventListener("click", loadPreview, { once: true });
+        progress.replaceChildren(retry);
+      }
     }
-    if (asset.annotation_error)
-      li.append(
-        element("p", `识别失败 · ${asset.annotation_error}。可选中后重试。`),
-      );
-    if (asset.possible_duplicates?.length) previewMatches(li, asset);
-    if (asset.ocr_text || asset.ocr_uncertain) {
-      li.append(
+    preview.append(progress, pick);
+    if (page.observer) {
+      preview.addEventListener("loadpreview", loadPreview, { once: true });
+      page.observer.observe(preview);
+    } else {
+      void loadPreview();
+    }
+    const body = element("div");
+    body.className = "library-card-body";
+    const title = element("h3", asset.title);
+    const state = element("p");
+    state.className = "library-meta";
+    const caption = element("p");
+    const tags = element("ul");
+    tags.className = "library-tags";
+    tags.setAttribute("aria-label", "Tags");
+    body.append(title, state, caption, tags);
+    if (asset.match_reasons?.length)
+      body.append(
         element(
           "p",
-          `图片文字：${asset.ocr_text}${asset.ocr_uncertain ? "（有不确定文字）" : ""}`,
+          `Matched: ${(asset.match_reasons_en || asset.match_reasons).join(", ")}`,
         ),
       );
+    const details = editor(asset);
+    const notes = element("div");
+    const ocr = element("p");
+    const originalCaption = element("p");
+    notes.append(ocr, originalCaption);
+    if (asset.possible_duplicates?.length) previewMatches(notes, asset, page);
+    details.querySelector("summary").after(notes);
+    const retry = element("button", "Retry image indexing");
+    retry.type = "button";
+    retry.addEventListener("click", () =>
+      run(async () => {
+        await api.request(`/saved-assets/${asset.asset_id}/index-retry`, {
+          method: "POST",
+        });
+        await loadAssets();
+      }),
+    );
+    const failure = element("p");
+    body.append(retry, failure);
+
+    function paintAnalysis(update) {
+      Object.assign(asset, update);
+      state.textContent = `${asset.frame_count} frames · Index ${asset.index_status.replaceAll("_", " ")} · AI ${asset.annotation_status.replaceAll("_", " ")}`;
+      caption.textContent = asset.caption_en || "";
+      caption.hidden = !caption.textContent;
+      tags.replaceChildren(
+        ...(asset.tags || []).map((tag) => element("li", tag)),
+      );
+      tags.hidden = !tags.childElementCount;
+      ocr.textContent = `Image text: ${asset.ocr_text || ""}${asset.ocr_uncertain ? " (uncertain)" : ""}`;
+      ocr.hidden = !asset.ocr_text && !asset.ocr_uncertain;
+      originalCaption.textContent = asset.caption_zh || "";
+      originalCaption.hidden = !!asset.caption_en || !asset.caption_zh;
+      retry.hidden = asset.index_status !== "failed";
+      failure.textContent = asset.annotation_error
+        ? `Analysis failed (${asset.annotation_error}). Select this GIF and choose Analyze selected GIFs to retry.`
+        : "";
+      failure.hidden = !failure.textContent;
     }
-    if (asset.caption_zh) li.append(element("p", asset.caption_zh));
-    if (asset.tags?.length) li.append(element("p", asset.tags.join("、")));
-    if (asset.match_reasons?.length)
-      li.append(element("p", `命中：${asset.match_reasons.join("、")}`));
-    li.append(editor(asset));
+    paintAnalysis({});
+    page.annotations.set(asset.asset_id, paintAnalysis);
+    if (analysisInProgress(asset.annotation_status)) {
+      pendingAnalysis.add(asset.asset_id);
+      scheduleAnalysis();
+    }
+    const actions = element("div");
+    actions.className = "library-card-actions";
+    actions.append(download, details);
+    body.append(actions);
+    li.append(preview, body);
     return li;
   }
 
   function editor(asset) {
     const details = element("details");
-    details.append(element("summary", "编辑标题与标签"));
+    details.append(element("summary", "Edit details"));
     const form = element("form");
     const manual = asset.manual || {};
     const fields = [
-      ["title", "标题", asset.title],
-      ["tags", "手动标签", (manual.tags || []).join("、")],
+      ["title", "Title", asset.title],
+      ["tags", "Manual tags", (manual.tags || []).join(", ")],
       ...["subject_tags", "action_tags", "emotion_tags", "tone_tags"].map(
         (key, index) => [
           key,
           scanLabels[index],
-          (manual[key] || []).join("、"),
+          (manual[key] || []).join(", "),
         ],
       ),
-      ["ocr_text", "修正图中文字", manual.ocr_text || ""],
+      ["ocr_text", "Correct image text", manual.ocr_text || ""],
     ];
     const inputs = new Map();
     for (const [key, label, value] of fields) {
@@ -299,14 +488,14 @@ export function mountLibrary(api, newKey) {
         key === "title"
           ? ""
           : key === "ocr_text"
-            ? "留空使用 AI 结果"
-            : "用顿号分隔，留空使用默认值";
+            ? "Leave blank to use AI text"
+            : "Separate tags with commas";
       const row = element("label", label);
       row.append(input);
       form.append(row);
       inputs.set(key, input);
     }
-    const save = element("button", "保存编辑");
+    const save = element("button", "Save changes");
     save.type = "submit";
     form.append(save);
     form.addEventListener("submit", (event) => {
@@ -326,7 +515,7 @@ export function mountLibrary(api, newKey) {
         }
         await json(`/library/assets/${asset.asset_id}`, "PATCH", body);
         await loadAssets();
-        report("已保存编辑。");
+        report("Changes saved.");
       });
     });
     details.append(form);
@@ -338,6 +527,7 @@ export function mountLibrary(api, newKey) {
     if (!append) dispose();
     const { signal } = media;
     const params = new URLSearchParams(filters);
+    params.set("limit", "8");
     if (append && cursor) params.set("cursor", cursor);
     const path = params.size ? `?${params}` : "";
     const result = submittedQuery
@@ -349,27 +539,51 @@ export function mountLibrary(api, newKey) {
         })
       : await api.request(`/library/assets${path}`, { signal });
     if (signal.aborted) return;
-    assets.append(...result.assets.map(card));
+    const page = {
+      controller: new AbortController(),
+      urls: new Set(),
+      cursor: result.next_cursor,
+      nodes: [],
+      observer: null,
+      annotations: new Map(),
+    };
+    if ("IntersectionObserver" in window) {
+      page.observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting || page.controller.signal.aborted)
+              continue;
+            page.observer.unobserve(entry.target);
+            entry.target.dispatchEvent(new Event("loadpreview"));
+          }
+        },
+        { rootMargin: "160px" },
+      );
+    }
+    pages.push(page);
+    page.nodes = result.assets.map((asset) => card(asset, page));
+    assets.append(...page.nodes);
     if (!append && !result.assets.length) {
       assets.append(
         element(
           "li",
           submittedQuery
-            ? "未找到匹配项。试试图中文字、角色、动作或标签。"
-            : "尚无收藏或导入的 GIF。",
+            ? "No matches. Try an action, character, tag or words from the GIF."
+            : filters.size
+              ? "No GIFs match these filters."
+              : "Your library is empty. Use Import GIFs to add your first GIF.",
         ),
       );
     }
-    cursor = result.next_cursor;
-    more.hidden = !cursor || !!submittedQuery;
+    updatePaging();
   }
 
   function errorMessage(error) {
     return (
       {
-        library_disabled: "此部署未启用私人表情库。",
+        library_disabled: "The private library is disabled on this server.",
         annotation_unconfigured:
-          "此部署尚未配置视觉模型网关。仍可手动标注和搜索。",
+          "AI analysis is unavailable. You can still add tags and search.",
       }[error.code] || error.message
     );
   }
@@ -377,7 +591,7 @@ export function mountLibrary(api, newKey) {
   async function run(task) {
     if (active) return;
     active = true;
-    for (const button of [submit, resume, refresh, more])
+    for (const button of [submit, resume, refresh, more, less, annotate])
       button.disabled = true;
     report("");
     try {
@@ -388,16 +602,16 @@ export function mountLibrary(api, newKey) {
       }
     } finally {
       active = false;
-      for (const button of [submit, resume, refresh, more])
+      for (const button of [submit, resume, refresh, more, less, annotate])
         button.disabled = false;
     }
   }
 
   async function selectedFiles() {
-    if (!crypto.subtle) throw new Error("导入需要 HTTPS 或 localhost。");
+    if (!crypto.subtle) throw new Error("Import requires HTTPS or localhost.");
     const files = Array.from(picker.files);
     if (!files.length || files.length > 60) {
-      throw new Error("请选择 1–60 个 GIF。");
+      throw new Error("Choose 1–60 GIF files.");
     }
     const selected = [];
     for (const file of files) {
@@ -456,8 +670,8 @@ export function mountLibrary(api, newKey) {
           errors.set(item.client_item_id, {
             tooLarge,
             label: tooLarge
-              ? "超过目标库单文件上限"
-              : `暂时失败，可重试（${error.code}）`,
+              ? "Exceeds the destination file limit"
+              : `Upload interrupted. Try again (${error.code}).`,
           });
         }
         renderReceipts();
@@ -487,7 +701,7 @@ export function mountLibrary(api, newKey) {
     run(async () => {
       const manifestFile = backupPicker.files[0];
       if (!manifestFile || manifestFile.size > 1024 * 1024)
-        throw new Error("请选择大小不超过 1 MiB 的 manifest.json。");
+        throw new Error("Choose a manifest.json file up to 1 MiB.");
       const manifest = JSON.parse(await manifestFile.text());
       if (
         manifest.version !== 1 ||
@@ -503,21 +717,21 @@ export function mountLibrary(api, newKey) {
             asset.path === `assets/${asset.sha256}.gif`,
         )
       )
-        throw new Error("不支持此备份清单。");
+        throw new Error("Unsupported backup manifest.");
       const selected = await selectedFiles();
       const byName = new Map(selected.map((entry) => [entry.file.name, entry]));
       const valid = [];
       const rows = new Map();
       for (const entry of manifest.assets) {
         const picked = byName.get(`${entry.sha256}.gif`);
-        let status = "缺少原 GIF";
+        let status = "Original GIF missing";
         if (picked) {
-          status = "文件字节或 SHA 不一致";
+          status = "Size or checksum mismatch";
           if (
             picked.item.sha256 === entry.sha256 &&
             picked.item.byte_size === entry.byte_size
           ) {
-            status = "待还原";
+            status = "Waiting to restore";
             valid.push(picked);
           }
         }
@@ -546,13 +760,13 @@ export function mountLibrary(api, newKey) {
             ["imported", "duplicate"].includes(item.status)
           ) {
             uploaded_sha256.push(item.sha256);
-            row.status = "已保存 GIF，待还原元数据";
+            row.status = "GIF saved. Restoring metadata…";
           } else if (item.error_code === "file_too_large" || error?.tooLarge) {
-            row.status = "超过目标库单文件上限";
+            row.status = "Exceeds the destination file limit";
           } else if (item.status === "rejected") {
-            row.status = `还原失败（${item.error_code}）`;
+            row.status = `Restore failed (${item.error_code})`;
           } else if (error) {
-            row.status = "暂时失败，可继续上传";
+            row.status = "Upload interrupted. Resume to retry.";
           }
         }
       }
@@ -565,8 +779,8 @@ export function mountLibrary(api, newKey) {
       for (const item of result.items)
         rows.get(item.sha256).status =
           item.status === "restored"
-            ? "已还原"
-            : `还原失败（${item.error_code}）`;
+            ? "Restored"
+            : `Restore failed (${item.error_code})`;
       showResults();
       await loadAssets();
     }),
@@ -575,7 +789,7 @@ export function mountLibrary(api, newKey) {
   panel.querySelector("[data-export]").addEventListener("click", () =>
     run(async () => {
       if (!selection.size || selection.size > 60)
-        throw new Error("请选择 1–60 张 GIF。");
+        throw new Error("Select 1–60 GIFs.");
       const blob = await api.request("/library/exports", {
         method: "POST",
         binary: true,
@@ -608,15 +822,14 @@ export function mountLibrary(api, newKey) {
         .filter(Boolean);
       run(async () => {
         if (!selection.size || selection.size > 60)
-          throw new Error("请选择 1–60 张 GIF。");
-        if (!tags.length || tags.length > 8)
-          throw new Error("请输入 1–8 个标签。");
+          throw new Error("Select 1–60 GIFs.");
+        if (!tags.length || tags.length > 8) throw new Error("Enter 1–8 tags.");
         const result = await json("/library/assets/bulk-tags", "POST", {
           asset_ids: [...selection],
           tags,
         });
         await loadAssets();
-        report(`已为 ${result.updated} 张 GIF 更新标签。`);
+        report(`Tags updated for ${result.updated} GIFs.`);
       });
     });
 
@@ -648,37 +861,91 @@ export function mountLibrary(api, newKey) {
     query.value = "";
     search();
   });
-  annotate.addEventListener("click", () =>
-    run(async () => {
-      const asset_ids = [...selection];
-      if (!asset_ids.length || asset_ids.length > 20) {
-        report("请选择 1–20 张 GIF。");
-        return;
-      }
-      if (
-        !window.confirm(
-          "会把所选 GIF 最多 4 张抽样帧发送给配置的视觉模型网关。这些帧包含画面中可见的信息。确认发送并识别？",
-        )
-      )
-        return;
-      const result = await json("/library/annotations", "POST", {
-        asset_ids,
-        consent: true,
-      });
-      await loadAssets();
-      if (result.assets.some((asset) => asset.annotation_status !== "ready")) {
-        report("已提交识别。用刷新查看状态。");
-      }
-    }),
-  );
+  annotate.addEventListener("click", () => {
+    if (active || confirmation.open) return;
+    const asset_ids = [...selection];
+    if (!asset_ids.length || asset_ids.length > 20) {
+      report("Select 1–20 GIFs.");
+      return;
+    }
+    const version = connectionVersion;
+    confirmation.querySelector("h2").textContent =
+      `Analyze ${asset_ids.length} selected ${asset_ids.length === 1 ? "GIF" : "GIFs"}?`;
+    confirmation.returnValue = "cancel";
+    confirmation.addEventListener(
+      "close",
+      () => {
+        if (
+          confirmation.returnValue === "analyze" &&
+          version === connectionVersion &&
+          panel.open
+        ) {
+          void run(() => submitAnalysis(asset_ids, version));
+        }
+      },
+      { once: true },
+    );
+    confirmation.showModal();
+  });
+
+  async function submitAnalysis(asset_ids, version) {
+    report("Submitting GIFs for analysis…");
+    const result = await json("/library/annotations", "POST", {
+      asset_ids,
+      consent: true,
+    });
+    if (version !== connectionVersion) return;
+    report("");
+    pauseAnalysis();
+    analysisBatch.clear();
+    for (const receipt of result.assets) {
+      const id = receipt.asset_id;
+      analysisBatch.set(id, receipt.annotation_status);
+      pendingAnalysis.add(id);
+      for (const page of pages)
+        page.annotations.get(id)?.({
+          annotation_status: receipt.annotation_status,
+          annotation_error: null,
+        });
+    }
+    showAnalysisProgress();
+    scheduleAnalysis(0);
+  }
+
   refresh.addEventListener("click", reload);
   more.addEventListener("click", () => run(() => loadAssets(true)));
-  panel.addEventListener("toggle", () => {
-    if (panel.open) reload();
-    else dispose();
+  less.addEventListener("click", () => {
+    releasePages(1);
+    updatePaging();
+    more.focus();
+    assets.scrollIntoView({ block: "start", behavior: "instant" });
   });
-  window.addEventListener("pagehide", dispose);
+  panel.addEventListener("toggle", () => {
+    if (panel.open) {
+      reload();
+      scheduleAnalysis(0);
+    } else {
+      if (confirmation.open) confirmation.close("cancel");
+      pauseAnalysis();
+      dispose();
+    }
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) pauseAnalysis();
+    else scheduleAnalysis(0);
+  });
+  window.addEventListener("pagehide", () => {
+    if (confirmation.open) confirmation.close("cancel");
+    pauseAnalysis();
+    dispose();
+  });
   return () => {
+    connectionVersion++;
+    if (confirmation.open) confirmation.close("cancel");
+    pauseAnalysis();
+    pendingAnalysis.clear();
+    analysisBatch.clear();
+    showAnalysisProgress();
     dispose();
     receipts.replaceChildren();
     errors.clear();

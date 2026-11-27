@@ -229,7 +229,7 @@ try {
         items.map((x) => x.candidate_id),
       );
       assert.equal(filtered.total, items.length);
-      await page.locator("#media-filter").selectOption(kind);
+      await page.locator(`#media-filter input[value="${kind}"]`).check();
       await waitIds(items.slice(0, 20).map((x) => x.candidate_id));
       evidence.coverage[kind] = {
         api_count: items.length,
@@ -332,7 +332,7 @@ try {
     evidence.assertions.filter_counts = true;
     const kind = "animated";
     const filtered = all.filter((x) => x.media_kind === kind);
-    await page.locator("#media-filter").selectOption(kind);
+    await page.locator(`#media-filter input[value="${kind}"]`).check();
     await waitIds(filtered.slice(0, 20).map((x) => x.candidate_id));
     if (filtered.length > 20) {
       await page.locator("#next-page").click();
@@ -344,7 +344,7 @@ try {
     await applyToken();
     await page.locator("#meme-controls").waitFor({ state: "visible" });
     await waitIds(before);
-    assert.equal(await page.locator("#media-filter").inputValue(), kind);
+    assert.equal(await page.locator("#media-filter input:checked").inputValue(), kind);
     const restored = await api(jobPath);
     assert.equal(restored.result_revision, revision);
     evidence.assertions.refresh_position = true;

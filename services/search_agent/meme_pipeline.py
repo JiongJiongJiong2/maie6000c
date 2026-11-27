@@ -10,13 +10,15 @@ import numpy as np
 from services.common.media import MAX_BYTES, inspect_media, representative_frames, preview_bytes
 from services.common.storage import atomic_write
 from services.retrieval import encoder
-from services.retrieval.dedup import ContentGroups, source_identity
+from services.retrieval.dedup import ContentGroups, source_identity, unique_post_previews
 from services.retrieval.download import canonical_url
-from services.retrieval.rerank import score_candidate
-from .entity_verifier import verify_entities
+from services.retrieval.rerank import matching_picture, picture_regions, score_candidate
+from .caption_review import review_scores
+from .captions import caption_overlap, caption_phrases, product_listing, wants_products
+from .entity_verifier import REFERENCE_SIMILARITY, verify_entities
 from .meme_fetch import FetchClient
-from .meme_deepseek import DeepSeekWeb, DeepSeekQueryPlanner
-from .meme_types import Ledger, MemeSettings, PipelineError, PreparedMedia
+from .meme_deepseek import DeepSeekWeb, DeepSeekQueryPlanner, retrieval_queries
+from .meme_types import Ledger, MediaSource, MemeSettings, PipelineError, PreparedMedia, Query
 from .page_media import page_sources
 from .visual_analysis import analyze_image
 
@@ -53,6 +55,7 @@ def search_memes(
     target_count=50,
     *,
     settings=None,
+    saved_analysis=None,
     emit=None,
     analyze=None,
     reverse=None,
@@ -80,7 +83,10 @@ def search_memes(
     groups = ContentGroups()
     seen_media, seen_pages, seen_previews = set(), set(), set()
     all_sources = []
+    reference_media = {}
     analysis = None
+    review_enabled = False
+    query_frames = []
     stop = "query_limit"
     counts = dict(metadata=0, valid_media=0, low_score=0, sha_duplicates=0, content_duplicates=0)
     counts.update(
@@ -101,11 +107,23 @@ def search_memes(
         event("stage", stage=name)
 
     def finish(status):
-        chosen = sorted(prepared.values(), key=lambda p: (-p.score, p.content_group_id))[
-            :target_count
-        ]
-        if status == "failed":
-            chosen = []
+        ranked = sorted(prepared.values(), key=lambda p: (-p.score, p.content_group_id))
+        revisions = {}
+        if review_enabled and ranked and status == "completed":
+            try:
+                ledger.remaining()
+                revisions = review_scores(ranked, query_frames[0], analysis, work, ledger)
+            except PipelineError as exc:
+                ledger.note("caption_review_skipped", code=exc.code)
+        chosen = []
+        for item in ranked if status == "completed" else []:
+            score = revisions.get(item.key, item.score)
+            if score is not None and score >= settings.minimum_score:
+                chosen.append(item.model_copy(update={"score": score}))
+        chosen.sort(key=lambda item: (-item.score, item.content_group_id))
+        chosen = unique_post_previews(chosen)[:target_count]
+        if status == "completed" and len(chosen) < target_count:
+            warnings.append("insufficient_distinct_relevant_media")
         result = dict(
             status=status,
             stop_reason=stop,
@@ -119,24 +137,36 @@ def search_memes(
             scoring_version=settings.scoring_version,
             dedup_version=settings.dedup_version,
         )
+        if revisions:
+            result["final_scores"] = {item.key: item.score for item in chosen}
         event("final", **result)
         return result
 
     try:
         stage("preprocessing")
         data = Path(image_path).read_bytes()
-        inspect_media(data)
-        stage("understanding")
-        if analyze:
-            analysis, query_frames = analyze(data, user_text, settings, ledger)
+        input_meta = inspect_media(data)
+        if saved_analysis is not None:
+            analysis = saved_analysis.model_copy(deep=True)
+            query_frames, _ = representative_frames(data, count=4)
+            ledger.note("retry_analysis_reused", query_count=len(analysis.queries))
         else:
-            analysis, query_frames = analyze_image(data, user_text, settings, ledger)
-        stage("verifying")
-        if not analyze:
-            analysis, verify_warnings = verify_entities(analysis, query_frames, settings, ledger)
-            warnings.extend(verify_warnings)
+            stage("understanding")
+            analysis, query_frames = (analyze or analyze_image)(data, user_text, settings, ledger)
+            stage("verifying")
+            if not analyze:
+                analysis, verify_warnings = verify_entities(
+                    analysis,
+                    query_frames,
+                    settings,
+                    ledger,
+                    fetcher=fetcher,
+                    embeddings=embeddings,
+                    media_cache=reference_media,
+                )
+                warnings.extend(verify_warnings)
         stage("recalling")
-        if not analyze:
+        if not analyze and (saved_analysis is None or analysis.planner_version == "unavailable"):
             try:
                 analysis.queries = DeepSeekQueryPlanner(settings, ledger).plan(analysis)
                 analysis.planner_version = (
@@ -145,10 +175,29 @@ def search_memes(
             except PipelineError as exc:
                 warnings.append(exc.code)
                 ledger.note("query_planning_failed", provider="deepseek", code=exc.code)
+        if not analyze:
+            remaining_queries = max(0, settings.max_queries - ledger.counts["queries"])
+            analysis.queries = retrieval_queries(analysis)
+            joint = next((q for q in analysis.queries if q.angle == "composite"), None)
+            if (
+                joint
+                and remaining_queries >= 2
+                and not any(row.get("matching_media_url") for row in analysis.evidence)
+                and not any(q.angle == "template_catalog" for q in analysis.queries)
+            ):
+                # Editorial coverage can mention both components but illustrate just
+                # one. Reserve an independent lookup specifically for blank templates.
+                prefix = "site:imgflip.com/memetemplate "
+                template = Query(
+                    text=prefix + joint.text[: 128 - len(prefix)],
+                    angle="template_catalog",
+                    language=joint.language,
+                )
+                analysis.queries = [joint, template, *(q for q in analysis.queries if q != joint)]
             # Both actual providers share one finite query ledger.
             analysis.queries = [
                 q.model_copy(update={"text": q.text.strip()[:128]})
-                for q in analysis.queries[: max(0, settings.max_queries - ledger.counts["queries"])]
+                for q in analysis.queries[:remaining_queries]
                 if q.text.strip()
             ]
         reverse_ok = False
@@ -180,17 +229,31 @@ def search_memes(
                 break
         if reverse is not None and not reverse_ok:
             warnings.append("reverse_image_unavailable")
+        phrases = caption_phrases(analysis.ocr_text)
+        filter_products = bool(phrases) and not wants_products(user_text)
+        query_regions = picture_regions(query_frames[0]) if input_meta.frame_count == 1 else []
+        review_enabled = bool(
+            phrases
+            and input_meta.frame_count == 1
+            and not analyze
+            and settings.hkust_api_key
+            and settings.vision_provider == "hkust"
+            and ledger.counts["model_calls"] < settings.max_model_calls
+        )
+        shortlist_floor = (
+            min(settings.minimum_score, 0.40) if review_enabled else settings.minimum_score
+        )
         event("analysis_ready", analysis=analysis.model_dump(mode="json"))
         try:
             embeddings.load_model()
             query_vectors = embeddings.encode_images(query_frames)
             intent = " ".join(
                 [
+                    user_text,
+                    analysis.ocr_text,
                     *analysis.observations,
                     *analysis.action_tags,
                     *analysis.emotion_tags,
-                    user_text,
-                    analysis.ocr_text,
                 ]
             )[:1200]
             text_vector = embeddings.encode_texts([intent])[0]
@@ -206,6 +269,10 @@ def search_memes(
                         counts["channel_download_attempts"][channel] = (
                             counts["channel_download_attempts"].get(channel, 0) + 1
                         )
+                cached = reference_media.get(url)
+                if cached is not None:
+                    ledger.take("media_attempts")
+                    return cached, url
                 return fetcher.get(url, "media_attempts", MAX_BYTES)
 
             try:
@@ -215,7 +282,9 @@ def search_memes(
                     # its real clues once; never invent CDN aliases/extensions.
                     ledger.take("page_attempts")
                     ledger.note("media_html_wrapper", host=urlsplit(final_url).hostname)
-                    for clue in page_sources(source, content[: 2 * 1024 * 1024], final_url):
+                    for clue in page_sources(
+                        source, content[: 2 * 1024 * 1024], final_url, phrases
+                    ):
                         if clue.media_url in {source.media_url, final_url}:
                             continue
                         try:
@@ -230,6 +299,15 @@ def search_memes(
                 return source, None, exc.code
             except (ValueError, OSError):
                 return source, None, "invalid_media_source"
+
+        composite_search = any(q.angle == "composite" for q in analysis.queries)
+
+        def enough_results():
+            if sum(p.score >= settings.minimum_score for p in prepared.values()) < target_count:
+                return False
+            return not (composite_search or phrases) or any(
+                item.signals["visual"] >= REFERENCE_SIMILARITY for item in prepared.values()
+            )
 
         def process_direct(direct):
             nonlocal stop
@@ -286,6 +364,31 @@ def search_memes(
                         user_text,
                         metadata,
                     )
+                    match = ""
+                    if metadata.sha256 == input_meta.sha256:
+                        match = "identical_bytes"
+                    elif query_regions and metadata.frame_count == 1:
+                        match = matching_picture(query_regions, samples[0])
+                    if match:
+                        score = {"identical_bytes": 1.0, "near_copy": 0.99, "same_picture": 0.96}[
+                            match
+                        ]
+                    elif filter_products and (
+                        source.product_page or product_listing(source.source_url, source.title)
+                    ):
+                        counts["product_listings"] = counts.get("product_listings", 0) + 1
+                        ledger.note("product_listing_skipped", sha256=metadata.sha256)
+                        continue
+                    else:
+                        # Only image-specific captions can boost the final rank. A roundup's
+                        # headline or search snippet can describe a different image.
+                        label = source.image_caption or (
+                            source.title if source.source_type == "direct" else ""
+                        )
+                        agreement = caption_overlap(phrases, label)
+                        score = min(0.95, score + 0.09 * agreement)
+                        signals["caption_overlap"] = agreement
+                    signals["picture_match"] = match
                     ledger.note(
                         "media_ranked",
                         sha256=metadata.sha256,
@@ -298,7 +401,7 @@ def search_memes(
                         source_host=urlsplit(source.source_url).hostname,
                         source_path=urlsplit(source.source_url).path[:250],
                     )
-                    if score < settings.minimum_score:
+                    if score < shortlist_floor:
                         counts["low_score"] += 1
                         continue
                     group, is_new = groups.add(
@@ -316,10 +419,14 @@ def search_memes(
                     old = prepared.get(group)
                     # Prefer useful resolution for the same content group, with
                     # score as a deterministic tiebreaker. Groups never fill slots twice.
-                    if (
-                        old
-                        and old.metadata.width * old.metadata.height
-                        >= metadata.width * metadata.height
+                    if old and (
+                        old.score if old.signals.get("picture_match") else 0,
+                        old.metadata.width * old.metadata.height,
+                        old.score,
+                    ) >= (
+                        score if match else 0,
+                        metadata.width * metadata.height,
+                        score,
                     ):
                         continue
                     relative = f"originals/{metadata.sha256}.{metadata.suffix}"
@@ -350,19 +457,60 @@ def search_memes(
                     counts=counts.copy(),
                     ledger=ledger.counts.copy(),
                 )
-                if len(prepared) >= target_count:
+                if enough_results():
                     stop = "target_reached"
                     break
 
+        reference_sources = []
+        matches = []
+        for row in analysis.evidence:
+            if row.get("relation") != "supports" and not row.get("matching_media_url"):
+                continue
+            try:
+                source = MediaSource(
+                    source_url=row.get("url"),
+                    media_url=row.get("matching_media_url") or row.get("lead_media_url"),
+                    title=row.get("title", ""),
+                    provider="deepseek",
+                    source_rank=1,
+                ).checked()
+            except ValueError:
+                continue
+            reference_sources.append(source)
+            if row.get("matching_media_url"):
+                matches.append(source)
+            if len(reference_sources) >= settings.max_sources:
+                break
+        all_sources.extend(reference_sources)
+        counts["metadata_returned"] += len(reference_sources)
+        counts["channel_recall"]["keyword"] += len(reference_sources)
+        if matches:
+            stage("fetching")
+            counts["metadata"] = len(matches)
+            process_direct(matches)
+            seen_media.update(canonical_url(url) for url in reference_media)
+            reference_media.clear()
+            keyword_ok = True
         queries = analysis.queries[: settings.max_queries]
         for query_index, query in enumerate(queries):
+            if enough_results():
+                break
+            if (
+                review_enabled
+                and prepared
+                and ledger.deadline - ledger.clock() < settings.call_timeout_seconds + 4
+            ):
+                stop = "review_time_reserved"
+                break
             ledger.remaining()
+            fresh_urls = set()
             try:
                 sources = keywords.search(query.text, limit=min(200, settings.max_sources))
                 keyword_ok = True
                 counts["metadata_returned"] += len(sources)
                 counts["channel_recall"]["keyword"] += len(sources)
                 all_sources.extend(sources)
+                fresh_urls = {s.source_url for s in sources}
                 ledger.note(
                     "keyword_web",
                     provider="deepseek",
@@ -412,7 +560,19 @@ def search_memes(
                 vectors = embeddings.encode_images([f for _, f in preview_data])
                 for (source, _), vector in zip(preview_data, vectors, strict=True):
                     coarse.append((float(np.max(query_vectors @ vector)), source))
-            ordered = [s for _, s in sorted(coarse, key=lambda x: (-x[0], x[1].source_url))]
+
+            def discovery_priority(item):
+                relevance, source = item
+                agreement = caption_overlap(phrases, source.title + " " + source.snippet)
+                return (
+                    filter_products and product_listing(source.source_url, source.title),
+                    bool(phrases) and source.source_url not in fresh_urls,
+                    -relevance - 0.18 * agreement,
+                    source.source_rank,
+                    source.source_url,
+                )
+
+            ordered = [s for _, s in sorted(coarse, key=discovery_priority)]
             direct, pages = [], []
             # Fair-share the remaining page allowance across query angles. A
             # slow first query must not consume the entire job before originals
@@ -430,15 +590,29 @@ def search_memes(
                     seen_pages.add(source.source_url)
                     pages.append(source)
             process_direct(direct)
-            if len(prepared) < target_count:
+            if not enough_results():
                 # Finish a small page wave before starting media I/O: global
                 # request concurrency remains <= configured concurrency.
+                # A collection can have one generic cover and many individually captioned
+                # images. Spend more of the existing original budget on likely source pages.
+                gallery_pages = (
+                    {p.source_url for p in pages[:2]}
+                    if query.angle == "publisher_lookup"
+                    else set()
+                )
+
                 def read_page(source):
                     try:
                         page, final_url = fetcher.get(
                             source.source_url, "page_attempts", 2 * 1024 * 1024
                         )
-                        extracted = page_sources(source, page, final_url)
+                        extracted = page_sources(
+                            source,
+                            page,
+                            final_url,
+                            phrases,
+                            gallery_limit=12 if source.source_url in gallery_pages else 4,
+                        )
                         with ledger.lock:
                             counts["page_clues"] += len(extracted)
                         ledger.note(
@@ -472,9 +646,9 @@ def search_memes(
                                     seen_media.add(key)
                                     direct.append(item)
                     process_direct(direct)
-                    if len(prepared) >= target_count:
+                    if enough_results():
                         break
-            if len(prepared) >= target_count:
+            if enough_results():
                 break
             if ledger.counts["media_attempts"] >= settings.max_originals:
                 stop = "media_attempts_limit"
@@ -482,8 +656,6 @@ def search_memes(
         if not keyword_ok and not reverse_ok:
             raise PipelineError("recall_providers_unavailable")
         stage("finalizing")
-        if len(prepared) < target_count:
-            warnings.append("insufficient_distinct_relevant_media")
         return finish("completed")
     except PipelineError as exc:
         stop = exc.code

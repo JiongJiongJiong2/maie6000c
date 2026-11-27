@@ -37,6 +37,29 @@ CONCEPTS = {
         "敷衍": ("敷衍", "perfunctory"),
     },
 }
+# Keep the original reasons in the API for existing clients and saved evaluations.
+ENGLISH_REASONS = {
+    name: next(alias for alias in aliases if alias.isascii())
+    for category in CONCEPTS.values()
+    for name, aliases in category.items()
+}
+ENGLISH_REASONS.update(
+    {
+        "标题": "title",
+        "文字": "image text",
+        "描述": "caption",
+        "手动标签": "manual tag",
+        "标签": "tag",
+    }
+)
+
+
+def english_reason(reason: str) -> str:
+    if reason.startswith("文字「") and reason.endswith("」"):
+        return f"Image text “{reason[3:-1]}”"
+    return ENGLISH_REASONS.get(reason, reason)
+
+
 QUOTED = re.compile(r'「([^」]+)」|『([^』]+)』|“([^”]+)”|"([^"]+)"')
 FILLER = re.compile(r"找一下|找一个|有没有|那个|表情包|表情|动图|写着|给我|想找|[的了呢吗]")
 STOP_WORDS = {"a", "an", "the", "gif", "meme", "find", "with", "that", "for", "show", "me"}

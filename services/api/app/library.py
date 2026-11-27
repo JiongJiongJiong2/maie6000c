@@ -24,7 +24,7 @@ from sqlalchemy import func, select, text, tuple_
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.datastructures import UploadFile
 
-from services.api.app.library_rank import prepare_query, rank
+from services.api.app.library_rank import english_reason, prepare_query, rank
 from services.api.app.search import (
     Database,
     authorize,
@@ -348,6 +348,7 @@ def asset_card(
         "sampled_frames": annotation.get("sampled_frames", []),
         "annotation_result_version": annotation.get("version"),
         "caption_zh": annotation.get("caption_zh", ""),
+        "caption_en": annotation.get("caption_en") or "",
         "ocr_text": manual.get("ocr_text", annotation.get("ocr_text", "")),
         "ocr_uncertain": "ocr_text" not in manual and annotation.get("ocr_uncertain", False),
         "tags": list(
@@ -527,7 +528,10 @@ def search_library(payload: LibraryQuery, db: Database) -> dict:
                 heapq.heappush(top, result)
             else:
                 heapq.heappushpop(top, result)
-    return {"assets": [value for _, value in sorted(top, reverse=True)]}
+    assets = [value for _, value in sorted(top, reverse=True)]
+    for item in assets:
+        item["match_reasons_en"] = [english_reason(reason) for reason in item["match_reasons"]]
+    return {"assets": assets}
 
 
 @router.get("/assets/{asset_id}")

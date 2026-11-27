@@ -77,8 +77,8 @@ class MemeSettings(BaseSettings):
     max_disk_bytes: int = Field(default=512 * 1024 * 1024, gt=0, le=512 * 1024 * 1024)
     concurrency: int = Field(default=6, ge=1, le=6)
     dns_mode: Literal["system", "doh"] = "system"
-    minimum_score: float = Field(default=0.55, ge=-1, le=1, allow_inf_nan=False)
-    scoring_version: str = "meme50-rank-dev-v1-unvalidated"
+    minimum_score: float = Field(default=0.50, ge=-1, le=1, allow_inf_nan=False)
+    scoring_version: str = "meme50-rank-caption-v2"
     dedup_version: str = "meme50-temporal-local-v8"
 
     @property
@@ -101,6 +101,7 @@ class Query(BaseModel):
 class VisualAnalysis(BaseModel):
     model_config = ConfigDict(extra="forbid")
     observations: list[str] = Field(default_factory=list, max_length=12)
+    visual_keywords: list[str] = Field(default_factory=list, max_length=12)
     ocr_text: str = Field(default="", max_length=2000)
     entity_hypotheses: list[EntityHypothesis] = Field(default_factory=list, max_length=8)
     emotion_tags: list[str] = Field(default_factory=list, max_length=12)
@@ -117,6 +118,8 @@ class VisualAnalysis(BaseModel):
 class MediaSource(Source):
     media_url: str | None = None
     preview_url: str | None = None
+    product_page: bool = False
+    image_caption: str = Field(default="", max_length=500)
     source_type: str = "page"
     source_rank: int = Field(default=1, ge=1)
     channel: str = "keyword"

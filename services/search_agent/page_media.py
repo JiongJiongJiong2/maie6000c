@@ -4,6 +4,7 @@ import json
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlsplit
 
+from .captions import caption_overlap, image_label
 from .meme_types import MediaSource
 from .resolvers import CommonsOriginal, LicensedParrot, TenorOriginal
 
@@ -70,12 +71,27 @@ class PageImages(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.clues = []
+        self.product_page = False
+        self.image_labels = {}
+        self.figure_images = []
+        self.figure_caption = []
+        self.in_figure = False
+        self.in_caption = False
         self.json_parts = []
         self.in_json = False
 
     def handle_starttag(self, tag, attrs):
         # HTML boolean/empty attributes are represented by HTMLParser as None.
         a = {key: value or "" for key, value in attrs}
+        if tag == "figure":
+            self.in_figure = True
+            self.figure_images = []
+            self.figure_caption = []
+        if tag == "figcaption":
+            self.in_caption = self.in_figure
+        if tag == "meta" and a.get("property", "").casefold() == "og:type":
+            if a.get("content", "").casefold() in {"product", "product.item", "og:product"}:
+                self.product_page = True
         if tag == "meta" and (a.get("property") or a.get("name", "")).lower() in {
             "og:image",
             "og:image:url",
@@ -91,11 +107,15 @@ class PageImages(HTMLParser):
                 return
             for k in ["data-original", "data-src", "data-lazy-src", "src"]:
                 if a.get(k):
+                    if self.in_figure:
+                        self.figure_images.append(a[k])
+                    self.image_labels[a[k]] = a.get("alt") or a.get("title", "")
                     self.clues.append((3, a[k]))
                     break
-            if a.get("srcset"):
+            srcset = a.get("data-srcset") or a.get("srcset")
+            if srcset:
                 options = []
-                for candidate in a["srcset"].split(","):
+                for candidate in srcset.split(","):
                     parts = candidate.split()
                     if parts:
                         try:
@@ -104,7 +124,11 @@ class PageImages(HTMLParser):
                             size = 0
                         options.append((size, parts[0]))
                 if options:
-                    self.clues.append((2, max(options)[1]))
+                    href = max(options)[1]
+                    if self.in_figure:
+                        self.figure_images.append(href)
+                    self.image_labels[href] = a.get("alt") or a.get("title", "")
+                    self.clues.append((2, href))
         if tag == "script" and a.get("type", "").lower() == "application/ld+json":
             self.in_json = True
             self.json_parts = []
@@ -112,8 +136,19 @@ class PageImages(HTMLParser):
     def handle_data(self, data):
         if self.in_json:
             self.json_parts.append(data)
+        elif self.in_caption and len(self.figure_caption) < 40:
+            self.figure_caption.append(data[:500])
 
     def handle_endtag(self, tag):
+        if tag == "figcaption":
+            self.in_caption = False
+        if tag == "figure":
+            caption = " ".join(self.figure_caption)[:500]
+            for href in self.figure_images:
+                self.image_labels[href] = (self.image_labels.get(href, "") + " " + caption).strip()[
+                    :500
+                ]
+            self.in_figure = self.in_caption = False
         if tag != "script" or not self.in_json:
             return
         self.in_json = False
@@ -129,6 +164,14 @@ class PageImages(HTMLParser):
             for item in value[:40]:
                 self.walk(item, depth + 1)
         elif isinstance(value, dict):
+            types = value.get("@type", [])
+            types = [types] if isinstance(types, str) else types
+            if (
+                depth <= 2
+                and isinstance(types, list)
+                and any(t in ("Product", "ProductGroup") for t in types)
+            ):
+                self.product_page = True
             for key in ["image", "contentUrl", "thumbnailUrl"]:
                 item = value.get(key)
                 if isinstance(item, str):
@@ -142,7 +185,7 @@ class PageImages(HTMLParser):
                     self.walk(value[key], depth + 1)
 
 
-def page_sources(source, data, final_url):
+def page_sources(source, data, final_url, phrases=(), *, gallery_limit=4):
     generic = PageImages()
     generic.feed(data.decode("utf-8", errors="replace"))
     host = urlsplit(final_url).hostname
@@ -162,7 +205,13 @@ def page_sources(source, data, final_url):
     clues = [(-1, u) for u in specific.urls] if specific and specific.urls else generic.clues
     output = []
     seen = set()
-    for _, href in sorted(clues, key=lambda v: v[0]):
+
+    def priority(clue):
+        order, href = clue
+        label = image_label(href, generic.image_labels.get(href, ""))
+        return (-caption_overlap(phrases, label) if not specific else 0, order)
+
+    for _, href in sorted(clues, key=priority):
         url = urljoin(final_url, href)
         p = urlsplit(url)
         if (
@@ -178,12 +227,18 @@ def page_sources(source, data, final_url):
         try:
             output.append(
                 MediaSource(
-                    **{**source.model_dump(), "media_url": url, "source_type": "page-extracted"}
+                    **{
+                        **source.model_dump(),
+                        "media_url": url,
+                        "source_type": "page-extracted",
+                        "product_page": source.product_page or generic.product_page,
+                        "image_caption": image_label(url, generic.image_labels.get(href, "")),
+                    }
                 ).checked()
             )
         except ValueError:
             continue
-        if len(output) == 4:
+        if len(output) == (4 if specific else gallery_limit):
             break
     if isinstance(specific, TenorOriginal):
         related = TenorRelated(final_url)

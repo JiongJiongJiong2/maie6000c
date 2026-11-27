@@ -9,6 +9,7 @@ import re
 from pathlib import PurePosixPath
 from urllib.parse import urlsplit
 
+from .captions import caption_phrases, generic_subject
 from .meme_providers import bounded_json, provider_failure
 from .meme_types import MediaSource, PipelineError, Query
 
@@ -33,8 +34,56 @@ def secret(settings):
     return value
 
 
+def retrieval_queries(analysis):
+    """Reserve recall for the original, its source and the joke within one budget."""
+    phrases = caption_phrases(analysis.ocr_text)
+    if not phrases or any(q.angle == "composite" for q in analysis.queries):
+        return list(analysis.queries)
+    quoted = []
+    for phrase in phrases:
+        if sum(len(q) + 1 for q in quoted) + len(phrase) + 8 <= 128:
+            quoted.append(f'"{phrase}"')
+    exact = Query(
+        text=" ".join([*quoted, "meme"]),
+        angle="caption_lookup",
+        language=next((q.language for q in analysis.queries), "en"),
+    )
+    priority = {
+        "publisher_lookup": 0,
+        "caption_activity": 1,
+        "theme": 2,
+        "appearance": 3,
+        "action": 3,
+        "identity_hypothesis": 6,
+    }
+    ordered = sorted(analysis.queries, key=lambda q: priority.get(q.angle, 4))
+    # A short isolated mark can identify the collection when the planner omitted it.
+    mark = next(
+        (
+            line.strip()
+            for line in analysis.ocr_text.splitlines()
+            if re.fullmatch(r"[A-Z]{2,5}", line.strip())
+        ),
+        None,
+    )
+    if mark and not any(q.angle == "publisher_lookup" for q in ordered):
+        clue = next(
+            (q.text for q in ordered if q.angle == "caption_activity"), f'"{phrases[-1]}" meme'
+        )
+        ordered.insert(
+            0, Query(text=f"{mark} {clue}"[:128], angle="publisher_lookup", language=exact.language)
+        )
+    seen = {exact.text.casefold()}
+    result = [exact]
+    for query in ordered:
+        if query.text.casefold() not in seen:
+            result.append(query)
+            seen.add(query.text.casefold())
+    return result[:6]
+
+
 class DeepSeekQueryPlanner:
-    version = "query-plan-v4-hypothesis-priority"
+    version = "query-plan-v6-source-and-theme"
 
     def __init__(self, settings, ledger):
         self.settings, self.ledger = settings, ledger
@@ -66,13 +115,27 @@ class DeepSeekQueryPlanner:
                             "Return one JSON object with a queries array of 2 to 5 objects: "
                             "text (1..128 Unicode characters), angle, language. "
                             "Use at least two distinct angles such as appearance, action, emotion, "
-                            "or exact visible text; vary Chinese/English when useful. "
-                            "Queries should find original reaction images/GIFs. No URLs, site: "
+                            "or exact visible text. For uncaptioned memes vary languages when "
+                            "useful. "
+                            "For a captioned meme, prioritize a publisher_lookup query when a "
+                            "visible watermark suggests a publisher: use "
+                            "its likely full name if recognizable and the depicted hobby or "
+                            "topic, in the format <publication name> <hobby> memes. Omit the "
+                            "literal words publisher and watermark. This is a search "
+                            "hypothesis only. Also supply a theme query describing the joke "
+                            "or situation. Add a caption_activity query combining a short "
+                            "quoted punchline with one distinctive activity or prop. Use the "
+                            "caption language for these queries. Look for related memes, "
+                            "avoiding bare stock-photo descriptions. "
+                            "Avoid generic person reaction GIF queries. No URLs, site: "
                             "operators, local paths or filenames. Do not narrow every query to "
                             "a particular character when the identity is uncertain."
                             " When a supplied entity is supported and confidence is at least "
                             "0.85, retain one broad query naming it; other queries should "
-                            "still cover different visible actions or emotions."
+                            "still cover different visible actions or emotions. When the visual "
+                            "analysis describes a composite edit, retain a short 'composite' "
+                            "query naming the components together, and keep an appearance-based "
+                            "alternative. Never combine competing guesses into a fictional edit."
                         ),
                     },
                     {
@@ -82,6 +145,7 @@ class DeepSeekQueryPlanner:
                                 "observations": analysis.observations,
                                 "ocr_text": analysis.ocr_text,
                                 "entities": [e.model_dump() for e in analysis.entity_hypotheses],
+                                "visual_queries": [q.model_dump() for q in analysis.queries],
                                 "actions": analysis.action_tags,
                                 "emotions": analysis.emotion_tags,
                                 "user_preferences": analysis.user_text,
@@ -114,11 +178,23 @@ class DeepSeekQueryPlanner:
         generated_count = len(queries)
         anchor_added = False
         identity_prioritized = False
-        for entity in sorted(analysis.entity_hypotheses, key=lambda e: -e.confidence):
+        composite = next((q for q in analysis.queries if q.angle == "composite"), None)
+        if composite:
+            combined = next((q for q in queries if q.angle == "composite"), composite)
+            queries = [
+                combined,
+                *(q for q in queries if q.text.casefold() != combined.text.casefold()),
+            ][:5]
+        single_subjects = [] if composite else analysis.entity_hypotheses
+        for entity in sorted(single_subjects, key=lambda e: -e.confidence):
             if entity.status not in {"supported", "uncertain"} or entity.confidence < 0.85:
                 continue
             name = entity.name.strip()
-            if not name or any(x in name.lower() for x in ["http", "site:"]):
+            if (
+                generic_subject(name)
+                or not name
+                or any(x in name.lower() for x in ["http", "site:"])
+            ):
                 continue
             words = set(re.findall(r"\w+", name.casefold())) - {"and", "the", "a", "an", "of"}
             if not words:
@@ -246,6 +322,7 @@ class DeepSeekWeb:
                         media_url=url if direct else None,
                         provider="deepseek",
                         title=str(item.get("title", ""))[:500],
+                        snippet=str(item.get("summary") or item.get("snippet") or "")[:2000],
                         source_type="direct" if direct else "page",
                         channel="keyword",
                         source_rank=rank,

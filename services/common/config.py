@@ -1,7 +1,13 @@
 from __future__ import annotations
 
 import logging
+from contextlib import contextmanager
+from contextvars import ContextVar
 from functools import lru_cache
+import os
+import re
+
+from sqlalchemy.engine import make_url
 from pathlib import Path
 
 from pydantic import Field
@@ -19,6 +25,7 @@ class Settings(BaseSettings):
     media_root: Path = Path("data/media")
     reference_root: Path = Path("data/reference")
     model_cache_root: Path = Path("data/models")
+    account_login_enabled: bool = False
     device_token: str = ""
     private_library_enabled: bool = False
     enable_demo_library: bool = False
@@ -35,8 +42,60 @@ class Settings(BaseSettings):
 
 
 @lru_cache(maxsize=1)
-def get_settings() -> Settings:
+def base_settings() -> Settings:
     return Settings()
+
+
+# The server selects the workspace from a verified session or the worker queue.
+_workspace = ContextVar("workspace", default="public")
+
+
+def validated_workspace(name: str) -> str:
+    if name != "public" and not re.fullmatch(r"acct_[a-f0-9]{32}", name):
+        raise ValueError("Invalid account workspace")
+    return name
+
+
+@contextmanager
+def use_workspace(name: str):
+    token = _workspace.set(validated_workspace(name))
+    try:
+        yield
+    finally:
+        _workspace.reset(token)
+
+
+def get_settings() -> Settings:
+    settings = base_settings()
+    name = _workspace.get()
+    if name == "public":
+        return settings
+    media = settings.media_root / "accounts" / name
+    url = make_url(settings.database_url)
+    if url.get_backend_name() == "sqlite":
+        url = url.set(database=str(media / "library.sqlite3"))
+    else:
+        url = url.update_query_dict({"options": f"-csearch_path={name}"})
+    return settings.model_copy(
+        update={
+            "media_root": media,
+            "database_url": url.render_as_string(hide_password=False),
+        }
+    )
+
+
+get_settings.cache_clear = base_settings.cache_clear
+
+
+def worker_environment():
+    if _workspace.get() == "public":
+        return None  # Let existing workers and operator overrides inherit the process environment.
+    settings = get_settings()
+    return {
+        **os.environ,
+        "DATABASE_URL": settings.database_url,
+        "MEDIA_ROOT": str(settings.media_root),
+    }
 
 
 class ServiceJsonFormatter(JsonFormatter):

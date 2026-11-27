@@ -454,3 +454,168 @@ def test_meme50_tenor_prefers_real_webp_without_redundant_gif_variant():
     legacy = TenorOriginal(source.source_url)
     legacy.feed(data.decode())
     assert legacy.urls == ["https://media.tenor.com/a/actual.gif"]
+
+
+def test_composite_keeps_searching_after_related_images_fill_requested_slots(tmp_path):
+    from types import SimpleNamespace
+
+    def picture(seed):
+        out = io.BytesIO()
+        pixels = np.random.default_rng(seed).integers(0, 255, (32, 32, 3), dtype=np.uint8)
+        pixels[0, 0] = [seed, 0, 0]
+        Image.fromarray(pixels).save(out, "PNG")
+        return out.getvalue()
+
+    related, original = picture(8), picture(21)
+    image_path = tmp_path / "upload.bin"
+    image_path.write_bytes(original)
+    state = VisualAnalysis(
+        planner_version="saved-plan",
+        queries=[Query(text="astronaut painted landscape", angle="composite")],
+    )
+    searched = []
+
+    def search(query, limit):
+        searched.append(query)
+        tag = "original" if query.startswith("site:") else "related"
+        return [
+            MediaSource(
+                source_url=f"https://example.org/{tag}",
+                media_url=f"https://cdn.example.org/{tag}",
+                provider="test",
+            )
+        ]
+
+    def vectors(frames):
+        return np.array(
+            [[1.0, 0.0] if frame.getpixel((0, 0))[0] == 21 else [0.75, 0.6614] for frame in frames]
+        )
+
+    result = search_memes(
+        image_path,
+        "",
+        tmp_path / "work",
+        1,
+        saved_analysis=state,
+        keywords=SimpleNamespace(search=search),
+        fetcher=SimpleNamespace(
+            get=lambda url, *a: (original if url.endswith("/original") else related, url)
+        ),
+        embeddings=SimpleNamespace(
+            load_model=lambda: None,
+            encode_images=vectors,
+            encode_texts=lambda texts: np.array([[1.0, 0.0]]),
+        ),
+    )
+    from hashlib import sha256
+
+    assert result["candidate_keys"] == [sha256(original).hexdigest()]
+    assert len(searched) == 2 and searched[0] == state.queries[0].text
+    assert searched[1].endswith(state.queries[0].text)
+
+
+def test_caption_search_prefers_source_and_joke_to_generic_subjects():
+    from services.search_agent.entity_verifier import verification_queries
+    from services.search_agent.meme_deepseek import retrieval_queries
+
+    analysis = VisualAnalysis(
+        ocr_text='Waiting for the weekend:\n"Already on vacation."\nAB',
+        entity_hypotheses=[dict(name="a young woman", confidence=0.7)],
+        queries=[
+            Query(text="person reaction GIF", angle="identity_hypothesis"),
+            Query(text="vacation weekend humour", angle="theme"),
+            Query(text="AB magazine weekend memes", angle="publisher_lookup"),
+        ],
+    )
+    assert not verification_queries(analysis)
+    planned = retrieval_queries(analysis)
+    assert planned[0].text == '"waiting for the weekend" "already on vacation" meme'
+    assert [q.angle for q in planned[1:3]] == ["publisher_lookup", "theme"]
+
+
+def test_gallery_selects_the_captioned_figure_beyond_first_four_images():
+    from services.search_agent.captions import caption_phrases
+
+    source = MediaSource(source_url="https://example.org/weekend-memes", provider="test")
+    html = (
+        '<meta property="og:image" content="/cover.jpg">'
+        + "".join(f'<img src="/unrelated-{i}.jpg">' for i in range(10))
+        + '<figure><img src="/real.jpg"><figcaption>Waiting for <b>the weekend</b>!'
+        "</figcaption></figure>"
+    )
+    result = page_sources(
+        source, html.encode(), source.source_url, caption_phrases("Waiting for the weekend")
+    )
+    assert result[0].media_url == "https://example.org/real.jpg"
+    assert "the weekend" in result[0].image_caption
+    assert len(result) == 4
+
+
+def test_picture_match_recognizes_resize_and_changed_caption_but_rejects_different_art():
+    from services.retrieval.rerank import matching_picture, picture_regions
+    from PIL import ImageDraw
+
+    art = Image.new("RGB", (180, 180), "#3683a2")
+    draw = ImageDraw.Draw(art)
+    draw.ellipse((25, 15, 130, 110), fill="red")
+    draw.rectangle((80, 100, 165, 170), fill="yellow")
+    captioned = Image.new("RGB", (180, 216), "white")
+    captioned.paste(art, (0, 36))
+    ImageDraw.Draw(captioned).text((20, 8), "Weekend plans", fill="black")
+    regions = picture_regions(captioned)
+    assert matching_picture(regions, captioned.resize((300, 360))) == "near_copy"
+    assert matching_picture(regions, art) == "same_picture"
+    assert not matching_picture(regions, art.transpose(Image.Transpose.FLIP_LEFT_RIGHT))
+    assert not matching_picture(
+        picture_regions(Image.new("RGB", art.size, "black")), Image.new("RGB", art.size, "black")
+    )
+
+
+def test_caption_review_discards_lookalike_and_recovers_joke(tmp_path, monkeypatch):
+    import json
+    from types import SimpleNamespace
+    from services.search_agent import caption_review
+
+    frame = Image.new("RGB", (80, 48), "white")
+    frame.save(tmp_path / "preview.png")
+    items = [
+        SimpleNamespace(key=str(i), score=s, preview_relative_path="preview.png", signals=signals)
+        for i, s, signals in [
+            (0, 0.99, {"picture_match": "near_copy"}),
+            (1, 0.54, {}),
+            (2, 0.42, {}),
+        ]
+    ]
+    ledger = Ledger(MemeSettings(_env_file=None))
+    analysis = VisualAnalysis(ocr_text="sample caption")
+
+    def request(frames, prompt):
+        assert prompt["candidate_count"] == 2 and len(frames) == 2
+        return json.dumps({"relations": ["unrelated", "same_joke"]})
+
+    client = SimpleNamespace(request=request, response_text=lambda data: data)
+    monkeypatch.setattr(caption_review, "vision_client", lambda *_: client)
+    scores = caption_review.review_scores(items, frame, analysis, tmp_path, ledger)
+    assert scores == {"1": None, "2": pytest.approx(0.55)}
+    assert ledger.counts["model_calls"] == ledger.counts["rerank_model_calls"] == 1
+    ledger.take("model_calls", 2)
+    assert caption_review.review_scores(items, frame, analysis, tmp_path, ledger) == {}
+
+
+def test_merchandise_context_and_original_caption_source_hint():
+    from services.search_agent.captions import product_listing, wants_products
+    from services.search_agent.meme_deepseek import retrieval_queries
+
+    source = MediaSource(source_url="https://example.org/art", provider="test")
+    page = b'<meta property="og:type" content="product"><img src="/art.png">'
+    assert page_sources(source, page, source.source_url)[0].product_page
+    assert product_listing("https://www.amazon.co.uk/dp/B012345678")
+    assert not product_listing("https://example.org/article/book-memes")
+    assert not wants_products("") and wants_products("Find this t-shirt")
+    analysis = VisualAnalysis(
+        ocr_text="Leaving the party early:\nSorry I have plans.\nAB",
+        queries=[Query(text="books and excuses meme", angle="theme")],
+    )
+    queries = retrieval_queries(analysis)
+    assert queries[1].angle == "publisher_lookup"
+    assert "AB" in queries[1].text and "sorry i have plans" in queries[1].text

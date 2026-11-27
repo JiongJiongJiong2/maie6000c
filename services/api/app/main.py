@@ -18,6 +18,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from services.api.app.accounts import router as accounts_router, select_account
 from services.api.app.demo import router as demo_router
 from services.api.app.library import activate_library, router as library_router
 from services.api.app.search import router as search_router
@@ -41,7 +42,7 @@ logger = logging.getLogger("services.api.main")
 async def lifespan(app: FastAPI):
     settings = get_settings()
     if settings.private_library_enabled:
-        if not settings.device_token.strip():
+        if not settings.account_login_enabled and not settings.device_token.strip():
             raise RuntimeError("Private library requires a non-empty DEVICE_TOKEN")
         with get_session_factory()() as db:
             activate_library(db)
@@ -49,6 +50,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="MAIE 6000C Starter API", version="0.1.0", lifespan=lifespan)
+app.middleware("http")(select_account)
+app.include_router(accounts_router)
 app.include_router(library_router)
 app.include_router(search_router)
 

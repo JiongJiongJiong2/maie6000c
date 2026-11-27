@@ -4,9 +4,10 @@ from importlib import import_module
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, inspect, pool, text
 
-from services.common.config import get_settings
+from services.common.accounts import registry
+from services.common.config import get_settings, validated_workspace
 from services.common.db import Base
 
 # Register all ORM tables before Alembic reads the metadata.
@@ -19,7 +20,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+config.set_main_option("sqlalchemy.url", get_settings().database_url.replace("%", "%%"))
 target_metadata = Base.metadata
 
 
@@ -43,15 +44,30 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
 
-    with connectable.connect() as connection:
+    def migrate(connection, root=True):
         context.configure(
             connection=connection,
-            target_metadata=target_metadata,
+            target_metadata=[target_metadata, registry] if root else target_metadata,
             compare_type=True,
         )
-
         with context.begin_transaction():
             context.run_migrations()
+
+    with connectable.connect() as connection:
+        migrate(connection)
+        if connection.dialect.name == "postgresql" and inspect(connection).has_table(
+            "library_accounts"
+        ):
+            names = connection.scalars(
+                text("SELECT workspace FROM library_accounts WHERE workspace <> 'public'")
+            ).all()
+            connection.commit()
+            for name in names:
+                validated_workspace(name)
+                with connectable.connect() as scoped:
+                    scoped.exec_driver_sql(f'SET search_path TO "{name}"')
+                    scoped.commit()
+                    migrate(scoped, root=False)
 
 
 if context.is_offline_mode():

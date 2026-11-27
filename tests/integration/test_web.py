@@ -8,6 +8,11 @@ def test_client_and_assets_are_served_without_shadowing_api(client):
         response = client.get(f"/web/{asset}")
         assert response.status_code == 200
         assert response.headers["cache-control"] == "no-cache"
+    for name in ("cmunrm.woff", "cmunbx.woff"):
+        font = client.get(f"/web/fonts/{name}")
+        assert font.status_code == 200
+        assert font.content.startswith(b"wOFF")
+    assert client.get("/web/fonts/private.txt").status_code == 404
     assert client.get("/").json()["service"] == "api"
     assert client.get("/health/live").status_code == 200
     assert client.get("/openapi.json").status_code == 200

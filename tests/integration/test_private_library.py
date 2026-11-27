@@ -153,7 +153,8 @@ def test_consent_annotations_and_offline_search(client, db_session, monkeypatch)
                 {
                     "message": {
                         "content": (
-                            '{"ocr_text":"就这？","caption_zh":"一只猫拍手","subject_tags":["猫"],'
+                            '{"ocr_text":"就这？","caption_zh":"一只猫拍手",'
+                            '"caption_en":"A cat claps.","subject_tags":["猫"],'
                             '"action_tags":["拍手"],"emotion_tags":["惊讶"],"tone_tags":["嘲讽"]}'
                         )
                     }
@@ -205,6 +206,8 @@ def test_consent_annotations_and_offline_search(client, db_session, monkeypatch)
         result = client.post("/library/search", headers=auth, json={"query": query}).json()
         found = result["assets"][0]
         assert found["asset_id"] == asset.id and found["match_reasons"]
+        assert found["caption_en"] == "A cat claps."
+        assert found["match_reasons_en"]
         assert found["labels"]["emotion_tags"] == ["无奈"]
         assert found["index_status"] == "pending"
     assert client.post("/library/search", headers=auth, json={"query": "飞机起飞"}).json() == {

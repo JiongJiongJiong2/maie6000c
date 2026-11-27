@@ -484,3 +484,22 @@ def test_gifdb_related_clip_is_not_the_primary_clip_identity():
         "https://gifdb.com/images/thumbnail/other-dzz9oii7fe0ni0um.gif",
     )
     assert new and other != key
+
+
+def test_single_post_card_is_a_fallback_and_keeps_an_input_match():
+    from types import SimpleNamespace
+    from services.retrieval.dedup import unique_post_previews
+
+    post = "https://www.snapchat.com/@example/spotlight/abc_123-4"
+
+    def asset(key, url):
+        return SimpleNamespace(key=key, source_url=post, media_url=url, signals={})
+
+    card = asset("card", post + "/preview/square.jpeg")
+    native = asset("native", "https://cf-st.sc-cdn.net/d/nativethumb")
+    assert unique_post_previews([card, native]) == [native]
+    native.source_url = post.replace("@example", "@alias")
+    assert unique_post_previews([card, native]) == [native]
+    assert unique_post_previews([card]) == [card]
+    card.signals["picture_match"] = "near_copy"
+    assert unique_post_previews([card, native]) == [card, native]

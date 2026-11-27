@@ -19,7 +19,7 @@ export function sameOriginPath(path) {
 }
 
 export class Api {
-  token = "";
+  account = document.documentElement.dataset.account || "";
 
   async request(
     path,
@@ -32,20 +32,22 @@ export class Api {
     const timer = setTimeout(abort, timeout);
     try {
       const headers = new Headers(options.headers);
-      if (this.token) headers.set("Authorization", `Bearer ${this.token}`);
+      if (this.account) headers.set("X-Library-Account", this.account);
       const response = await fetch(sameOriginPath(path), {
         ...options,
         headers,
+        credentials: "same-origin",
         signal: controller.signal,
         cache: "no-store",
         redirect: "error",
       });
       if (!response.ok) {
+        if (response.status === 401 && this.account) location.replace("/web/");
         const body = await response.json().catch(() => null);
         const detail = body?.detail ?? body?.error;
         const message = typeof detail === "string" ? detail : detail?.message;
         const fallback = {
-          401: "The access token is missing or invalid. Open Connection settings.",
+          401: "Sign in to open your library.",
           404: "Endpoint or record not found. Check that the W07 backend is connected.",
           409: "The request conflicts with an earlier submission. Start a new search.",
           410: "This GIF has expired. Start a new search.",

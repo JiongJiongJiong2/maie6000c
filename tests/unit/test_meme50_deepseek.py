@@ -364,3 +364,95 @@ def test_existing_uncertain_name_query_can_be_broadened_without_confirming_ident
         event["details"]["origin"] == "existing_model_hypothesis"
         and event["details"]["hypothesis_only"] is True
     )
+
+
+def test_composite_query_survives_single_entity_normalization(monkeypatch):
+    from services.search_agent.meme_types import EntityHypothesis, Query
+
+    value = analysis()
+    value.queries[0] = Query(text="paper astronaut in a painted landscape", angle="composite")
+    value.entity_hypotheses = [
+        EntityHypothesis(name="astronaut", confidence=0.95, status="supported")
+    ]
+    generated = [
+        {"text": "astronaut reaction", "angle": "identity"},
+        {"text": "painted landscape", "angle": "appearance"},
+    ]
+    monkeypatch.setattr(
+        deepseek,
+        "bounded_json",
+        lambda *a, **kw: {
+            "choices": [
+                {
+                    "finish_reason": "stop",
+                    "message": {"content": json.dumps({"queries": generated})},
+                }
+            ]
+        },
+    )
+    planned = deepseek.DeepSeekQueryPlanner(settings(), Ledger(settings())).plan(value)
+    assert planned[0] == value.queries[0]
+    assert any(q.angle == "appearance" for q in planned)
+
+
+def test_reference_matching_requires_pixels_and_reserves_recall_budget(monkeypatch):
+    from types import SimpleNamespace
+    from services.search_agent import entity_verifier as verify
+    from services.search_agent.meme_types import Query
+
+    value = analysis()
+    value.queries[0] = Query(text="cutout astronaut over painted landscape", angle="composite")
+    value.visual_keywords = ["paper astronaut", "painted landscape", "folded arms"]
+    public = "https://catalog.example.org"
+
+    def media(color):
+        output = io.BytesIO()
+        Image.new("RGB", (16, 16), color).save(output, format="PNG")
+        return output.getvalue()
+
+    pixels = [media("red"), media("blue")]
+
+    class Search:
+        def __init__(self, settings, ledger):
+            self.ledger = ledger
+
+        def verify(self, query):
+            self.ledger.take("queries")
+            return [{"id": f"e{i}", "title": "edit", "url": f"{public}/p{i}"} for i in range(2)]
+
+    class Fetch:
+        def get(self, url, kind, limit):
+            if "/p" in url:
+                return f'<meta property="og:image" content="/i{url[-1]}">'.encode(), url
+            return pixels[int(url[-1])], url
+
+    def encode(images):
+        return np.array(
+            [
+                [float(im.getpixel((0, 0))[0] > 0), float(im.getpixel((0, 0))[2] > 0)]
+                for im in images
+            ]
+        )
+
+    def correct(frames, text, evidence):
+        result = value.model_copy(deep=True)
+        result.evidence = evidence
+        return result
+
+    monkeypatch.setattr(verify, "DeepSeekWeb", Search)
+    monkeypatch.setattr(verify, "vision_client", lambda *a: SimpleNamespace(analyze=correct))
+    config = settings().model_copy(update={"max_queries": 2})
+    ledger = Ledger(config)
+    output, warnings = verify.verify_entities(
+        value,
+        [Image.new("RGB", (16, 16), "red")],
+        config,
+        ledger,
+        fetcher=Fetch(),
+        embeddings=SimpleNamespace(encode_images=encode),
+    )
+    assert not warnings and ledger.counts["queries"] == 1
+    assert output.evidence[0]["matching_media_url"] == public + "/i0"
+    assert "matching_media_url" not in output.evidence[1]
+    assert output.evidence[0]["id"] != output.evidence[1]["id"]
+    assert "paper astronaut" in verify.verification_queries(value)[0]

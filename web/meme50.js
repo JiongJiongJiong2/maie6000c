@@ -135,7 +135,14 @@ export function renderMemeResults(container, result, api, signal, callbacks) {
     body.className = "candidate-body";
     const score = document.createElement("p");
     const meta = item.metadata || item;
-    score.textContent = `${provisional ? "Provisional" : `#${item.rank}`} · ${meta.media_kind === "animated" ? "Animated" : "Static"} · relevance ${item.score.toFixed(3)}`;
+    score.className = "result-meta";
+    const rank = document.createElement("strong");
+    rank.textContent = provisional ? "Provisional" : `#${item.rank}`;
+    const kind = document.createElement("span");
+    kind.textContent = meta.media_kind === "animated" ? "Animated" : "Static";
+    const relevance = document.createElement("span");
+    relevance.textContent = `Relevance ${item.score.toFixed(3)}`;
+    score.append(rank, kind, relevance);
     let poster;
     let animated;
     let requested = false;

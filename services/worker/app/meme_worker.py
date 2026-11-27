@@ -12,7 +12,9 @@ from datetime import timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from services.common.config import get_settings
+from pydantic import ValidationError
+
+from services.common.config import get_settings, worker_environment
 from services.common.db import get_session_factory
 from services.common.media import inspect_media, safe_file
 from services.common.models import utcnow
@@ -25,7 +27,12 @@ from services.common.search_models import (
     SearchRequest,
 )
 from services.common.storage import atomic_write, contained_path, sha256
-from services.search_agent.meme_types import MemeSettings, PreparedMedia, RunnerEvent
+from services.search_agent.meme_types import (
+    MemeSettings,
+    PreparedMedia,
+    RunnerEvent,
+    VisualAnalysis,
+)
 
 STAGES = {
     "preprocessing",
@@ -57,6 +64,7 @@ def stop_process(process):
 def stream_events(payload, timeout):
     process = subprocess.Popen(
         [sys.executable, "-m", "services.worker.app.meme_search_runner"],
+        env=worker_environment(),
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
@@ -131,8 +139,6 @@ def publish_event(db, job_id, event, work):
             raise ProtocolError("invalid_stage")
         job.stage = data["stage"]
     elif event.type == "analysis_ready":
-        from services.search_agent.meme_types import VisualAnalysis
-
         job.analysis = VisualAnalysis.model_validate(data["analysis"]).model_dump(mode="json")
     elif event.type == "progress":
         count = data.get("verified_count")
@@ -206,6 +212,18 @@ def finalize(db, job_id, payload):
     if any(k not in rows for k in keys):
         raise ProtocolError("unknown_final_draft")
     items = [PreparedMedia.model_validate(rows[k].data).validate_paths() for k in keys]
+    if "final_scores" in payload:
+        scores = payload["final_scores"]
+        if (
+            not isinstance(scores, dict)
+            or set(scores) != set(keys)
+            or any(
+                type(score) not in (int, float) or not -1 <= score <= 1 for score in scores.values()
+            )
+        ):
+            raise ProtocolError("invalid_final_scores")
+        for item in items:
+            item.score = scores[item.key]
     if len({x.content_group_id for x in items}) != len(items):
         raise ProtocolError("duplicate_content_group")
     if [x.score for x in items] != sorted([x.score for x in items], reverse=True):
@@ -345,6 +363,21 @@ def process_meme_job(job_id, *, factory=None, event_stream=None):
             target_count=job.target_count,
             settings=public_config,
         )
+        if job.retry_of_job_id:
+            previous = db.get(SearchJob, job.retry_of_job_id)
+            if (
+                previous
+                and previous.request_id == request.id
+                and previous.description == job.description
+                and previous.analysis
+            ):
+                try:
+                    saved = VisualAnalysis.model_validate(previous.analysis)
+                except ValidationError:
+                    pass  # Older analysis formats can still start a fresh search.
+                else:
+                    if saved.user_text == (job.description or "") and saved.queries:
+                        payload["saved_analysis"] = saved.model_dump(mode="json")
     work = Path(payload["work_dir"])
     work.mkdir(parents=True, exist_ok=True)
     final = None
