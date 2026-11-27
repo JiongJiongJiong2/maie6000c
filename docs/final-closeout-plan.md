@@ -36,11 +36,13 @@
 
 ## 正式网页闭环
 
-11 月 27 日已用 DeepSeek 的 GIF 续搜 API 完成本地未命中、联网取得 44 帧原 GIF、收藏和建索引。重启并阻断对外连接后，全新 Chrome 会话在 `/web/` 以另一帧首位命中同一资产，网页下载与原件 SHA-256 一致。成功复测在隔离 worker 内对两个 Commons 域名使用真实公共 DNS，原系统 DNS 的失败也已留档。正式网页的 `meme50-v2` 续搜按钮仍待同流程实测。[DeepSeek 与离线复用实测记录](evidence/gif-acquisition/deepseek-offline-reuse-20261127.json)
+11 月 28 日，正式 Chrome 网页通过。使用地球 GIF 的两张不同抽帧，首次本地无候选；网页点击继续联网并给出 Wikimedia Commons 来源线索，HKGAI 识图和 DeepSeek 实际搜索后返回 50 份媒体。44 帧目标原件在线第 1；网页播放、下载、确认收藏后索引就绪。重启 API 和 worker、阻断外联后，新 Chrome 会话用另一帧本地首位命中同一资产。两次网页下载与独立参照逐字节相同，共 1,001,718 字节。此前六次故障或未命中也在回执中逐项列出。[正式网页、供应商、收藏与离线下载回执](evidence/gif-acquisition/hkgai-web-offline-20261128.json)
+
+11 月 27 日已用 DeepSeek 的 GIF 续搜 API 完成本地未命中、联网取得 44 帧原 GIF、收藏和建索引。重启并阻断对外连接后，全新 Chrome 会话在 `/web/` 以另一帧首位命中同一资产，网页下载与原件 SHA-256 一致。成功复测在隔离 worker 内对两个 Commons 域名使用真实公共 DNS，原系统 DNS 的失败也已留档。当日运行只覆盖了旧续搜接口，正式按钮的结果见上述 11 月 28 日回执。[DeepSeek 与离线复用实测记录](evidence/gif-acquisition/deepseek-offline-reuse-20261127.json)
 
 先记录代码提交、有效配置指纹和隔离环境。选用可以测试和保存的真实媒体，独立保留目标来源、原 GIF 的 SHA-256 和帧数。确认目标资产起初不在固定库或私人库中，再从 `/web/` 选「仅本地检索」上传截图。原任务应正常完成，且未命中该目标。
 
-从同一页面点击「继续联网搜索」。原 `request_id` 和本地 `job_id` 保持可查，联网任务有独立 `job_id`，刷新后仍可看到本地结果及联网进度。当前页面经 `meme50-v2` 使用 HKUST 视觉、DeepSeek 查询规划和网页检索。用实际任务记录供应商调用、来源、结果 revision 及停止原因。历史 DDGS 路径可用于定位 legacy API 问题，其证据按 API 实测记录。[当前供应商说明](hkust-deepseek-execution.md)
+从同一页面点击「继续联网搜索」。原 `request_id` 和本地 `job_id` 保持可查，联网任务有独立 `job_id`，刷新后仍可看到本地结果及联网进度。正式页面经 `meme50-v2` 使用默认 HKUST 或可选 HKGAI 识图，DeepSeek 负责查询规划和网页检索。用实际任务记录供应商调用、来源、结果 revision 及停止原因。历史 DDGS 路径可用于定位 legacy API 问题，其证据按 API 实测记录。[当前供应商说明](hkust-deepseek-execution.md)
 
 在正式网页播放候选原 GIF 并下载，对照动画帧数及候选、下载文件、数据库三处的 SHA-256。点击「确认并收藏」，记录确认回执、资产 ID 和索引由待处理到 `ready` 的状态。刷新页面后确认仍能下载原件。保留数据库与媒体目录，禁用外部供应商并重启该验收环境中的 API 和 worker，再提交新本地任务，核对同一资产 ID 和原件 SHA-256。用回执、只读数据库核对及浏览器截图或录屏佐证，交付记录只保留可分享的数据。
 
