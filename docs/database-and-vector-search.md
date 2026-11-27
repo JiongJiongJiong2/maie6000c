@@ -4,6 +4,23 @@
 
 ## 已实现的关系数据
 
+下图是每个 workspace 内的主要关系。一次本地检索和后续联网检索共享同一请求 ID；用户收藏产生独立的资产 ID，后续离线候选可以再次指向这个资产。
+
+```mermaid
+erDiagram
+    search_requests ||--o{ search_jobs : has
+    search_jobs ||--o{ candidates : produces
+    search_jobs ||--o| search_executions : records
+    search_jobs ||--o{ review_decisions : receives
+    candidates ||--o{ candidate_saves : confirmed_by
+    saved_assets ||--o{ candidate_saves : retained_by
+    saved_assets o|--o{ candidates : reused_in
+    reference_assets o|--o{ candidates : found_in
+    saved_assets ||--o| library_asset_metadata : described_by
+    library_import_batches ||--o{ library_import_items : contains
+    saved_assets o|--o{ library_import_items : imported_as
+```
+
 | 数据 | 关联与约束 |
 | --- | --- |
 | `library_accounts`、`library_sessions`、`library_owner_setup` | 部署库的全局注册表。用户名为主键，workspace 唯一。会话表存令牌摘要并引用账户，对过期时间建索引。初始原库绑定凭据按摘要校验、一次使用并过期。 |
