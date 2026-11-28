@@ -21,6 +21,7 @@ from .meme_deepseek import (
     DeepSeekWeb,
     DeepSeekQueryPlanner,
     prioritize_user_source,
+    recover_hakimi_spelling,
     retrieval_queries,
 )
 from .meme_providers import vision_client
@@ -509,6 +510,7 @@ def search_memes(
             reference_media.clear()
             keyword_ok = True
         queries = analysis.queries[: settings.max_queries]
+        spelling_retry_scheduled = False
         for query_index, query in enumerate(queries):
             if enough_results():
                 break
@@ -534,6 +536,10 @@ def search_memes(
                     query=query.model_dump(),
                     sources=len(sources),
                 )
+                if not sources and not prepared and not spelling_retry_scheduled:
+                    spelling_retry_scheduled = recover_hakimi_spelling(
+                        queries, query_index, user_text, analysis.ocr_text, ledger
+                    )
             except PipelineError as exc:
                 warnings.append(exc.code)
             all_sources = fuse_sources(all_sources, settings.max_sources)

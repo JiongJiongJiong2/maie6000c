@@ -1,5 +1,6 @@
 import { mountLibrary } from "./library.js";
 import { mountGifShare } from "./share.js";
+import { editScreenshot } from "./crop.js";
 import {
   memeStatus,
   renderMemeResults,
@@ -119,6 +120,23 @@ function renderInput() {
   $("file-size").textContent = session?.file
     ? `${(session.file.size / 1024).toFixed(0)} KiB`
     : "";
+  const credit = $("demo-credit");
+  const example = session?.example;
+  credit.hidden = !example;
+  credit.textContent = example
+    ? [example.title, example.permission_note].filter(Boolean).join(" · ")
+    : "";
+  if (
+    example?.source_reference &&
+    /^https?:\/\//i.test(example.source_reference)
+  ) {
+    const link = document.createElement("a");
+    link.textContent = "View source";
+    link.href = example.source_reference;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    credit.append(" · ", link);
+  }
 }
 
 // Jobs from the worker and previously saved searches can carry either message.
@@ -154,12 +172,20 @@ function render() {
   document.querySelector('label[for="description"]').hidden = local;
   $("description").disabled =
     local || busy || !!session?.submissionStarted || !!accepted;
-  $("submit").textContent = busy
-    ? "Submitting…"
-    : session?.submissionStarted
-      ? "Retry this upload ↗"
-      : "Find related memes ↗";
+  $("submit").textContent = session?.submissionStarted
+    ? busy
+      ? "Submitting…"
+      : "Retry this upload ↗"
+    : "Find related memes ↗";
   $("file-input").disabled = busy || !initialized;
+  $("crop-tools").hidden =
+    !session?.file ||
+    session.file.type === "image/gif" ||
+    !!session.submissionStarted ||
+    !!accepted;
+  $("crop-open").disabled = busy;
+  $("crop-restore").hidden = !session?.originalFile;
+  $("crop-restore").disabled = busy;
   $("new-search").hidden = !accepted;
   $("new-search").disabled = busy;
   $("forget").disabled = busy || !initialized || !session;
@@ -450,7 +476,7 @@ async function loadMedia(candidate, container, retry) {
   }
 }
 
-async function selectFile(file) {
+async function selectFile(file, example = null) {
   if (!file || busy || !initialized) return;
   busy = true;
   render();
@@ -481,7 +507,8 @@ async function selectFile(file) {
       );
     const next = {
       file,
-      searchProfile: searchProfile(),
+      searchProfile: example ? "legacy" : searchProfile(),
+      example,
       description: $("description").value,
       filter: "all",
       pageHistory: [],
@@ -506,6 +533,37 @@ async function selectFile(file) {
   }
 }
 
+async function changeCrop(restore = false) {
+  if (busy || !session?.file || session.submissionStarted || session.accepted)
+    return;
+  const original = session.originalFile || session.file;
+  busy = true;
+  render();
+  notice();
+  try {
+    const crop = restore
+      ? { file: original, rect: null }
+      : await editScreenshot(original, session.cropRect);
+    if (!crop || crop.file === session.file) return;
+    const next = {
+      ...session,
+      file: crop.file,
+      originalFile: crop.rect ? original : null,
+      cropRect: crop.rect,
+      submissionKey: newKey(),
+    };
+    await saveSession(next);
+    session = next;
+    renderInput();
+  } catch (error) {
+    notice(error.message);
+  } finally {
+    busy = false;
+    render();
+    $("crop-open").focus({ preventScroll: true });
+  }
+}
+
 async function submit() {
   if (busy || !session?.file || session.accepted) return;
   if (session.searchProfile === "legacy" && session.file.type === "image/gif") {
@@ -513,11 +571,11 @@ async function submit() {
     return;
   }
   busy = true;
+  session.submissionStarted = true;
   notice();
   render();
   const currentEpoch = epoch;
   try {
-    session.submissionStarted = true;
     // Persist the exact File and key before sending, including ambiguous timeouts.
     await saveSession(session);
     const accepted = validAccepted(
@@ -786,7 +844,10 @@ async function reset(keepFile = false) {
       keepFile && session?.file
         ? {
             file: session.file,
+            originalFile: session.originalFile,
+            cropRect: session.cropRect,
             searchProfile: searchProfile(),
+            example: session.example,
             description: $("description").value,
             submissionKey: newKey(),
             submissionStarted: false,
@@ -905,6 +966,28 @@ $("hero-art").addEventListener("pointerleave", () => {
 $("file-input").addEventListener("change", (event) =>
   selectFile(event.target.files[0]),
 );
+document.addEventListener("paste", (event) => {
+  const files = event.clipboardData?.files;
+  if (!files?.length || busy || !initialized) return;
+  const target = event.target;
+  if (
+    target !== document.body &&
+    target !== document &&
+    !target.closest?.(".input-panel")
+  )
+    return;
+  if (
+    target.closest?.(
+      'textarea, [contenteditable="true"], input:not([type="file"])',
+    )
+  )
+    return;
+  event.preventDefault();
+  if (files.length === 1) selectFile(files[0]);
+  else notice("Choose one screenshot at a time.");
+});
+$("crop-open").addEventListener("click", () => changeCrop());
+$("crop-restore").addEventListener("click", () => changeCrop(true));
 $("dropzone").addEventListener("dragover", (event) => {
   event.preventDefault();
   $("dropzone").classList.add("dragging");
@@ -1010,7 +1093,7 @@ async function loadDemoLibrary() {
     if (!Array.isArray(examples) || !examples.length) return;
     const container = $("demo-examples");
     container.replaceChildren();
-    for (const example of examples.slice(0, 24)) {
+    for (const example of examples) {
       const button = makeButton(example.title, "demo-example", async () => {
         if (busy || !initialized) return;
         button.disabled = true;
@@ -1022,6 +1105,7 @@ async function loadDemoLibrary() {
           if (epoch !== selectedEpoch) return;
           await selectFile(
             new File([blob], `${example.title}.png`, { type: blob.type }),
+            example,
           );
         } catch (error) {
           notice(error.message);
