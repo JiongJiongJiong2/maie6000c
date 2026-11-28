@@ -7,12 +7,16 @@ import os
 import random
 import re
 import secrets
+import sqlite3
 import subprocess
 import sys
 import threading
+import time
+from contextlib import closing
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.parse import unquote, urlsplit
 from urllib.request import ProxyHandler, build_opener, Request
 
@@ -178,6 +182,47 @@ def blind_tasks(manifest, state, media_port):
     return dataset_id, tasks
 
 
+def task_key(data):
+    return data["dataset_id"], data["case_id"], data["candidate_id"]
+
+
+def sync_tasks(api, project_id, shuffled):
+    expected = {task_key(t["data"]): t["data"] for t in shuffled}
+
+    def existing():
+        if not api(f"projects/{project_id}/")["task_number"]:
+            return set()
+        path = f"projects/{project_id}/export?exportType=JSON&download_all_tasks=true"
+        present = set()
+        for task in api(path):
+            key = task_key(task["data"])
+            if key in present or expected.get(key) != task["data"]:
+                raise ValueError(f"Project {project_id} contains duplicate or unexpected task data")
+            present.add(key)
+        return present
+
+    # SQLite imports can briefly contend with Label Studio's project setup.
+    # A response may fail after commit. Reconcile the actual pair keys before retrying.
+    for attempt in range(4):
+        present = existing()
+        remaining = [t for t in shuffled if task_key(t["data"]) not in present]
+        try:
+            for start in range(0, len(remaining), 20):
+                batch = remaining[start : start + 20]
+                result = api(f"projects/{project_id}/import", batch)
+                if result["task_count"] != len(batch):
+                    raise RuntimeError(f"Unexpected task count from project {project_id} import")
+            break
+        except (HTTPError, TimeoutError) as exc:
+            if attempt == 3 or (
+                isinstance(exc, HTTPError) and exc.code not in {500, 502, 503, 504}
+            ):
+                raise
+            time.sleep(2**attempt)
+    if existing() != set(expected):
+        raise RuntimeError(f"Project {project_id} is missing frozen review pairs after import")
+
+
 def import_projects(state, port, media_port, manifest, aliases):
     account = credentials(state)
     opener = build_opener(ProxyHandler({}))
@@ -194,8 +239,14 @@ def import_projects(state, port, media_port, manifest, aliases):
         ) as response:
             return json.load(response)
 
-    results = api("projects/?page_size=100")["results"]
-    projects = {project["title"]: project for project in results}
+    page = 1
+    projects = {}
+    while True:
+        result = api(f"projects/?page_size=100&page={page}")
+        projects.update((p["title"], p) for p in result["results"])
+        if not result.get("next"):
+            break
+        page += 1
     imported = []
     for alias in aliases:
         review_id = hashlib.sha256(f"{content_id}:{alias}".encode()).hexdigest()[:12]
@@ -207,19 +258,9 @@ def import_projects(state, port, media_port, manifest, aliases):
                 {"title": title, "label_config": label_config, "maximum_annotations": 1},
             )
         project_id = project["id"]
-        current_count = project["task_number"] or 0
-        if current_count == 0:
-            shuffled = list(tasks)
-            random.Random(f"{content_id}:{alias}").shuffle(shuffled)
-            result = api(f"projects/{project_id}/import", shuffled)
-            if result["task_count"] != len(tasks):
-                raise RuntimeError(
-                    f"Project {project_id} import returned an unexpected task count."
-                )
-        elif current_count != len(tasks):
-            raise RuntimeError(
-                f"Project {project_id} has {current_count} tasks. Check for partial import."
-            )
+        shuffled = list(tasks)
+        random.Random(f"{content_id}:{alias}").shuffle(shuffled)
+        sync_tasks(api, project_id, shuffled)
         imported.append(
             {
                 "reviewer": alias,
@@ -259,7 +300,10 @@ def main():
             "reviewer aliases must be unique and use 1–40 letters, digits, underscores, "
             "periods or hyphens"
         )
-    import_projects(state, args.port, args.media_port, args.manifest, aliases)
+    state.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(state / "import-lock.sqlite3", timeout=60)) as lock:
+        lock.execute("BEGIN IMMEDIATE")
+        import_projects(state, args.port, args.media_port, args.manifest, aliases)
     return 0
 
 

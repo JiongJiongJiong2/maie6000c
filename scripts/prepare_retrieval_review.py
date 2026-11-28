@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import shutil
 import statistics
 import tempfile
@@ -73,6 +74,8 @@ def build(source, destination, max_cases=60):
             raise ValueError("Duplicate or unexpected run")
         runs[key] = run
     evidence, groups, queues = [], defaultdict(list), defaultdict(list)
+    heldout_frames = defaultdict(list)
+    positive_transforms = defaultdict(list)
     for case_id, case in cases.items():
         target = assets[case["target_asset_id"]]
         if target["sha256"] != case["target_sha256"]:
@@ -97,6 +100,8 @@ def build(source, destination, max_cases=60):
                     or candidate.get("rank", rank) != rank
                 ):
                     raise ValueError("Candidate identity or rank mismatch")
+                if cohort == "animated_original" and not assets[aid]["in_corpus"]:
+                    raise ValueError("Ordinary query returned an asset outside its frozen catalog")
                 seen.add(aid)
                 pool.setdefault(aid, {})[arm] = rank
                 if candidate["sha256"] == target["sha256"]:
@@ -117,6 +122,15 @@ def build(source, destination, max_cases=60):
             )
             evidence.append(record)
             groups[(cohort, case["split"], case["category"], arm)].append(record)
+            if cohort == "animated_original" and case["category"] == "in_library":
+                positive_transforms[(case["split"], arm, case["transform"])].append(record)
+            if (
+                cohort == "animated_original"
+                and case["category"] == "in_library"
+                and case["split"] == "final"
+            ):
+                overlap = case["query_frame_is_index_sample"]
+                heldout_frames[(arm, overlap)].append(record)
         if pool:
             interest = (
                 "disagreement"
@@ -126,7 +140,7 @@ def build(source, destination, max_cases=60):
             # Sort by the case hash within strata, independent of corpus/list order.
             priority = fingerprint(case_id.encode())
             theme = case["family_id"] if cohort in {"static_focus", "animated_focus"} else ""
-            queues[(cohort, theme, interest)].append(
+            queues[(cohort, theme, case["split"], case["category"], interest)].append(
                 dict(case=case, candidates=pool, interest=interest, priority=priority)
             )
     selected = select_review_cases(queues.items(), max_cases)
@@ -139,8 +153,10 @@ def build(source, destination, max_cases=60):
 
         def copy_checked(relative, expected):
             path = (source / relative).resolve()
-            if not path.is_relative_to(source.resolve()):
-                raise ValueError("Media path outside benchmark directory")
+            if not path.is_relative_to(source.resolve()) or not re.fullmatch(
+                "[a-f0-9]{64}", expected
+            ):
+                raise ValueError("Invalid media reference or SHA-256")
             name = expected + path.suffix.lower()
             out = media / name
             if not out.exists():
@@ -195,6 +211,19 @@ def build(source, destination, max_cases=60):
             focus_index_frame_counts=results.get("focus_index_frame_counts"),
             focus_summary=results.get("focus_summary"),
             catalog_frame_counts=results.get("index_frame_counts"),
+            raw_candidate_slots=sum(row["returned"] for row in evidence),
+            unique_case_candidate_pairs=sum(
+                len(row["candidates"]) for stratum in queues.values() for row in stratum
+            ),
+            cases_with_candidates=sum(map(len, queues.values())),
+            heldout_in_library_frame_overlap=[
+                dict(arm=arm, query_frame_used_in_multiframe_index=overlap, **summarize(rows))
+                for (arm, overlap), rows in sorted(heldout_frames.items())
+            ],
+            ordinary_in_library_by_transform=[
+                dict(split=split, arm=arm, transform=transform, **summarize(rows))
+                for (split, arm, transform), rows in sorted(positive_transforms.items())
+            ],
             review_cases=len(blinded),
             review_pairs=len(key_rows),
             review_case_limit=max_cases,
