@@ -14,7 +14,7 @@ separate product, rights, and platform-integration validation.
 
 ## 用户流程和组件
 
-截图可先在本机用多帧视觉向量查找。用户主动续搜后，API 持久化一个关联任务；worker 选择配置的视觉模型提取画面和文字，由 DeepSeek 生成查询并向搜索接口请求网页。媒体获取服务读取公开来源，验字节、解码动画，按实际视觉内容排序和去重。用户确认后保存原件，后台写入多帧索引，新的本地请求即可复用。[架构](../../docs/architecture.md) · [原件与向量数据模型](../../docs/database-and-vector-search.md)
+用户可在网页上先裁切并确认截图，再用多帧视觉向量本地检索。用户主动续搜后，API 持久化一个关联任务；worker 选择配置的视觉模型提取画面和文字，由 DeepSeek 生成查询并向搜索接口请求网页。媒体获取服务读取公开来源，验字节、解码动画，按实际视觉内容排序和去重。用户确认后保存原件，后台写入多帧索引，新的本地请求即可复用。[架构](../../docs/architecture.md) · [原件与向量数据模型](../../docs/database-and-vector-search.md)
 
 ## 工程证据
 
@@ -25,6 +25,12 @@ separate product, rights, and platform-integration validation.
 从已授权的 12 个参考 GIF 抽帧，只改变索引的帧覆盖范围，多帧比只用首帧多命中一个 Top-3 目标。两组都包括相同的冷启动模型加载。该试验检验库内检索行为，真实用户任意截图的成功率需要独立样本。[逐项结果](local-corpus-evaluation.json)
 
 11 月 28 日的中文 meme 家族留出机器评测共使用 2,622 个唯一文件、1,480 张程序生成的截图变化，完成 2,960 次首帧/多帧检索。普通留出集精确 Top-3 为首帧 20/84、多帧 23/84；紧裁图为 18/21 对 21/21，模拟聊天界面每组仅 1/21，字幕遮挡为 0/21。结果表明模型对边框、遮挡和风格变化仍很脆弱。首轮真人盲评为 60 题、187 组候选，标注仍待完成；这些机器结果不等于真实用户成功率，也不证明素材可自由再发布。[基准方法与限制](../../docs/retrieval-benchmark-at-scale.md) · [机器结果](../../docs/evidence/chinese-meme-retrieval-20261128.json)
+
+随后新增的合成截图裁切对照中，三类聊天界面库内精确 Top-3 从整图 2/63 提升到像素自动裁切 41/63；但库外任意候选从 0/339 增至 290/339。人工生成框达到 52/63，仅作为定位上界参考。真实聊天截图数和真人误选标注均为零。网页提供的是**用户控制的裁切交互**；离线自动定位实验是另一条评测路径，不能将其实验成绩说成线上自动裁切能力或真实用户效果。[裁切实验](../../docs/chat-screenshot-crop.md)
+
+本地演示的四个中文 meme 示例经 API/worker 验收，Top-1 原件字节匹配为 4/4；这些素材来源权利未全部确认，结果是固定示例检查，不是总体检索指标。[示例回执](../../docs/evidence/home-example-retrieval-20261128.json)
+
+联网路径新增了受限的中文别名空结果补救：只有已执行查询和用户证据都含“哈吉米/哈基米”其中一种拼写、且搜索没有可用来源或候选时，才在既有预算中改写一条待执行查询。明确否定语境不会触发；用户动作、字幕和来源提示需保留。自动化条件测试验证触发边界，但独立截图上的真实召回增益尚未测量。[规则与限制](../../docs/nlp-multi-agent-evaluation.md)
 
 此前发布到开发分支的联网任务返回过 48 个媒体，包含 25 个动画，其格式、帧数、下载 SHA 和数据库记录已逐项核对。11 月 27 日的真实 DeepSeek API 实测还覆盖了 44 帧原 GIF、收藏建索引和重启后的离线网页下载。[真实媒体核对](../../docs/meme50-dedup-fix-20261113.md) · [11 月 27 日回执](../../docs/evidence/gif-acquisition/deepseek-offline-reuse-20261127.json)
 
@@ -44,9 +50,10 @@ Windows 账户目录、任务 UUID 和内容哈希共同拉长路径。原子写
 
 ## User workflow and components
 
-Users can first search the local reference corpus and indexed private-library
-GIFs using multi-frame visual vectors. When they explicitly continue online,
-the API persists a linked job. The worker uses the configured vision provider
+Users can crop and confirm a screenshot in the browser before searching the
+local reference corpus and indexed private-library GIFs using multi-frame
+visual vectors. When they explicitly continue online, the API persists a
+linked job. The worker uses the configured vision provider
 to analyze the image and text; DeepSeek plans queries and searches the web. An
 isolated media-fetch service retrieves public sources, validates bytes and
 animation decoding, and ranks candidates by their visual content. After user
@@ -95,6 +102,31 @@ machine results are not real-user success rates and do not establish
 unrestricted media-republication rights. See the [benchmark method and
 limitations](../../docs/retrieval-benchmark-at-scale.md) and
 [machine evidence](../../docs/evidence/chinese-meme-retrieval-20261128.json).
+
+In a subsequent synthetic screenshot-crop comparison, exact in-library
+Top-3 across three chat-interface categories increased from 2/63 on whole
+images to 41/63 with pixel-based auto-cropping. Out-of-library queries
+returning any candidate also rose from 0/339 to 290/339. A known synthetic
+box achieved 52/63 and is only an upper-bound reference. There were no real
+chat screenshots or human misidentification judgments. The web UI provides
+user-controlled cropping; the offline automatic detector is a separate
+evaluation path and its results must not be presented as online auto-crop or
+real-user performance. See the [crop experiment](../../docs/chat-screenshot-crop.md).
+
+Four fixed Chinese-meme examples in the local demo were checked through the
+API and worker; all Top-1 downloads matched their originals byte for byte
+(4/4). Source rights are not fully established, so this is a fixed demo-flow
+check, not a general retrieval metric. See the
+[example receipt](../../docs/evidence/home-example-retrieval-20261128.json).
+
+Online search also has a bounded Chinese-alias recovery. It may revise one
+pending query within the existing budget only when the executed query and
+user evidence contain one of “哈吉米/哈基米”, and the search returned no
+usable sources or candidates. Explicit negation does not trigger it; user
+action, caption, and source clues are preserved. Automated conditional tests
+cover the trigger boundaries, but recall improvement on independent
+screenshots has not been measured. See the
+[rule and limitations](../../docs/nlp-multi-agent-evaluation.md).
 
 Earlier development-branch runs also checked the decoded format, frame count,
 download SHA-256, and database records for 48 returned media items, 25 of which

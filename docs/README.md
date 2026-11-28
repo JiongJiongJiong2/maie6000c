@@ -26,11 +26,14 @@ delivery report.
 | [HKUST and DeepSeek execution / 供应商运行说明](hkust-deepseek-execution.md) | Chinese configuration runbook with an English scope/security/status overview; secrets must remain local. |
 | [Local demo / 本地演示](local-demo.md) | Bilingual scope note plus the historical W07 small-corpus local profile; use product deployment for the current full product. |
 | [Container release / 容器发布](container-release.md) | Chinese release runbook with an English overview; immutable image verification, upgrade, and rollback. |
+| [Chat screenshot cropping / 聊天截图裁切](chat-screenshot-crop.md) | Paired synthetic-image retrieval results; clearly separates user-confirmed crop UI from the offline automatic-crop experiment. |
 
 ## Evidence and evaluation | 证据与评估
 
 - [Formal web and offline-reuse receipt / 正式网页与离线复用回执](evidence/gif-acquisition/hkgai-web-offline-20261128.json)
 - [Chinese meme retrieval benchmark / 中文 meme 检索评测](retrieval-benchmark-at-scale.md) — machine evaluation, corpus boundaries, weak categories, and pending human review.
+- [Chat screenshot crop evaluation / 聊天截图裁切评测](chat-screenshot-crop.md) — synthetic holdout results, out-of-library candidate trade-offs, and limitations.
+- [Four featured meme examples / 四个首页示例验收](evidence/home-example-retrieval-20261128.json) — fixed local API/worker checks with original-byte comparisons.
 - [W13 fixed-corpus evaluation / W13 固定语料评估](../submissions/week13/local-corpus-evaluation.json)
 - [Evaluation protocol / 评估方案](yuanjian-benchmark-guide.md)
 - [AI-use statement / AI 使用说明](../submissions/week13/ai-use-statement.md)

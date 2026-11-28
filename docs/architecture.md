@@ -15,21 +15,23 @@ to overseas platforms.
 
 **中文**
 
-正式入口为 `/web/`。用户可先搜索本地参考 GIF 和已就绪的私人收藏，再主动创建关联的联网任务。FastAPI 持久化请求和任务；独立 worker 运行本地 CLIP 检索、联网查询、候选下载与解码验证。用户审核通过后，原 GIF 被单独保存并建立版本化多帧索引。重启后、无外网时，已就绪的私人收藏仍可本地检索。
+正式入口为 `/web/`。用户可先在浏览器中裁切并确认截图，再搜索本地参考 GIF 和已就绪的私人收藏；未命中时可主动创建关联的联网任务。本地演示另提供可选的固定 meme 示例。FastAPI 持久化请求和任务；独立 worker 运行本地 CLIP 检索、联网查询、候选下载与解码验证。用户审核通过后，原 GIF 被单独保存并建立版本化多帧索引。重启后、无外网时，已就绪的私人收藏仍可本地检索。
 
 PostgreSQL 16 保存账号工作空间、请求、任务、候选和资产状态；原件和收藏 NPZ 保存在持久媒体目录。产品 Compose 配置可启用 pgvector 精确检索，NPZ 是验证后的回退。联网工作流使用 HKUST 视觉模型（默认）或 HKGAI，并由 DeepSeek 规划查询和搜索网页；独立的 `media-fetch` 服务获取公开媒体。审核、保存和索引就绪是不同状态，检索分数是相似度，不是正确概率。
 
-2026-11-28 的一次正式网页验收完成了真实 GIF 的联网找回与重启离线复用；12 个固定参考 GIF 的多帧 Top-3 对照为 12/12。它们是工程验证和小样本结果，不代表大规模用户需求评估或总体检索准确率。详见[W13 交付与证据](../submissions/week13/README.md)、[数据库与检索设计](database-and-vector-search.md)及[架构决策记录](adrs/README.md)。
+2026-11-28 的一次正式网页验收完成了真实 GIF 的联网找回与重启离线复用；12 个固定参考 GIF 的多帧 Top-3 对照为 12/12。新增合成聊天界面裁切评测显示自动裁切提升库内精确 Top-3，但也大幅增加库外候选；真实聊天截图和用户误选情况尚无结果。这些是工程验证和受限样本结果，不代表大规模用户需求评估或总体检索准确率。详见[W13 交付与证据](../submissions/week13/README.md)、[裁切实验](chat-screenshot-crop.md)、[数据库与检索设计](database-and-vector-search.md)及[架构决策记录](adrs/README.md)。
 
 **English**
 
-The formal application is served at `/web/`. Users can search the local
-reference corpus and ready private-library assets, then explicitly start a
-linked web-search job. FastAPI persists requests and jobs; a separate worker
-runs local CLIP retrieval, web search, candidate downloads, and decoded-media
-validation. After user review, the original GIF is persisted separately and a
-versioned multi-frame index is built. Ready private assets remain searchable
-locally after restart and without internet access.
+The formal application is served at `/web/`. Users can crop and confirm a
+screenshot in the browser, search the local reference corpus and ready
+private-library assets, then explicitly start a linked web-search job. The
+local demo also offers a small set of fixed meme examples. FastAPI persists
+requests and jobs; a separate worker runs local CLIP retrieval, web search,
+candidate downloads, and decoded-media validation. After user review, the
+original GIF is persisted separately and a versioned multi-frame index is
+built. Ready private assets remain searchable locally after restart and
+without internet access.
 
 PostgreSQL 16 stores account workspaces, requests, jobs, candidates, and asset
 states. Original files and saved NPZ indexes live in persistent media storage.
@@ -41,9 +43,11 @@ separate states. Similarity scores are not probabilities of correctness.
 
 One formal browser acceptance on 28 November 2026 verified real-GIF recovery
 and offline reuse after restart. A multi-frame Top-3 comparison on 12 fixed
-reference GIFs scored 12/12. These are engineering checks and a small-sample
-result, not a large-scale user study or an estimate of overall retrieval
-accuracy. See the [W13 delivery report](../submissions/week13/README.md), the
+reference GIFs scored 12/12. A new synthetic chat-interface crop evaluation
+improved exact in-library Top-3 but substantially increased out-of-library
+candidates; real-chat performance and user misidentification remain unknown.
+These are engineering checks and limited-sample results, not a large-scale
+user study or an estimate of overall retrieval accuracy. See the [W13 delivery report](../submissions/week13/README.md), the
 [database and retrieval design](database-and-vector-search.md), and the
 [architecture decision records](adrs/README.md).
 

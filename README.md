@@ -27,7 +27,8 @@
 ## 系统流程 | System workflow
 
 ```text
-截图 / Screenshot
+上传或示例 / Upload or example
+  -> 用户裁切确认 / User-reviewed crop
   -> 本地检索 / Local search
   -> 用户主动联网 / User-triggered web search
   -> 下载与动画验证 / Download and animation validation
@@ -47,6 +48,8 @@ The backend uses FastAPI, PostgreSQL, and a separate worker. CLIP encodes repres
 - 2026 年 11 月 28 日的正式网页验收完成了本地未命中、联网找回、确认收藏、索引就绪、重启并断开外联后的离线再次命中；两次下载与独立留存的原件逐字节相同。详见[验收回执](docs/evidence/gif-acquisition/hkgai-web-offline-20261128.json)。
 - 固定的 12 个参考 GIF 小样本中，多帧索引 Top-3 为 12/12，首帧索引为 11/12。该结果只说明这个固定小样本上的表现，不代表真实用户截图的总体命中率。
 - 11 月 28 日的中文 meme 机器评测共运行 2,960 次；普通家族留出集 Top-3 首帧为 20/84，多帧为 23/84。输入含程序生成的截图变化，不能视为真实用户命中率；人工盲评和真实需求评测仍待完成。详见[基准报告](docs/retrieval-benchmark-at-scale.md)及[原始证据](docs/evidence/chinese-meme-retrieval-20261128.json)。
+- 新增的聊天截图裁切实验中，合成留出集的三类界面截图，整图精确 Top-3 为 2/63，自动像素裁切为 41/63；同时库外返回候选从 0/339 增至 290/339。真实聊天截图和用户误选率尚未评估，结果说明裁切可改善找回但也会增加相似候选，需用户审核。见[裁切评测](docs/chat-screenshot-crop.md)。
+- 本地演示首页可选 4 个中文 meme 示例；它们在本地接口与 worker 验收中均以 Top-1 原字节找回（4/4），是固定示例流程检查，不是独立精度评估，单个素材的再发布授权也未全部确认。见[验收记录](docs/evidence/home-example-retrieval-20261128.json)。
 - 真实用户需求的大规模 A/B/C 对照、成员独立复现签收及课程平台提交回执仍需团队确认。系统也不承诺从任意网站或截图中必定找回原 GIF。
 
 **English**
@@ -54,6 +57,8 @@ The backend uses FastAPI, PostgreSQL, and a separate worker. CLIP encodes repres
 - On 28 November 2026, the formal web workflow was verified from a local no-match through online recovery, user confirmation, indexing, and an offline re-match after restart with external access blocked. Both downloads were byte-identical to the independently retained original. See the [acceptance receipt](docs/evidence/gif-acquisition/hkgai-web-offline-20261128.json).
 - On the fixed 12-GIF reference sample, multi-frame indexing achieved Top-3 on 12/12 inputs versus 11/12 for first-frame indexing. This result applies only to that small, fixed sample; it is not an estimate of success on arbitrary user screenshots.
 - The 28 November Chinese-meme machine evaluation ran 2,960 searches. On the ordinary family-held-out set, Top-3 was 20/84 for first-frame indexing and 23/84 for multi-frame indexing. Inputs included programmatically generated screenshot transformations, so these are not real-user success rates; blind human review and real-request evaluation remain outstanding. See the [benchmark report](docs/retrieval-benchmark-at-scale.md) and [raw evidence](docs/evidence/chinese-meme-retrieval-20261128.json).
+- In the new chat-screenshot crop experiment, whole-image exact Top-3 was 2/63 on three synthetic interface categories versus 41/63 with pixel-based auto-cropping; out-of-library queries returning any candidate also rose from 0/339 to 290/339. Real chat screenshots and user misidentification rates have not been evaluated. Cropping can improve retrieval while increasing similar candidates, so user review remains necessary. See the [crop evaluation](docs/chat-screenshot-crop.md).
+- The local demo offers four Chinese-meme examples; all four top-ranked downloads matched their original bytes (4/4) in the local API/worker acceptance. This checks a fixed example flow, not independent retrieval accuracy, and not every asset has confirmed republication rights. See the [acceptance record](docs/evidence/home-example-retrieval-20261128.json).
 - A larger A/B/C study on real user requests, independent reproductions by all team members, and the course-platform submission receipt still require team confirmation. The system does not guarantee recovery of an original GIF from every website or screenshot.
 
 ## 团队分工 | Team responsibilities

@@ -19,12 +19,14 @@ for the verified workflow and its limitations.
 
 ## 用网页找回和收藏 GIF | Recover and save GIFs in the web app
 
-上传裁好的 PNG、JPEG 或 WebP 截图。选择 **Local only** 搜索参考库和你已索引的收藏。目标不在结果里时，点 **Continue online** 并描述画面、动作或记得的来源。联网模式需要运营者配置识图模型和 DeepSeek。结果页的 **Search activity** 展示真实调用数和查询计划，任务结束后可查看实际执行的查询及返回的来源数。
+选择、拖入或粘贴 PNG、JPEG 或 WebP 截图后，可点 **Crop screenshot** 框选表情并确认；也可以保留整图。确认后的同一张图用于本地检索和后续联网搜索。选择 **Local only** 搜索参考库和你已索引的收藏。目标不在结果里时，点 **Continue online** 并描述画面、动作或记得的来源。联网模式需要运营者配置识图模型和 DeepSeek。结果页的 **Search activity** 展示真实调用数和查询计划，任务结束后可查看实际执行的查询及返回的来源数。
 
 在结果中播放动画。联网结果可点 **Confirm and save** 收藏并等待索引完成。本地参考结果可点 **This is the one** 后下载。通过 **My GIF Library** 管理、下载或批量导入原始 GIF，也可以换一帧重新本地检索。下载按钮提供原件。在支持 Web Share 的浏览器可选择 **Share GIF**，再在系统分享面板选接收应用。
 
-Upload a cropped PNG, JPEG, or WebP screenshot. Choose **Local only** to
-search the reference corpus and indexed saved GIFs. If the target is missing,
+Select, drop, or paste a PNG, JPEG, or WebP screenshot. Choose **Crop
+screenshot** to select and confirm the meme region, or keep the full image.
+The same confirmed image is used for local search and any subsequent online
+search. Choose **Local only** to search the reference corpus and indexed saved GIFs. If the target is missing,
 choose **Continue online** and describe the scene, action, or known source.
 Online search requires operator-configured vision and DeepSeek credentials.
 **Search activity** shows the actual calls and query plan after the job ends.
