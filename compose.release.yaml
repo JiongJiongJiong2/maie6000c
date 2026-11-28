@@ -1,0 +1,13 @@
+# Layer last, after the normal deployment overlays.
+services:
+  api:
+    image: ${MEMERETRIEVE_API_IMAGE:?Set MEMERETRIEVE_API_IMAGE to the verified API image}
+    build: !reset null
+
+  worker:
+    image: ${MEMERETRIEVE_WORKER_IMAGE:?Set MEMERETRIEVE_WORKER_IMAGE to the verified worker image}
+    build: !reset null
+
+  media-fetch:
+    image: ${MEMERETRIEVE_FETCH_IMAGE:?Set MEMERETRIEVE_FETCH_IMAGE to the verified media-fetch image}
+    build: !reset null
