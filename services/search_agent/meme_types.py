@@ -175,6 +175,7 @@ class VisualAnalysis(BaseModel):
 class MediaSource(Source):
     media_url: str | None = None
     preview_url: str | None = None
+    primary_page_host: str | None = None
     product_page: bool = False
     image_caption: str = Field(default="", max_length=500)
     source_type: str = "page"

@@ -20,6 +20,7 @@ from .captions import caption_overlap, caption_phrases, product_listing, wants_p
 from .entity_verifier import REFERENCE_SIMILARITY, verify_entities
 from .meme_fetch import FetchClient
 from .meme_deepseek import (
+    ANIMATION_INTENT,
     GIF_INTENT,
     SITE_OPERATOR,
     DeepSeekWeb,
@@ -35,6 +36,33 @@ from .meme_types import Ledger, MediaSource, MemeSettings, PipelineError, Prepar
 from .page_media import page_sources
 from .resolvers import is_commons_file_page
 from .visual_analysis import analyze_image
+
+
+def requested_animation(user_text, domain):
+    if not domain:
+        return None
+    description = source_description(user_text, domain)
+    for pattern, kind in ((GIF_INTENT, "GIF"), (ANIMATION_INTENT, "animated")):
+        for match in pattern.finditer(description):
+            if re.search(
+                r"(?:\b(?:not|no|never|without|avoid|exclude|don't)\s+"
+                r"(?:(?:want|use|find|a|an|any|looping|animated)\s+)*"
+                r"|(?:不要|不用|不想要?|不是|避免|排除)\s*)$",
+                description[: match.start()],
+                re.I,
+            ):
+                return None
+            return kind
+    return None
+
+
+def representative_priority(metadata, score, signals):
+    return (
+        bool(signals.get("requested_source_original")),
+        score if signals.get("picture_match") else 0,
+        metadata.width * metadata.height,
+        score,
+    )
 
 
 def fuse_sources(sources, maximum):
@@ -84,6 +112,8 @@ def search_memes(
     user_text = (user_text or "").strip()
     if len(user_text) > 500:
         raise ValueError("description limit")
+    source_domain = explicit_user_source(user_text)
+    requested_kind = requested_animation(user_text, source_domain)
     work = Path(work_dir)
     work.mkdir(parents=True, exist_ok=True)
     ledger = Ledger(settings)
@@ -422,6 +452,18 @@ def search_memes(
                         score = min(0.95, score + 0.09 * agreement)
                         signals["caption_overlap"] = agreement
                     signals["picture_match"] = match
+                    # Only the named page's parsed main asset can override resolution.
+                    # Verify its format from bytes and its resemblance to the query.
+                    if (
+                        requested_kind
+                        and source.primary_page_host == source_domain
+                        and urlsplit(source.source_url).hostname == source_domain
+                        and metadata.media_kind == "animated"
+                        and (requested_kind == "animated" or metadata.format == requested_kind)
+                        and signals["visual"] >= 0.94
+                        and score >= settings.minimum_score
+                    ):
+                        signals["requested_source_original"] = True
                     ledger.note(
                         "media_ranked",
                         sha256=metadata.sha256,
@@ -450,18 +492,21 @@ def search_memes(
                     if not is_new:
                         counts["content_duplicates"] += 1
                     old = prepared.get(group)
-                    # Prefer useful resolution for the same content group, with
-                    # score as a deterministic tiebreaker. Groups never fill slots twice.
-                    if old and (
-                        old.score if old.signals.get("picture_match") else 0,
-                        old.metadata.width * old.metadata.height,
-                        old.score,
-                    ) >= (
-                        score if match else 0,
-                        metadata.width * metadata.height,
-                        score,
-                    ):
-                        continue
+                    if old:
+                        keep_old = representative_priority(
+                            old.metadata, old.score, old.signals
+                        ) >= representative_priority(metadata, score, signals)
+                        if old.signals.get("requested_source_original") != signals.get(
+                            "requested_source_original"
+                        ):
+                            ledger.note(
+                                "requested_source_representative",
+                                group=group,
+                                kept=(old.key if keep_old else metadata.sha256)[:16],
+                                alternative=(metadata.sha256 if keep_old else old.key)[:16],
+                            )
+                        if keep_old:
+                            continue
                     relative = f"originals/{metadata.sha256}.{metadata.suffix}"
                     preview = f"previews/{metadata.sha256}.png"
                     poster = preview_bytes(content)
@@ -526,16 +571,7 @@ def search_memes(
             keyword_ok = True
         queries = analysis.queries[: settings.max_queries]
         commons = "commons.wikimedia.org"
-        description = source_description(user_text, commons)
-        wants_commons_gif = (
-            explicit_user_source(user_text) == commons
-            and GIF_INTENT.search(description)
-            and not re.search(
-                r"(?:\b(?:not|no|without|avoid|exclude)\s+(?:(?:a|an|any|animated)\s+)*|(?:不要|不是|排除)\s*)gifs?\b",
-                description,
-                re.I,
-            )
-        )
+        wants_commons_gif = source_domain == commons and requested_kind == "GIF"
         spelling_retry_scheduled = False
         for query_index, query in enumerate(queries):
             if enough_results():

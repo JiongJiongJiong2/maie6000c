@@ -62,5 +62,56 @@
     "exact_download_rank": null,
     "first_download_matches_candidate_sha256": true,
     "browser_displayed_results": true
+  },
+  "source_page_priority_replay": {
+    "fixture": "The same public Wikimedia input, description, reference SHA and configured budget as direct_online_after_transport_fix.",
+    "status": "completed",
+    "policy": "deepseek-only-v1",
+    "elapsed_ms": 188458,
+    "stop_reason": "target_reached",
+    "result_count": 50,
+    "model_calls": 3,
+    "search_calls": 6,
+    "media_attempts": 77,
+    "valid_media": 70,
+    "page_attempts": 39,
+    "sources_returned_before_deduplication": 175,
+    "scoped_source_paths": 25,
+    "scoped_pages_selected": 9,
+    "known_source_file_page_selected": true,
+    "target_downloaded_and_ranked": true,
+    "target_score": 0.8004908300660274,
+    "target_visual_score": 0.9873512983322144,
+    "ranked_media_with_higher_score": 0,
+    "exact_download_rank": null,
+    "group_members_verified_in_persisted_candidate_drafts": [
+      {"format": "GIF", "width": 400, "height": 400, "frames": 44, "source": "Wikimedia Commons file detail", "sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378"},
+      {"format": "WEBP", "width": 498, "height": 498, "frames": 44, "source": "Tenor", "sha256": "0b267b7ec850906bf6422a742448016fb9b9a0aafd41041b14cfd81aa157d78c"}
+    ],
+    "deduplication_result": "Both drafts share one content group. The representative selection preferred the larger WebP. It was displayed first at 0.7989364282952415. The original GIF was absent from the 50 final results."
+  },
+  "offline_original_selection_replay": {
+    "inputs": "The two downloaded files and frozen scores from source_page_priority_replay, with the same explicit source and animation request. No new web or model calls.",
+    "tested_orders": ["GIF then WebP", "WebP then GIF"],
+    "both_kept_download_sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "bytes": 1001718,
+    "frames": 44,
+    "rank_in_frozen_results": 1,
+    "other_results_unchanged": 49
+  },
+  "fresh_online_after_selection_fix": {
+    "fixture": "Same public Wikimedia screenshot and source clue, new DeepSeek calls and fresh web retrieval.",
+    "status": "completed",
+    "policy": "deepseek-only-v1",
+    "model_calls": 3,
+    "search_calls": 6,
+    "media_attempts": 82,
+    "valid_media": 70,
+    "page_attempts": 40,
+    "result_count": 50,
+    "elapsed_ms": 187033,
+    "stop_reason": "target_reached",
+    "exact_download_rank": null,
+    "reference_download_verified": false
   }
 }

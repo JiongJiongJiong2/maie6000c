@@ -154,6 +154,7 @@ for (const mode of ["direct", "linked"]) {
       await page.locator("#refresh").click();
       await expect(page.locator("#retry-feedback")).toBeVisible();
       await page.locator("#meme-retry").click();
+      await expect.poll(() => recoveries.length).toBe(2);
       expect(recoveries[0].client_retry_key).toBeTruthy();
       expect(recoveries[1]).toEqual(recoveries[0]);
     }

@@ -1,4 +1,5 @@
 import io
+import json
 from hashlib import sha256
 from types import SimpleNamespace
 
@@ -474,6 +475,131 @@ def test_scoped_gif_search_prioritizes_returned_file_page_within_budget(
         assert result["candidate_keys"] == [sha256(path.read_bytes()).hexdigest()]
         assert detail not in [url for _, url in calls]
     assert result["ledger"]["search_calls"] == 1
+
+
+def replay_source_renditions(
+    tmp_path, monkeypatch, media, description, primary_first, primary_link
+):
+    # Replay observed ranks while exercising real parsing, media decoding, grouping,
+    # representation selection and final on-disk bytes in either discovery order.
+    def source(page):
+        return MediaSource(source_url=page, provider="offline")
+
+    file_page = "https://commons.wikimedia.org/wiki/File:Clockwork_bird.gif"
+    post = "https://tenor.com/view/clockwork-bird-31751"
+    primary = "https://upload.wikimedia.org/example/bird.gif"
+    rendition = "https://media.tenor.com/example/bird.webp"
+    store = {
+        "gifs": {
+            "byId": {
+                "31751": {
+                    "results": [
+                        {
+                            "id": "31751",
+                            "media_formats": {"webp": {"url": rendition, "size": len(media[1][0])}},
+                        }
+                    ]
+                }
+            }
+        }
+    }
+    html = (
+        f'<a class="internal" href="{primary}">Full resolution</a>'
+        if primary_link
+        else f'<img src="{primary}">'
+    )
+    independent = "https://example.org/unrelated.png"
+    path = tmp_path / "query.png"
+    Image.new("RGB", (24, 24), "yellow").save(path)
+    pic = io.BytesIO()
+    Image.new("RGB", (40, 60), "purple").save(pic, "PNG")
+    responses = {
+        file_page: html.encode(),
+        post: f'<script id="store-cache">{json.dumps(store)}</script>'.encode(),
+        primary: media[0][0],
+        rendition: media[1][0],
+        independent: pic.getvalue(),
+    }
+    scores = {sha256(content).hexdigest(): (score, visual) for content, score, visual in media}
+    scores[sha256(pic.getvalue()).hexdigest()] = (0.92, 0.99)
+
+    def score_candidate(query, candidate, text, title, user_text, metadata):
+        score, visual = scores[metadata.sha256]
+        return score, {"visual": visual}
+
+    monkeypatch.setattr("services.search_agent.meme_pipeline.score_candidate", score_candidate)
+    order = [source(file_page), source(post)]
+    if not primary_first:
+        order.reverse()
+    batches = iter(
+        [[s] for s in order] + [[source(independent).model_copy(update={"media_url": independent})]]
+    )
+    queries = [Query(text=angle, angle=angle) for angle in ("appearance", "action", "theme")]
+    plans = VisualAnalysis(queries=queries)
+    draws = {}
+    work = tmp_path / "replay"
+    result = search_memes(
+        path,
+        description,
+        work,
+        5,
+        settings=MemeSettings(_env_file=None),
+        analyze=lambda *args: (plans, [Image.new("RGB", (24, 24), "yellow")]),
+        keywords=SimpleNamespace(search=lambda *args, **kwargs: next(batches)),
+        fetcher=SimpleNamespace(get=lambda url, *args: (responses[url], url)),
+        embeddings=SimpleNamespace(
+            load_model=lambda: None,
+            encode_images=lambda frames: np.ones((len(frames), 1)),
+            encode_texts=lambda texts: np.ones((len(texts), 1)),
+        ),
+        emit=lambda kind, data: draws.update({data["candidate"]["key"]: data["candidate"]})
+        if kind == "candidate_ready"
+        else None,
+    )
+    assert result["status"] == "completed" and result["counts"]["content_duplicates"] == 1
+    assert len(result["candidate_keys"]) == 2
+    for key in result["candidate_keys"]:
+        assert sha256((work / draws[key]["relative_path"]).read_bytes()).hexdigest() == key
+        assert draws[key]["score"] == scores[key][0]
+    return result, draws
+
+
+@pytest.mark.parametrize("primary_first", [True, False])
+@pytest.mark.parametrize(
+    ("text", "visual", "primary_link", "expect_gif"),
+    [
+        ("Please find the GIF on Wikimedia Commons.", 0.98, True, True),
+        ("请找在维基共享资源的动图", 0.98, True, True),
+        ("Please find the animation on Tenor.", 0.98, True, False),
+        ("Find this GIF.", 0.98, True, False),
+        ("Find this picture on Wikimedia Commons.", 0.98, True, False),
+        ("I want the still from Wikimedia Commons, not a GIF.", 0.98, True, False),
+        ("Find the GIF on Wikimedia Commons.", 0.80, True, False),
+        ("Find the GIF on Wikimedia Commons.", 0.98, False, False),
+    ],
+)
+def test_same_group_keeps_verified_requested_primary(
+    tmp_path, monkeypatch, primary_first, text, visual, primary_link, expect_gif
+):
+    colors = ["red", "green", "blue", "yellow"]
+
+    def animation(size, fmt):
+        frames = [Image.new("RGB", (size, size), color) for color in colors]
+        out = io.BytesIO()
+        frames[0].save(out, fmt, save_all=True, append_images=frames[1:], duration=100, loop=0)
+        return out.getvalue()
+
+    media = [(animation(48, "GIF"), 0.81, visual), (animation(96, "WEBP"), 0.80, 0.98)]
+    result, candidates = replay_source_renditions(
+        tmp_path, monkeypatch, media, text, primary_first, primary_link
+    )
+    key = result["candidate_keys"][1]
+    assert key == sha256(media[0 if expect_gif else 1][0]).hexdigest()
+    decision = [e for e in result["trace"] if e["step"] == "requested_source_representative"]
+    assert bool(decision) == (expect_gif or "on Tenor" in text)
+    if decision:
+        assert decision[0]["details"]["kept"] == key[:16]
+        assert candidates[key]["signals"]["requested_source_original"]
 
 
 def test_localized_tenor_pages_are_one_recall_item():

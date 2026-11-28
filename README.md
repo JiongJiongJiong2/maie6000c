@@ -6,6 +6,8 @@ The web worker uses one personal DeepSeek API key for screenshot recognition, OC
 
 ## Run and verify
 
+For online search on the DeepSeek-only branch, activate the project virtual environment and run `python -m scripts.configure_meme50 --deepseek-only` at the repository root. Enter your own `DEEPSEEK_API_KEY` at the hidden prompt, or press Enter to keep the existing value. Run `python -m scripts.configure_meme50 --check` to check the selected model and key presence locally. Restart the API and worker after a change. For Docker Compose, recreate both services using your existing Compose files and project name so they receive the updated environment. [Provider setup and private-library consent](docs/meme50-authorization.md)
+
 Start with the [product and Docker guide](docs/product-deployment.md) for accounts, GIF search and collection, PostgreSQL with pgvector, and existing database upgrades. The [native setup guide](docs/local-demo.md) covers the local Python launcher. See the [W13 delivery report](submissions/week13/README.md) for verification and the [database design](docs/database-and-vector-search.md) for storage details.
 
 Use the [container release guide](docs/container-release.md) to deploy the versioned images built by GitHub Actions.
