@@ -1,5 +1,7 @@
 # MemeRetrieve · W13 产品交付
 
+[English](README.en.md) · 简体中文
+
 团队成员为 Jiongle He、Haoxuan Jiang、YuanJian Li、Zirui Huang。产品用一张截图寻找原始动态 GIF，并支持将选中的原件收藏到私人库，下次在本机再次检索。[项目分工](../../docs/final-project-plan.md)
 
 ## 运行与演示
@@ -27,3 +29,7 @@
 ## pgvector 与产品部署
 
 已验证原账户库的逻辑恢复、旧收藏回填、固定参考库 96 帧同步，及跨账户隔离。使用正式网页收藏一份 44 帧 GIF，重启和断网后通过 pgvector 在第 1 名找回，下载文件与原件逐字节一致。移除一条旧收藏的派生向量后，NPZ 回退找回同一资产。公共参考库另用 Noto 样例验证第 1 名、原件下载和无候选三种状态。 [迁移、离线与下载回执](pgvector-verification.json) · [产品使用与 Docker 部署](../../docs/product-deployment.md)
+
+## 邀请制公测演练
+
+11 月 28 日在独立的本机部署上完成 Chrome 演练。无效邀请码注册返回 403，有效邀请码注册返回 201，匿名访问私人库返回 401。导入授权的 44 帧 GIF 后，用第 13 帧截图首位命中；重建 API 和 worker、在全新浏览器登录后，第 29 帧仍把同一资产排在第一。前后两次下载均与 1,001,718 字节原件逐字节相同。该部署关闭外部搜索。外部 HTTPS 访问和真实参与者的检索质量仍待验收。[公测演练回执](public-beta-rehearsal.json) · [公测手册](../../docs/public-beta.md)

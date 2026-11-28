@@ -1,5 +1,7 @@
 # 技术总结与复盘
 
+[English](final-technical-brief.en.md) · 简体中文
+
 ## 用户流程和组件
 
 截图可先在本机用多帧视觉向量查找。用户主动续搜后，API 持久化一个关联任务；worker 选择配置的视觉模型提取画面和文字，由 DeepSeek 生成查询并向搜索接口请求网页。媒体获取服务读取公开来源，验字节、解码动画，按实际视觉内容排序和去重。用户确认后保存原件，后台写入多帧索引，新的本地请求即可复用。[架构](../../docs/architecture.md) · [原件与向量数据模型](../../docs/database-and-vector-search.md)

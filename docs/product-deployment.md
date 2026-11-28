@@ -1,5 +1,7 @@
 # MemeRetrieve 产品使用与部署
 
+[English](guides/product-deployment.md) · 简体中文 · [使用指南目录](guides/README.zh-CN.md)
+
 打开 `http://127.0.0.1:8000/web/`。首次使用点 **Register** 选择用户名和至少八位的密码，之后用 **Sign in** 打开自己的收藏。右上角的 **Sign out** 结束当前会话。每个账号的收藏、导入和搜索历史存放在独立工作空间。
 
 ## 用网页找回和收藏 GIF
@@ -20,7 +22,7 @@ py -3.11 -m venv .venv
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-在新安装的 `.env` 中把 `POSTGRES_PASSWORD` 设为自己的随机字母数字密码。已有 `.env` 继续使用原文件并核对设置。账号和私人库在产品 Compose 配置里默认启用。已有配置若显式将这些选项设为 `false`，请改为 `ACCOUNT_LOGIN_ENABLED=true` 和 `PRIVATE_LIBRARY_ENABLED=true`。在线使用另按供应商指南配置。首次体验本地使用只需数据库和缓存模型。[供应商配置](hkust-deepseek-execution.md)
+在新安装的 `.env` 中把 `POSTGRES_PASSWORD` 设为自己的随机字母数字密码。已有 `.env` 继续使用原文件并核对设置。账号和私人库在产品 Compose 配置里默认启用。已有配置若显式将这些选项设为 `false`，请改为 `ACCOUNT_LOGIN_ENABLED=true` 和 `PRIVATE_LIBRARY_ENABLED=true`。在线使用另按供应商指南配置。首次体验本地使用只需数据库和缓存模型。[联网搜索配置速查](guides/online-search.zh-CN.md) · [供应商实现记录](hkust-deepseek-execution.md)
 
 ```powershell
 $product = @('-f', 'compose.yaml', '-f', 'compose.local-model.yaml', '-f', 'compose.pgvector.yaml')

@@ -1,127 +1,29 @@
 # MemeRetrieve
 
-Recover an animated GIF from a screenshot, review the original, and save it for offline reuse. The formal application is served at `/web/`. Choose **Local only** to search the reference library and the signed-in account’s saved GIFs. If the target is missing, **Continue online** starts a linked search. The default image-first mode searches online directly.
+English · [简体中文](README.zh-CN.md)
 
-The web worker uses HKUST vision by default or an explicitly selected HKGAI vision model. DeepSeek plans queries and searches the web. A separate public media fetch service retrieves candidates, and CLIP ranks their decoded content. Confirming a GIF saves the original bytes and schedules multi-frame indexing. PostgreSQL stores job and asset state, and versioned local vectors support offline retrieval after restart.
+Find the original animated GIF from a screenshot. Upload a cropped PNG, JPEG or WebP to search the reference collection and your private GIF library. If your installation enables online search, you can ask the search agent to look further, watch its progress and save the original. Once a saved GIF is indexed, another frame can find it after a restart, even with external search turned off.
 
-## Run and verify
+| What do you need? | English | 简体中文 |
+| --- | --- | --- |
+| Product overview, capabilities, limitations and proposed business model | [Product](docs/product/README.md) | [产品说明](docs/product/README.zh-CN.md) |
+| Register, find a GIF, run Docker, rehearse the beta or roll back a release | [User and operator guides](docs/guides/README.md) | [使用与部署指南](docs/guides/README.zh-CN.md) |
+| Understand the API, worker, image and animation vectors, storage and tests | [Technical documentation](docs/technical/README.md) | [技术文档](docs/technical/README.zh-CN.md) |
 
-Start with the [product and Docker guide](docs/product-deployment.md) for accounts, GIF search and collection, PostgreSQL with pgvector, and existing database upgrades. The [native setup guide](docs/local-demo.md) covers the local Python launcher. See the [W13 delivery report](submissions/week13/README.md) for verification and the [database design](docs/database-and-vector-search.md) for storage details.
+## Try it
 
-Use the [container release guide](docs/container-release.md) to deploy the versioned images built by GitHub Actions.
+For a new installation, follow the [Docker setup](docs/guides/product-deployment.md) and open `http://127.0.0.1:8000/web/` on the host. Choose **Local only**, upload a screenshot and play a result. With online search enabled, **Continue online** starts a linked job and **Confirm and save** adds a result to your private library.
 
-For a private rehearsal, use the [public beta preparation guide](docs/public-beta.md). Its Compose configuration binds the website to this computer, requires an invitation to register and uses local retrieval. The [business pilot proposal](docs/business-model.md) describes the audience, price experiment and decision criteria.
+The [invite-only rehearsal](docs/guides/public-beta.md) runs on the operator’s computer at `http://127.0.0.1:58095/web/`. Registration requires the operator’s invite code. That profile uses local retrieval and disables external search and AI annotation.
 
-## Earlier milestones and experiments
+## What has been verified?
 
-An independent [meme search agent v1](docs/meme-agent-v1.md) now runs at `http://127.0.0.1:8010/studio/`: DeepSeek query planning, live template discovery, local caption editing, explicit confirmation, and persistent SQLite/CLIP collection reuse. Start it with `.venv/Scripts/python.exe scripts/run_meme_agent.py`. This experimental branch uses a minimal functional UI and a bounded template catalog; it does not provide unrestricted reverse image search or multi-user hosting. It is separate from the W07 stack below.
+The real browser flow recovered a 44-frame GIF with a source clue, saved it, found it from a different frame after an offline restart and downloaded bytes identical to the original. In the separate beta rehearsal, frames 13 and 29 each ranked the same saved GIF first. Both downloads matched all 1,001,718 bytes. These runs establish the behavior on specific licensed examples. Accuracy on independent user screenshots still needs measurement. [Release evidence](submissions/week13/README.en.md) · [Beta receipt](submissions/week13/public-beta-rehearsal.json)
 
-The local W07 demo now connects the web client, PostgreSQL, an independent worker, and real CLIP image retrieval over 12 attributed animated reaction GIFs. Upload, candidate review, and original GIF download are available at `http://127.0.0.1:8000/web/`. Follow the [local demo guide](docs/local-demo.md) to prepare and run it. The collection is deliberately small; arbitrary internet meme recovery and physical iPhone acceptance remain unverified. See the [W07 submission](submissions/week07/README.md) for evidence and remaining acceptance. The W07 repository checkpoint is identified by the w07-midterm tag. The W04 proposal is preserved below under historical context.
+## Repository map
 
-The [W07 PPT materials](submissions/week07/assets/index.html) include real browser screenshots, PostgreSQL records, correlated worker logs and an original GIF download. This capture used native Windows PostgreSQL with the same API and worker; see the [Windows fallback](docs/local-demo.md#windows-without-docker). The `w07-midterm` tag identifies the submitted checkpoint when created.
+The browser client lives in [web/](web/), the FastAPI service, worker and retrieval code in [services/](services/), and PostgreSQL migrations in [alembic/](alembic/). [scripts/](scripts/) contains setup and verification commands, [tests/](tests/) contains backend tests, and [GitHub Actions](.github/workflows/) builds and verifies the application and release containers. The [documentation index](docs/README.md) also maps earlier experiments, source-specific notes, course submissions and templates.
 
 ## Historical W04 proposal context
 
-The following planned scope and milestone details are historical; current W07 scope is the browser demo above.
-
-| Item | Proposal |
-|---|---|
-| Course | MAIE 6000C - Engineering AI Products: From Prototype to Production |
-| Working title | MemeRetrieve: Screenshot-to-Animated-Meme Recovery |
-| Team name | Memeory |
-| Members | Jiongle He (leader), Haoxuan Jiang, YuanJian Li, Zirui Huang |
-| Initial user | One iPhone user |
-| Input | One manually selected screenshot crop |
-| Retrieval baseline | Planned 50-100-GIF curated corpus with documented permission |
-| Backend | Personal computer: FastAPI, PostgreSQL, database-backed worker |
-| AI function | Live pretrained image-feature inference for frame-to-GIF ranking |
-| Storage | Personal screenshots/saved GIFs on phone; reference corpus on computer; temporary task media separate |
-| Current milestone | W04 Team Architecture Proposal and Project Plan |
-| Required tag | `w04-proposal` |
-
-For the Week 7 implementation scope, task owners, API conventions, and integration schedule, see the [Week 7 team plan](docs/week07-plan.md).
-
-Development follows `feature/fix/docs branch → dev → main`. Create work branches from the latest `dev` and target pull requests to `dev`. After integration and acceptance, merge `dev` into `main`; create milestone tags from the accepted `main` commit.
-
-## Team and responsibilities
-
-**Team name: Memeory** - a blend of *meme* and *memory*, reflecting the goal of finding and remembering animated memes.
-
-| Member | Student ID | Role | Responsibilities |
-|---|---|---|---|
-| Jiongle He | 21321732 | Team leader; web searching agent | Implement query planning, search-provider adapters, tool orchestration, bounded follow-up searches and execution traces; coordinate scope, acceptance, and final delivery |
-| Haoxuan Jiang | 21313230 | Backend, data, and deployment | Implement FastAPI contracts, PostgreSQL schema/migrations, durable jobs and idempotency, shared storage, Docker deployment, and backend verification |
-| YuanJian Li | 21324552 | GIF validation, retrieval, and evaluation | Implement safe media retrieval and animation validation, visual ranking, multi-frame indexing and updates, model/corpus versioning, and comparative evaluation |
-| Zirui Huang | 21313436 | Client and integration | Implement image import/cropping, local metadata/media storage, submission/polling, preview/review/download, and lead device checks and end-to-end integration |
-
-Owners coordinate at the API/result contracts: Jiongle He supplies the web searching agent called by the worker; YuanJian Li supplies media validation, visual ranking, and multi-frame indexing; Haoxuan Jiang supplies persistent services; Zirui Huang connects and verifies the client workflow. See the [post-midterm plan](docs/final-project-plan.md) for the ownership update dated 2026-11-09.
-
-## Core workflow
-
-Collect locally -> select/crop -> submit -> persist request/job -> worker extracts visual features and ranks corpus GIFs -> validate/store candidates -> user reviews -> download and verify local playback.
-
-Collection continues while the computer is offline. The API acknowledges durable work before retrieval begins. Execution completion, human acceptance, and successful phone saving are separate outcomes. Missing corpus matches may produce no candidates.
-
-## Semester scope
-
-Core scope is one user, one target per request, manual crop, a persisted async task, real pretrained inference, real GIF output, human review, local storage, and explicit failures/retries. The proposed client is SwiftUI with SQLite metadata and local files, conditional on Mac/Xcode and device access. A simpler upload/review client is a reduced course-slice fallback.
-
-OCR-assisted ranking, shortcut/share collection, automatic crop suggestions, batching, a verified external source, and WeChat export follow the core. Multi-user accounts, personal cloud libraries, model training, vector databases, and unrestricted web recovery are excluded.
-
-## Proposal artifacts
-
-| Artifact | Purpose |
-|---|---|
-| [Week 4 submission](submissions/week04/README.md) | Primary review entry, milestone/risk summary, rubric map, AI Use Statement |
-| [Architecture](docs/architecture.md) | Deployment, persistence, states, APIs, async flow, retrieval and evaluation |
-| [English technical figures](docs/figures/README.md) | Architecture, sequence, ERD, job states, retrieval pipeline; editable Mermaid plus SVG previews |
-
-The backend has separate API and worker processes. Pretrained inference/ranking are initially worker modules behind a bounded interface; starter adaptation and any course requirement for a separate AI service must be checked before implementation. SQLAlchemy/Alembic define the relational model and migrations.
-
-The W07 backend startup and tests are documented in the
-[backend guide](docs/backend-guide.md). For an implementation-oriented
-architecture walkthrough and development log of Haoxuan's backend, data, and
-deployment work, see the
-[backend development log](docs/backend-development-log.md). The starter remains
-available using its Compose profile; neither backend scaffolding nor test
-fixtures establish a working pretrained retrieval product.
-
-## Evidence and submission
-
-The assignment is the source for W04 requirements. Technical documentation references and unresolved decisions are listed in the architecture. At W04 the corpus was planned; W07 now prepares 12 attributed GIFs. No independent retrieval accuracy or provider availability is claimed. Team identity and ownership are recorded below the project summary. The Week 4 AI Use Statement records the team lead's directions and publication approval, distinguishes assistant checks, and identifies unverified implementation work.
-
-The team lead has authorized this proposal checkpoint for repository publication. The required repository tag is `w04-proposal`; Canvas submission uses its commit SHA and remains a separate step. The Chinese preparation guide and Canvas template in the local package are internal submission aids.
-
-## Course starter and development
-
-The repository retains the course's case/job/triage starter implementation, including its separate internal AI service. The MemeRetrieve backend schema and routes are implemented alongside that baseline. The local demo integrates the web client and pretrained retrieval; see the local demo guide above.
-
-The original [starter guide](docs/starter-guide.md) and [starter architecture](docs/starter-architecture.md) preserve the existing operating instructions and baseline flow. They describe the current code; [the project architecture](docs/architecture.md) separates the W07 implementation from the historical semester proposal.
-
-### Run the starter
-
-```bash
-cp .env.example .env
-# Set POSTGRES_PASSWORD in .env to a private hexadecimal value before starting.
-docker compose --profile starter up --build
-```
-
-API documentation: `http://localhost:8000/docs`. Internal AI service documentation: `http://localhost:8100/docs`.
-
-### Starter verification and migrations
-
-```bash
-pytest -q
-SMOKE_BASE_URL=http://localhost:8000 pytest tests/smoke -q
-docker compose run --rm api alembic upgrade head
-```
-
-The case-flow smoke test requires the `starter` profile. See the [backend guide](docs/backend-guide.md) for search-specific smoke tests and PostgreSQL concurrency/migration verification, and the starter guide for seed data and other baseline commands.
-
-### W07 web client
-
-The web client is served by the API at `http://localhost:8000/web/`. It implements
-image upload, status polling, animated candidate previews, review, and download.
-See [the web guide](web/README.md) for setup, API integration, verification evidence,
-and the API contract. For the complete running stack, use the
-[local demo guide](docs/local-demo.md).
+Memeory began with a proposal for one iPhone user searching a curated GIF collection. The Week 4 architecture, Week 7 demo and Week 13 delivery record how that scope developed into the account-based web application. [Week 4 proposal](submissions/week04/README.md) · [Week 7 demo](submissions/week07/README.md) · [Week 13 delivery](submissions/week13/README.en.md) · [Previous repository introduction](https://github.com/JiongJiongJiong2/maie6000c/blob/03ddad76dda3d63ed95f58e6993ae97830a1d86b/README.md)

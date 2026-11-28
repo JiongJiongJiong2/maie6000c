@@ -1,5 +1,7 @@
 # Local end-to-end demo
 
+English · [简体中文](guides/local-demo.zh-CN.md) · [All user guides](guides/README.md)
+
 This local integration connects Zirui's web client, Haoxuan's W07 API and PostgreSQL worker, and a completed CLIP retrieval adapter based on YuanJian's image encoder. It runs real inference over 12 attributed animated reaction GIFs. No mock search responses or test-only routes are used by the application.
 
 ## Start

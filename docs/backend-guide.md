@@ -1,5 +1,9 @@
 # Backend guide: W07 and post-midterm integration
 
+[简体中文](technical/backend-guide.zh-CN.md) · [Current technical guide](technical/README.md)
+
+This backend integration record includes the W07 local profile and the post-midterm web-search adapters. For the account-based product, pgvector, the current search agent and November browser evidence, start with the current technical guide above. The test counts at the end of this page belong to the dated integration runs.
+
 Owner: Haoxuan Jiang (21313230). This implements the backend portion of
 [the team plan](week07-plan.md), not the web client or pretrained retrieval.
 The W04 architecture remains a proposal/history document.

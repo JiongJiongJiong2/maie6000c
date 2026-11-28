@@ -1,12 +1,14 @@
 # MemeRetrieve 商业模式与首轮付费试点
 
+[English](product/business-model.md) · 简体中文 · [产品说明](product/README.zh-CN.md)
+
 研究日期为 2026 年 11 月 28 日。**建议先卖给反复使用自有动图的内容运营者，一人一库，验证他们是否愿为“用截图找回原件”持续付费。** 第一批可以找运营品牌账号的独立创作者或小工作室的素材负责人。入组条件暂定为已有 100 张可使用的 GIF、每周至少 3 次回找原件、本人有工具预算。若他们主要想临时找一张意思相近的表情，聊天软件自带搜索已能完成很多工作，这类需求留到后续验证。
 
 ## 产品已经证明了什么
 
 正式网页能导入 GIF、按账号保存原件，从截图搜索私人库，下载原动画，重启后继续离线找回。在固定的 12 张参考 GIF 上，从每个原件约三分之一处抽一帧作查询，多帧索引的 Top-3 为 12/12，首帧索引为 11/12。另一次正式网页测试中，操作者给出站点和画面描述，联网找回 44 帧的地球 GIF，收藏后断网再搜均排第一，两次下载与原件逐字节相同。该记录也保留了成功前的六次尝试。需另测陌生用户的聊天截图、裁剪遮挡和目标缺失情况。[W13 交付与验收](../submissions/week13/README.md) · [逐项离线结果](../submissions/week13/local-corpus-evaluation.json) · [联网回执](evidence/gif-acquisition/hkgai-web-offline-20261128.json)
 
-较早的课程方案从一名 iPhone 用户出发。当前仓库交付材料记录了工程结果，尚无可用于估算成交率、营收或续费率的客户数据。以下港币报价、成本和门槛均为试点假设。定价前先看替代方案。Eagle 的素材管理软件提供 30 天试用、两台设备买断授权，常规参考价为 US$34.95。持续托管或协助导入是否值得按月付费，需要用户实际付款验证。GIPHY 的关键词搜索可发现大量 GIF，适合只想找到一张表达相同情绪的用户。MemeRetrieve 的对照任务应指定同一动作、同一字幕的原动画。[早期用户定位](../README.md#historical-w04-proposal-context) · [Eagle 商店](https://en.eagle.cool/store) · [Eagle 常规定价公告](https://en.eagle.cool/blog/post/price-adjustment-notice-2024) · [GIPHY 搜索接口](https://developers.giphy.com/docs/api/#endpoint-search)
+较早的课程方案从一名 iPhone 用户出发。当前仓库交付材料记录了工程结果，尚无可用于估算成交率、营收或续费率的客户数据。以下港币报价、成本和门槛均为试点假设。定价前先看替代方案。Eagle 的素材管理软件提供 30 天试用、两台设备买断授权，常规参考价为 US$34.95。持续托管或协助导入是否值得按月付费，需要用户实际付款验证。GIPHY 的关键词搜索可发现大量 GIF，适合只想找到一张表达相同情绪的用户。MemeRetrieve 的对照任务应指定同一动作、同一字幕的原动画。[早期用户定位](../submissions/week04/README.md) · [Eagle 商店](https://en.eagle.cool/store) · [Eagle 常规定价公告](https://en.eagle.cool/blog/post/price-adjustment-notice-2024) · [GIPHY 搜索接口](https://developers.giphy.com/docs/api/#endpoint-search)
 
 ## 首次卖什么
 

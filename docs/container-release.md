@@ -1,5 +1,7 @@
 # 使用已发布的容器镜像
 
+[English](guides/container-release.md) · 简体中文 · [使用指南目录](guides/README.zh-CN.md)
+
 容器发布流程为同一 `main` 提交生成 Linux CPU 镜像。API、worker 和媒体抓取服务分别发布到 `ghcr.io/jiongjiongjiong2/maie6000c-api`、`ghcr.io/jiongjiongjiong2/maie6000c-worker` 和 `ghcr.io/jiongjiongjiong2/maie6000c-media-fetch`。`main` 标签随发布更新。下面用 `git-<完整提交 SHA>` 找到镜像并记录 digest，升级和回滚均使用保存的 digest。使用支持 `!reset` 的 Docker Compose 插件。本文命令可用于 Compose v2.24.4 及更新版本，组合配置在 v5.3.1 验证。 [Compose 叠加文件](https://docs.docker.com/reference/compose-file/merge/)
 
 ## 固定一组已经验证的镜像

@@ -1,8 +1,12 @@
 # MemeRetrieve 公测准备
 
+[English](guides/public-beta.md) · 简体中文 · [使用指南目录](guides/README.zh-CN.md)
+
 本轮在运营者电脑上演练邀请注册、截图检索、原件下载和反馈收集。浏览器和服务器可以在同一台电脑上使用。专用 Compose 配置把网页绑定到回环地址，把数据库和抓取服务放在容器内部网络，并关闭联网搜索。模拟反馈可以记在本机；外部用户招募和收费试点另行决定。
 
 ## 在自己的电脑启动
+
+Docker Compose 插件需支持 `!override` 和 `!reset`。演练配置用这两个标记替换 API 端口，使其仅监听回环地址，同时取消数据库宿主机端口。下方的 `config --quiet` 命令可检查合并配置是否有效。[Compose 配置合并规则](https://docs.docker.com/reference/compose-file/merge/)
 
 2026 年 11 月 28 日的本机 Chrome 演练中，错误邀请码返回 403，正确邀请码注册返回 201，匿名访问私人库返回 401。导入授权的 44 帧 GIF 后，第 13 帧截图命中首位。重建 API 和 worker、重新登录后，第 29 帧截图仍命中同一资产首位，两次网页下载均与原件的 1,001,718 字节逐字节一致。该结果覆盖工程流程；真实参与者的成功率还需按下文记录。[本机演练回执](../submissions/week13/public-beta-rehearsal.json)
 
