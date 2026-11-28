@@ -394,7 +394,10 @@
                 <h3 id="input-title">Got a screenshot?</h3>
                 <span class="section-number">01 / INPUT</span>
               </div>
-              <p class="muted">Crop to one meme. Give us your best clue.</p>
+              <p class="muted">
+                Choose, drop or paste a screenshot. You can crop it before
+                searching.
+              </p>
               <label class="dropzone" id="dropzone" for="file-input">
                 <input
                   id="file-input"
@@ -445,6 +448,82 @@
                 <span id="file-name">No image selected</span
                 ><span id="file-size"></span>
               </div>
+              <div id="crop-tools" class="crop-actions" hidden>
+                <button id="crop-open" class="secondary" type="button">
+                  Crop screenshot
+                </button>
+                <button id="crop-restore" class="quiet" type="button" hidden>
+                  Restore original
+                </button>
+              </div>
+              <dialog
+                id="crop-dialog"
+                aria-labelledby="crop-title"
+                aria-describedby="crop-help"
+              >
+                <form method="dialog">
+                  <h3 id="crop-title" tabindex="-1" autofocus>
+                    Crop screenshot
+                  </h3>
+                  <p id="crop-help" class="muted">
+                    Drag around one meme or enter its edges in pixels. The
+                    selection becomes a still PNG when you apply it. This
+                    browser keeps the original until you replace the image or
+                    clear the local search.
+                  </p>
+                  <div id="crop-stage">
+                    <canvas
+                      id="crop-preview"
+                      aria-label="Original screenshot"
+                    ></canvas>
+                    <div id="crop-region" aria-hidden="true"></div>
+                  </div>
+                  <fieldset id="crop-edges">
+                    <legend>Selection edges (pixels)</legend>
+                    <label
+                      >Left<input
+                        name="left"
+                        type="number"
+                        min="0"
+                        step="1"
+                        required
+                    /></label>
+                    <label
+                      >Top<input
+                        name="top"
+                        type="number"
+                        min="0"
+                        step="1"
+                        required
+                    /></label>
+                    <label
+                      >Right<input
+                        name="right"
+                        type="number"
+                        min="1"
+                        step="1"
+                        required
+                    /></label>
+                    <label
+                      >Bottom<input
+                        name="bottom"
+                        type="number"
+                        min="1"
+                        step="1"
+                        required
+                    /></label>
+                  </fieldset>
+                  <p id="crop-size" class="muted" role="status"></p>
+                  <div class="crop-actions">
+                    <button id="crop-apply" class="primary" value="apply">
+                      Apply crop
+                    </button>
+                    <button class="secondary" value="cancel" formnovalidate>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </dialog>
               <fieldset id="search-mode" class="choice-group" disabled>
                 <legend>Search mode</legend>
                 <div class="choice-track">

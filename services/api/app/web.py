@@ -39,6 +39,7 @@ def web_asset(asset: str) -> FileResponse:
     media_types = {
         "styles.css": "text/css",
         "app.js": "text/javascript",
+        "crop.js": "text/javascript",
         "api.js": "text/javascript",
         "store.js": "text/javascript",
         "meme50.js": "text/javascript",

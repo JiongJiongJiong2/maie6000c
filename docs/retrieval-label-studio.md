@@ -4,6 +4,8 @@
 
 ## 打开现有部署
 
+自动评测已用预留原文件核对精确命中，运行时无需登录这里。仅当团队要报告人工判断时才分配评审。可以先挑同样的 10 个截图与候选组合给两人试评，用 `case_id` 和 `candidate_id` 对齐；两个项目顺序不同，各自打开前十条会拿到不同的题。这 10 对只用于核对判分标准。两个 `127.0.0.1` 项目地址都在运行服务的电脑上，组员可轮流使用这台电脑独立作答。
+
 在本机打开 [Label Studio](http://127.0.0.1:58631/)，用 `.cache/label-studio/login.local.json` 的 `email` 和 `password` 登录。该文件只保存在本地，`token` 供导入脚本调用本机 API。导入命令会输出各评审项目的链接。进入分配的项目，点击 **Label All Tasks** 开始逐项判断。两人各用一个项目独立评审，等两份意见提交后再交换结果。此 Community Edition 部署使用一个本机协调员账号，各项目可在项目列表中查看。
 
 请选择 `exact`（能够确认是同一版本）、`variant`（相近但字幕、剪辑或版本不同）、`wrong`（不匹配）、`unsure`（证据不足）或 `broken`（候选无法加载或播放）。评审是在画面、动作和文字上核对版本，程序另行核对字节级 SHA-256。无候选的检索没有标注卡片，仍保留在整体检索结果中。项目的 **Export → JSON** 保留 `data.dataset_id`、`data.case_id`、`data.candidate_id` 和 `annotations[].result[]` 中 `from_name=gif_match` 的 `value.choices`，可按三个代号合并两份导出。取消的标注和空白行作为未完成处理。
