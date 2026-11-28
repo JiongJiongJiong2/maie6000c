@@ -895,7 +895,13 @@ def create_retry(
         description=previous.description,
         search_profile=previous.search_profile,
         target_count=previous.target_count,
-        configuration=previous.configuration,
+        # The new worker records the provider/model it actually uses. A pending retry
+        # must not report a previous worker's policy or obsolete provider settings.
+        configuration=(
+            {k: v for k, v in previous.configuration.items() if k in {"profile", "version"}}
+            if previous.search_profile == "meme50-v2"
+            else previous.configuration
+        ),
         retry_of_job_id=previous.id,
         client_retry_key=payload.client_retry_key,
     )

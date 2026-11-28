@@ -86,7 +86,7 @@ def digest(value):
 
 
 def public_configuration(settings=None):
-    s = settings or MemeSettings()
+    s = settings or MemeSettings.for_online_search()
     return {name: getattr(s, name) for name in PUBLIC_FIELDS}
 
 
@@ -200,7 +200,7 @@ def probe(args):
     frames, records = representative_frames(data, count=4)
     for i, frame in enumerate(frames):
         (out / f"frame-{i:02}.png").write_bytes(png_bytes(frame))
-    settings = MemeSettings()
+    settings = MemeSettings.for_online_search()
     ledger = Ledger(settings)
     report = dict(
         kind="provider_probe",
@@ -977,16 +977,16 @@ def finalize_data(
             and call.get("endpoint_type") == endpoint
             and call.get("status") == "passed"
             and call.get("ledger_delta", {}).get(counter, 0) > 0
-            and (name != "query_planning" or call.get("model") == "deepseek-flash")
         ]
         for name, (provider, endpoint, counter) in expected.items()
     }
     four = (
-        vision_provider is not None
+        policy == "deepseek-only-v1"
+        and vision_provider == "deepseek"
         and probe_report.get("vision_provider", vision_provider) == vision_provider
         and all(passed_calls.values())
     )
-    binding = any(
+    binding = any((job.get("execution") or {}).get("model_calls", 0) > 0 for job in jobs) and all(
         config.get("provider_policy") == policy
         and config.get("vision_provider") == vision_provider
         and digest({k: config.get(k) for k in PUBLIC_FIELDS})
@@ -995,8 +995,17 @@ def finalize_data(
             call.get("model") and call["model"] == config.get(f"{vision_provider}_model")
             for call in passed_calls["visual"]
         )
-        for job in jobs
-        if (job.get("execution") or {}).get("model_calls", 0) > 0
+        and any(
+            call.get("model") and call["model"] == config.get("deepseek_model")
+            for call in passed_calls["query_planning"]
+        )
+        and all(
+            event.get("details", {}).get("provider") == "deepseek"
+            and event["details"].get("model") == config.get("deepseek_model")
+            for event in trace
+            if event.get("step") in {"vision_request", "query_planning"}
+        )
+        for job, trace in zip(jobs, traces)
         for config in [job.get("configuration") or {}]
     )
     distinct_analyses = {
@@ -1021,7 +1030,8 @@ def finalize_data(
         any(
             t.get("step") == "query_planning"
             and t.get("details", {}).get("provider") == "deepseek"
-            and t.get("details", {}).get("model") == "deepseek-flash"
+            and t.get("details", {}).get("model")
+            and t["details"]["model"] == (job.get("configuration") or {}).get("deepseek_model")
             for t in trace
         )
         and any(

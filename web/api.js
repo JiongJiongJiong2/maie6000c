@@ -68,7 +68,12 @@ export class Api {
           401: "Sign in to open your library.",
           404: "Endpoint or record not found. Check that the W07 backend is connected.",
           409: "The request conflicts with an earlier submission. Start a new search.",
-          410: "This GIF has expired. Start a new search.",
+          410:
+            detail?.code === "input_expired"
+              ? "The server copy of your screenshot has expired."
+              : detail?.code === "media_expired" || media
+                ? "This media file has expired. Start a new search."
+                : "The requested resource has expired.",
           413: "The image exceeds the server limit. Choose a smaller image.",
           422: "Invalid image or request. Use a cropped PNG, JPG, or WebP screenshot.",
         };

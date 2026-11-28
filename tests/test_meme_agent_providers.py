@@ -90,6 +90,20 @@ def test_auth_error_is_safe(monkeypatch):
     assert "secret" not in str(result)
 
 
+def test_demo_planner_never_sends_key_to_configured_alternate_host(monkeypatch):
+    config = settings("controlled-demo-token")
+    config.deepseek_base_url = "https://example.org/alternate-api"
+    def post(url, **kwargs):
+        assert url == "https://api.deepseek.com/chat/completions"
+        assert kwargs["headers"]["Authorization"] == "Bearer controlled-demo-token"
+        assert kwargs["trust_env"] is False and kwargs["follow_redirects"] is False
+        return httpx.Response(200, request=httpx.Request("POST", url), json={
+            "choices": [{"message": {"content": '{"queries":["reaction"], "keywords":[]}'}}]
+        })
+    monkeypatch.setattr(providers.httpx, "post", post)
+    assert providers.plan_query("表情", config)["planner"] == "deepseek"
+
+
 def test_brave_uses_original_image(monkeypatch):
     monkeypatch.setattr(providers, "get_agent_settings", settings)
     response = httpx.Response(

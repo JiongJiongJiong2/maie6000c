@@ -4,7 +4,7 @@
 
 ## 用网页找回和收藏 GIF
 
-上传裁好的 PNG、JPEG 或 WebP 截图。选择 **Local only** 搜索参考库和你已索引的收藏。目标不在结果里时，点 **Continue online** 并描述画面、动作或记得的来源。联网模式需要运营者配置识图模型和 DeepSeek。结果页的 **Search activity** 展示真实调用数和查询计划，任务结束后可查看实际执行的查询及返回的来源数。
+上传裁好的 PNG、JPEG 或 WebP 截图。选择 **Local only** 搜索参考库和你已索引的收藏。目标不在结果里时，点 **Continue online** 并描述画面、动作或记得的来源。联网模式使用同一把 DeepSeek API key 识图、规划与搜索网页。结果页的 **Search activity** 展示真实调用数和查询计划，任务结束后可查看实际执行的查询及返回的来源数。
 
 在结果中播放动画。联网结果可点 **Confirm and save** 收藏并等待索引完成。本地参考结果可点 **This is the one** 后下载。通过 **My GIF Library** 管理、下载或批量导入原始 GIF，也可以换一帧重新本地检索。下载按钮提供原件。在支持 Web Share 的浏览器可选择 **Share GIF**，再在系统分享面板选接收应用。
 
@@ -20,7 +20,7 @@ py -3.11 -m venv .venv
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-在新安装的 `.env` 中把 `POSTGRES_PASSWORD` 设为自己的随机字母数字密码。已有 `.env` 继续使用原文件并核对设置。账号和私人库在产品 Compose 配置里默认启用。已有配置若显式将这些选项设为 `false`，请改为 `ACCOUNT_LOGIN_ENABLED=true` 和 `PRIVATE_LIBRARY_ENABLED=true`。在线使用另按供应商指南配置。首次体验本地使用只需数据库和缓存模型。[供应商配置](hkust-deepseek-execution.md)
+在新安装的 `.env` 中把 `POSTGRES_PASSWORD` 设为自己的随机字母数字密码。已有 `.env` 继续使用原文件并核对设置。账号和私人库在产品 Compose 配置里默认启用。已有配置若显式将这些选项设为 `false`，请改为 `ACCOUNT_LOGIN_ENABLED=true` 和 `PRIVATE_LIBRARY_ENABLED=true`。在线使用另按供应商指南配置。首次体验本地使用只需数据库和缓存模型。[供应商配置](meme50-authorization.md)
 
 ```powershell
 $product = @('-f', 'compose.yaml', '-f', 'compose.local-model.yaml', '-f', 'compose.pgvector.yaml')

@@ -11,7 +11,6 @@ class AgentSettings(BaseSettings):
 
     data_root: Path = Path("data/meme-agent")
     deepseek_api_key: str = ""
-    deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-flash"
     brave_api_key: str = ""
     meme_font_path: str = ""

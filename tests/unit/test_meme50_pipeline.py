@@ -1,4 +1,6 @@
 import io
+from hashlib import sha256
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -354,6 +356,124 @@ def test_page_budget_is_shared_between_query_angles_and_media_is_not_last(tmp_pa
     assert state["queries"] == ["appearance", "action"]
     assert sum("/bad/" in url for kind, url in state["calls"] if kind == "page_attempts") == 4
     assert result["ledger"]["page_attempts"] == 8
+
+
+@pytest.mark.parametrize(
+    ("description", "expect_original"),
+    [
+        ("I saw this GIF on Wikimedia Commons.", True),
+        ("Find a GIF showing the same motion.", False),
+        ("I saw this still image on Wikimedia Commons.", False),
+        ("I want the still image from Wikimedia Commons, not a GIF.", False),
+    ],
+)
+@pytest.mark.parametrize(
+    ("has_thumbnail", "broken_original"), [(False, False), (True, False), (True, True)]
+)
+def test_scoped_gif_search_prioritizes_returned_file_page_within_budget(
+    tmp_path, monkeypatch, description, expect_original, has_thumbnail, broken_original
+):
+    base = "https://commons.wikimedia.org/wiki/"
+    detail = base + "File%3AClockwork_bird.GIF?uselang=en#preview"
+    original = "https://upload.wikimedia.org/test/observed.gif"
+    thumbnail = "https://thumb.wikimedia.org/test/thumbnail.png"
+    unrelated = "https://cdn.example.org/still.png"
+    calls = []
+    frames = [Image.new("RGB", (32, 32), c) for c in ("red", "blue")]
+    path = tmp_path / "input.png"
+    frames[0].save(path)
+    stream = io.BytesIO()
+    frames[0].save(stream, "GIF", save_all=True, append_images=frames[1:], duration=40)
+    gif = stream.getvalue()
+    sources = [
+        MediaSource(source_url=base + "Category:Clockwork", provider="fixture", source_rank=1),
+        MediaSource(source_url=unrelated, media_url=unrelated, provider="fixture", source_rank=2),
+        MediaSource(
+            source_url=detail,
+            media_url=thumbnail if has_thumbnail else None,
+            provider="fixture",
+            source_rank=3,
+        ),
+    ]
+
+    def fetch(url, kind, limit):
+        calls.append((kind, url))
+        ledger.take(kind)
+        payloads = {
+            detail: f'<a class="internal" href="{original}">Full resolution</a>'.encode(),
+            original: b"unreadable" if broken_original else gif,
+            unrelated: path.read_bytes(),
+            thumbnail: path.read_bytes(),
+        }
+        ledger.take("response_bytes", len(payloads[url]))
+        return payloads[url], url
+
+    settings = MemeSettings(
+        _env_file=None,
+        max_pages=1,
+        max_queries=2,
+        max_originals=2 if broken_original else 1,
+        max_search_calls=2,
+    )
+    ledger = Ledger(settings)
+    monkeypatch.setattr("services.search_agent.meme_pipeline.Ledger", lambda _: ledger)
+
+    def search(query, limit):
+        ledger.take("queries")
+        ledger.take("search_calls")
+        return sources
+
+    plans = VisualAnalysis(
+        planner_version="controlled",
+        queries=[
+            Query(text="small red machine", angle="appearance"),
+            Query(text="moving red machine", angle="action"),
+        ],
+    )
+
+    def unit_vectors(values):
+        return np.ones((len(values), 1))
+
+    result = search_memes(
+        path,
+        description,
+        tmp_path / "work",
+        1,
+        settings=settings,
+        saved_analysis=plans,
+        keywords=SimpleNamespace(search=search),
+        fetcher=SimpleNamespace(get=fetch),
+        embeddings=SimpleNamespace(
+            load_model=lambda: None, encode_images=unit_vectors, encode_texts=unit_vectors
+        ),
+    )
+    assert result["status"] == "completed"
+    routes = [
+        e["details"]["paths"] for e in result["trace"] if e["step"] == "commons_source_routes"
+    ]
+    if expect_original:
+        expected_id = sha256(b"/wiki/File:Clockwork_bird.GIF").hexdigest()[:16]
+        expected_calls = [("page_attempts", detail), ("media_attempts", original)]
+        if broken_original:
+            expected_calls.append(("media_attempts", thumbnail))
+            assert any(
+                e["step"] == "media_rejected" and e["details"].get("lookup_path") == expected_id
+                for e in result["trace"]
+            )
+        assert calls == expected_calls
+        assert result["candidate_keys"] == [
+            sha256(path.read_bytes() if broken_original else gif).hexdigest()
+        ]
+        assert [expected_id, "page"] in routes[0]
+        assert [sha256(b"/wiki/Category:Clockwork").hexdigest()[:16], "page_quota"] in routes[0]
+        assert "uselang" not in str(routes)
+        assert result["ledger"]["page_attempts"] == settings.max_pages
+        assert result["ledger"]["media_attempts"] == settings.max_originals
+    else:
+        assert not routes
+        assert result["candidate_keys"] == [sha256(path.read_bytes()).hexdigest()]
+        assert detail not in [url for _, url in calls]
+    assert result["ledger"]["search_calls"] == 1
 
 
 def test_localized_tenor_pages_are_one_recall_item():

@@ -1,8 +1,10 @@
 """Image-first bounded orchestration for meme50-v2; no business DB writes."""
 
 from concurrent.futures import ThreadPoolExecutor
+from hashlib import sha256
 from pathlib import Path
-from urllib.parse import urlsplit
+import re
+from urllib.parse import unquote, urlsplit
 import traceback
 
 import numpy as np
@@ -18,15 +20,20 @@ from .captions import caption_overlap, caption_phrases, product_listing, wants_p
 from .entity_verifier import REFERENCE_SIMILARITY, verify_entities
 from .meme_fetch import FetchClient
 from .meme_deepseek import (
+    GIF_INTENT,
+    SITE_OPERATOR,
     DeepSeekWeb,
     DeepSeekQueryPlanner,
+    explicit_user_source,
     prioritize_user_source,
     recover_hakimi_spelling,
     retrieval_queries,
+    source_description,
 )
 from .meme_providers import vision_client
 from .meme_types import Ledger, MediaSource, MemeSettings, PipelineError, PreparedMedia, Query
 from .page_media import page_sources
+from .resolvers import is_commons_file_page
 from .visual_analysis import analyze_image
 
 
@@ -71,7 +78,7 @@ def search_memes(
     embeddings=None,
 ):
     """Injectable boundaries for CI; the production runner supplies none of them."""
-    settings = settings or MemeSettings()
+    settings = settings or MemeSettings.for_online_search()
     if not 1 <= target_count <= 50:
         raise ValueError("target_count must be 1..50")
     user_text = (user_text or "").strip()
@@ -327,6 +334,12 @@ def search_memes(
                 item.signals["visual"] >= REFERENCE_SIMILARITY for item in prepared.values()
             )
 
+        lookup_ids = {}
+
+        def lookup_detail(source):
+            ref = lookup_ids.get(source.source_url)
+            return {"lookup_path": ref} if ref is not None else {}
+
         def process_direct(direct):
             nonlocal stop
             for start in range(0, len(direct), 12):
@@ -347,6 +360,7 @@ def search_memes(
                                 code=failure,
                                 host=urlsplit(source.media_url).hostname,
                                 path=urlsplit(source.media_url).path[:250],
+                                **lookup_detail(source),
                             )
                             continue
                         try:
@@ -359,6 +373,7 @@ def search_memes(
                                 "media_rejected",
                                 reason="invalid_media",
                                 host=urlsplit(source.media_url).hostname,
+                                **lookup_detail(source),
                             )
                             warnings.append("invalid_media")
                 if not accepted:
@@ -510,6 +525,17 @@ def search_memes(
             reference_media.clear()
             keyword_ok = True
         queries = analysis.queries[: settings.max_queries]
+        commons = "commons.wikimedia.org"
+        description = source_description(user_text, commons)
+        wants_commons_gif = (
+            explicit_user_source(user_text) == commons
+            and GIF_INTENT.search(description)
+            and not re.search(
+                r"(?:\b(?:not|no|without|avoid|exclude)\s+(?:(?:a|an|any|animated)\s+)*|(?:不要|不是|排除)\s*)gifs?\b",
+                description,
+                re.I,
+            )
+        )
         spelling_retry_scheduled = False
         for query_index, query in enumerate(queries):
             if enough_results():
@@ -523,6 +549,14 @@ def search_memes(
                 break
             ledger.remaining()
             fresh_urls = set()
+            lookup_routes = {}
+            file_pages = set()
+            scopes = [m[0].lower() for m in SITE_OPERATOR.finditer(query.text)]
+            trace_lookup = (
+                wants_commons_gif
+                and len(scopes) == 1
+                and scopes[0] in {f"site:{commons}", f"site:www.{commons}"}
+            )
             try:
                 sources = keywords.search(query.text, limit=min(200, settings.max_sources))
                 keyword_ok = True
@@ -530,6 +564,18 @@ def search_memes(
                 counts["channel_recall"]["keyword"] += len(sources)
                 all_sources.extend(sources)
                 fresh_urls = {s.source_url for s in sources}
+                if trace_lookup:
+                    for source in sources[:50]:
+                        url = urlsplit(source.source_url)
+                        if url.hostname == commons:
+                            # Locale, tracking parameters and fragments do not identify a file.
+                            path = unquote(url.path).replace(" ", "_")
+                            lookup_ids[source.source_url] = sha256(path.encode()).hexdigest()[:16]
+                            lookup_routes[source.source_url] = "fused_out"
+                            if is_commons_file_page(url) and unquote(url.path).lower().endswith(
+                                ".gif"
+                            ):
+                                file_pages.add(source.source_url)
                 ledger.note(
                     "keyword_web",
                     provider="deepseek",
@@ -552,7 +598,14 @@ def search_memes(
             coarse = []
             for source in all_sources:
                 key = canonical_url(source.media_url or source.source_url)
-                if key in seen_media or key in seen_pages:
+                if source.source_url in lookup_routes:
+                    lookup_routes[source.source_url] = "coarse_filtered"
+                unread_file_page = (
+                    source.source_url in file_pages and source.source_url not in seen_pages
+                )
+                if (key in seen_media or key in seen_pages) and not unread_file_page:
+                    if source.source_url in lookup_routes:
+                        lookup_routes[source.source_url] = "seen"
                     continue
                 if source.preview_url and source.preview_url not in seen_previews:
                     seen_previews.add(source.preview_url)
@@ -588,6 +641,7 @@ def search_memes(
                 relevance, source = item
                 agreement = caption_overlap(phrases, source.title + " " + source.snippet)
                 return (
+                    source.source_url not in file_pages,
                     filter_products and product_listing(source.source_url, source.title),
                     bool(phrases) and source.source_url not in fresh_urls,
                     -relevance - 0.18 * agreement,
@@ -597,6 +651,7 @@ def search_memes(
 
             ordered = [s for _, s in sorted(coarse, key=discovery_priority)]
             direct, pages = [], []
+            direct_keys = set()
             # Fair-share the remaining page allowance across query angles. A
             # slow first query must not consume the entire job before originals
             # are fetched or before a second query can contribute.
@@ -604,15 +659,36 @@ def search_memes(
             remaining_queries = max(1, len(queries) - query_index)
             page_allowance = (remaining_pages + remaining_queries - 1) // remaining_queries
             for source in ordered:
-                if source.media_url:
-                    key = canonical_url(source.media_url)
-                    if key not in seen_media:
-                        seen_media.add(key)
-                        direct.append(source)
-                elif source.source_url not in seen_pages and len(pages) < page_allowance:
+                if source.source_url in lookup_routes:
+                    lookup_routes[source.source_url] = (
+                        "seen" if source.source_url in seen_pages else "page_quota"
+                    )
+                selected_page = (
+                    (not source.media_url or source.source_url in file_pages)
+                    and source.source_url not in seen_pages
+                    and len(pages) < page_allowance
+                )
+                if selected_page:
                     seen_pages.add(source.source_url)
                     pages.append(source)
-            process_direct(direct)
+                    if source.source_url in lookup_routes:
+                        lookup_routes[source.source_url] = "page"
+                if source.media_url:
+                    key = canonical_url(source.media_url)
+                    if key not in seen_media and key not in direct_keys:
+                        direct_keys.add(key)
+                        direct.append(source)
+                        if source.source_url in lookup_routes and not selected_page:
+                            lookup_routes[source.source_url] = "direct"
+            if trace_lookup:
+                ledger.note(
+                    "commons_source_routes",
+                    paths=[[lookup_ids[url], route] for url, route in lookup_routes.items()],
+                )
+            preferred = [page for page in pages if page.source_url in file_pages]
+            if not preferred:
+                seen_media.update(direct_keys)
+                process_direct(direct)
             if not enough_results():
                 # Finish a small page wave before starting media I/O: global
                 # request concurrency remains <= configured concurrency.
@@ -643,6 +719,7 @@ def search_memes(
                             host=urlsplit(final_url).hostname,
                             path=urlsplit(final_url).path[:250],
                             clues=len(extracted),
+                            **lookup_detail(source),
                         )
                         return extracted
                     except (PipelineError, ValueError, OSError) as exc:
@@ -650,27 +727,39 @@ def search_memes(
                         with ledger.lock:
                             counts["page_failures"] += 1
                         ledger.note(
-                            "page_failure", code=code, host=urlsplit(source.source_url).hostname
+                            "page_failure",
+                            code=code,
+                            host=urlsplit(source.source_url).hostname,
+                            **lookup_detail(source),
                         )
                         return code
 
-                for offset in range(0, len(pages), 4):
-                    ledger.remaining()
-                    stage("fetching")
-                    direct = []
-                    with ThreadPoolExecutor(max_workers=min(4, settings.concurrency)) as pool:
-                        for extracted in pool.map(read_page, pages[offset : offset + 4]):
-                            if isinstance(extracted, str):
-                                warnings.append(extracted)
-                                continue
-                            for item in extracted:
-                                key = canonical_url(item.media_url)
-                                if key not in seen_media:
-                                    seen_media.add(key)
-                                    direct.append(item)
-                    process_direct(direct)
-                    if enough_results():
-                        break
+                def process_pages(batch):
+                    for offset in range(0, len(batch), 4):
+                        if enough_results():
+                            break
+                        ledger.remaining()
+                        stage("fetching")
+                        extracted_media = []
+                        with ThreadPoolExecutor(max_workers=min(4, settings.concurrency)) as pool:
+                            for extracted in pool.map(read_page, batch[offset : offset + 4]):
+                                if isinstance(extracted, str):
+                                    warnings.append(extracted)
+                                    continue
+                                for item in extracted:
+                                    key = canonical_url(item.media_url)
+                                    if key not in seen_media:
+                                        seen_media.add(key)
+                                        extracted_media.append(item)
+                        process_direct(extracted_media)
+
+                if preferred:
+                    process_pages(preferred)
+                    if not enough_results():
+                        direct = [s for s in direct if canonical_url(s.media_url) not in seen_media]
+                        seen_media.update(direct_keys)
+                        process_direct(direct)
+                process_pages([page for page in pages if page.source_url not in file_pages])
             if enough_results():
                 break
             if ledger.counts["media_attempts"] >= settings.max_originals:

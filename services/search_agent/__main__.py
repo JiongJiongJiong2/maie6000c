@@ -9,10 +9,13 @@ from .settings import SearchAgentSettings
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Bounded web/image source discovery")
+    parser = argparse.ArgumentParser(
+        description="Standalone provider comparison for web/image discovery"
+    )
     parser.add_argument("description")
     parser.add_argument(
-        "--provider", choices=["auto", "deepseek", "ddgs", "brave", "tavily", "searxng"]
+        "--provider", choices=["auto", "deepseek", "ddgs", "brave", "tavily", "searxng"],
+        default="deepseek", help="Choose a provider for this standalone experiment"
     )
     parser.add_argument("--mode", choices=["web", "images"])
     parser.add_argument("--no-model", action="store_true")
@@ -31,8 +34,7 @@ def main():
         recovery = dict(image_path=args.image, work_dir=args.work_dir,
                         prepare_candidates=prepare_candidates, resolver=resolve_sources)
     settings = SearchAgentSettings()
-    if args.provider:
-        settings.search_agent_provider = args.provider
+    settings.search_agent_provider = args.provider
     if args.mode:
         settings.search_agent_mode = args.mode
     if args.no_model:

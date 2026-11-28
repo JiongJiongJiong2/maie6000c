@@ -158,10 +158,19 @@ def test_fifty_stable_results_filters_and_integrity(client, db_session):
     assert client.get(static["media_url"]).status_code == 503
 
 
-@pytest.mark.parametrize("provider", ["hkust", "hkgai"])
-def test_worker_stream_drafts_final_and_missing_final(client, db_session, monkeypatch, provider):
+@pytest.mark.parametrize(
+    ("provider", "policy"),
+    [
+        ("deepseek", "deepseek-only-v1"),
+        ("hkust", "hkust-deepseek-v1"),
+        ("hkgai", "hkgai-deepseek-v1"),
+    ],
+)
+def test_worker_stream_drafts_final_and_missing_final(
+    client, db_session, monkeypatch, provider, policy
+):
     monkeypatch.setenv("MEME50_VISION_PROVIDER", provider)
-    monkeypatch.setenv("MEME50_PROVIDER_POLICY", f"{provider}-deepseek-v1")
+    monkeypatch.setenv("MEME50_PROVIDER_POLICY", policy)
     monkeypatch.setenv("MEME50_HKUST_API_KEY", "controlled-school-key")
     monkeypatch.setenv("MEME50_HKGAI_API_KEY", "controlled-hkgai-key")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "controlled-deepseek-key")
@@ -175,8 +184,8 @@ def test_worker_stream_drafts_final_and_missing_final(client, db_session, monkey
     from pathlib import Path
 
     def stream(payload, timeout):
-        assert payload["settings"]["vision_provider"] == provider
-        assert payload["settings"]["provider_policy"] == f"{provider}-deepseek-v1"
+        assert payload["settings"]["vision_provider"] == "deepseek"
+        assert payload["settings"]["provider_policy"] == "deepseek-only-v1"
         assert "hkgai_api_key" not in payload["settings"]
         assert "controlled-hkgai-key" not in str(payload)
         assert "hkust_api_key" not in payload["settings"]
@@ -218,6 +227,7 @@ def test_worker_stream_drafts_final_and_missing_final(client, db_session, monkey
     process_meme_job(job.id, factory=factory, event_stream=stream)
     db_session.expire_all()
     assert db_session.get(SearchJob, job.id).status == "completed"
+    assert db_session.get(SearchJob, job.id).configuration["vision_provider"] == "deepseek"
     assert "hkust_api_key" not in db_session.get(SearchJob, job.id).configuration
     assert "hkgai_api_key" not in db_session.get(SearchJob, job.id).configuration
     assert "deepseek_api_key" not in db_session.get(SearchJob, job.id).configuration
@@ -236,7 +246,7 @@ def test_worker_stream_drafts_final_and_missing_final(client, db_session, monkey
     assert failed.status == "failed" and failed.error_code == "runner_missing_final"
 
 
-@pytest.mark.parametrize("changed", [None, "provider", "vision_model", "planner_model"])
+@pytest.mark.parametrize("changed", [None, "provider", "legacy", "untagged", "analysis", "planner"])
 def test_retry_reuses_planned_queries_only_under_same_policy(
     client, db_session, monkeypatch, changed
 ):
@@ -246,7 +256,25 @@ def test_retry_reuses_planned_queries_only_under_same_policy(
 
     job = db_session.get(SearchJob, upload(client).json()["job_id"])
     query = {"text": "candy mascot reaction GIF", "angle": "identity", "language": "en"}
-    job.analysis = {"queries": [query], "planner_version": "prior-plan"}
+    job.configuration = {
+        "provider_policy": "deepseek-only-v1",
+        "vision_provider": "deepseek",
+        "deepseek_model": "deepseek-flash",
+    }
+    job.analysis = {
+        "queries": [query],
+        "analysis_version": "deepseek/deepseek-flash/visible-facts-v3",
+        "planner_version": "deepseek/deepseek-flash/query-plan-v6-source-and-theme",
+    }
+    if changed == "legacy":
+        job.configuration = {"provider_policy": "hkust-deepseek-v1", "vision_provider": "hkust"}
+        job.analysis = {**job.analysis, "analysis_version": "hkust/gemini/visible-facts-v3"}
+    if changed == "untagged":
+        job.configuration = {}
+    if changed == "analysis":
+        job.analysis = {**job.analysis, "analysis_version": "hkgai/other/visible-facts-v3"}
+    if changed == "planner":
+        job.analysis = {**job.analysis, "planner_version": "deepseek/previous-model/plan"}
     job.status, job.stage, job.error_code = "failed", "failed", "model_unavailable"
     job.started_at = job.finished_at = utcnow()
     job.error_detail = "Model unavailable"
@@ -254,15 +282,15 @@ def test_retry_reuses_planned_queries_only_under_same_policy(
     response = client.post(f"/search-jobs/{job.id}/retry", json={"client_retry_key": str(uuid4())})
     assert response.status_code == 202
     retry = db_session.get(SearchJob, response.json()["job_id"])
+    assert "provider_policy" not in retry.configuration
     retry.status, retry.started_at = "running", utcnow()
     db_session.commit()
     if changed == "provider":
         monkeypatch.setenv("MEME50_PROVIDER_POLICY", "hkgai-deepseek-v1")
         monkeypatch.setenv("MEME50_VISION_PROVIDER", "hkgai")
-    if changed == "vision_model":
-        monkeypatch.setenv("MEME50_HKUST_MODEL", "other-model")
-    if changed == "planner_model":
-        monkeypatch.setenv("MEME50_DEEPSEEK_MODEL", "other-planner")
+    if changed == "legacy":
+        old_job = client.get(f"/search-jobs/{job.id}").json()
+        assert old_job["analysis"]["analysis_version"] == "hkust/gemini/visible-facts-v3"
     searches = []
     monkeypatch.setattr(meme_pipeline, "analyze_image", lambda *args: pytest.fail("re-analyzed"))
     monkeypatch.setattr(
@@ -270,7 +298,7 @@ def test_retry_reuses_planned_queries_only_under_same_policy(
     )
 
     def stream(payload, timeout):
-        if changed:
+        if changed not in {None, "provider"}:
             assert "saved_analysis" not in payload
             return iter([])
         saved = VisualAnalysis.model_validate(payload["saved_analysis"])
@@ -296,9 +324,72 @@ def test_retry_reuses_planned_queries_only_under_same_policy(
         retry.id, factory=make_session_factory(db_session.get_bind()), event_stream=stream
     )
     db_session.expire_all()
-    if changed:
+    if changed not in {None, "provider"}:
         assert retry.error_code == "runner_missing_final"
         return
     assert retry.status == "completed"
     assert searches == [query["text"]]
     assert retry.analysis["queries"] == [query]
+
+
+def test_production_runner_ignores_historical_env_payload_and_cached_school_analysis(
+    monkeypatch, tmp_path
+):
+    import json
+    from services.search_agent import meme_pipeline, meme_providers
+    from services.search_agent.meme_types import Ledger, MemeSettings
+    from services.worker.app import meme_search_runner as runner
+
+    old_env = tmp_path / "old.env"
+    old_env.write_text(
+        "MEME50_VISION_PROVIDER=hkgai\nMEME50_PROVIDER_POLICY=hkgai-deepseek-v1\n"
+        "MEME50_HKGAI_API_KEY=controlled-school-key\nDEEPSEEK_API_KEY=controlled-operator-key\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setitem(MemeSettings.model_config, "env_file", old_env)
+    old_payload = {
+        "image_path": "screenshot.png",
+        "work_dir": "work",
+        "target_count": 1,
+        "settings": {
+            "vision_provider": "hkust",
+            "provider_policy": "hkust-deepseek-v1",
+            "deepseek_api_key": "stale-payload-key",
+            "max_queries": 2,
+        },
+        "saved_analysis": {
+            "analysis_version": "hkust/old/visible-facts-v3",
+            "queries": [{"angle": "action", "text": "old"}],
+        },
+    }
+    output = io.BytesIO()
+    monkeypatch.setattr(
+        runner.sys, "stdin", io.TextIOWrapper(io.BytesIO(json.dumps(old_payload).encode()))
+    )
+    monkeypatch.setattr(runner.sys, "stdout", io.TextIOWrapper(output))
+    calls = []
+
+    def request(method, url, ledger, **kwargs):
+        calls.append((url, kwargs["headers"]))
+        return {"choices": [{"message": {"content": "{}"}}]}
+
+    def search(*args, settings, saved_analysis, emit, **kwargs):
+        assert (settings.provider_policy, settings.vision_provider) == (
+            "deepseek-only-v1",
+            "deepseek",
+        )
+        assert settings.max_queries == 2 and saved_analysis is None
+        client = meme_providers.vision_client(settings, Ledger(settings))
+        client.request([Image.new("RGB", (8, 8))], {"task": "Return JSON"})
+        emit("final", {"status": "completed"})
+
+    monkeypatch.setattr(meme_providers, "bounded_json", request)
+    monkeypatch.setattr(meme_pipeline, "search_memes", search)
+    assert runner.main() == 0
+    assert calls == [
+        (
+            "https://api.deepseek.com/chat/completions",
+            {"Authorization": "Bearer controlled-operator-key"},
+        )
+    ]
+    assert json.loads(output.getvalue())["payload"]["status"] == "completed"

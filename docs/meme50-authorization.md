@@ -1,4 +1,10 @@
-# 当前授权与配置：学校 API + DeepSeek Flash
+# 线上检索的 DeepSeek 配置
+
+自 2026-11-28 起，默认 `deepseek-only-v1` 使用同一把 `DEEPSEEK_API_KEY` 完成识图、OCR、查询规划、网页搜索及候选复核。运行 `python -m scripts.configure_meme50 --check` 可检查实际策略和密钥是否存在。已有该 key 的新配置无需再次输入。旧部署若明确固定了学校策略，可在本机运行 `python -m scripts.configure_meme50 --provider deepseek`，在隐藏的密钥提示处回车保留已有值。重启 API 与 worker 后提交新作业。公开页面和图片从来源网站下载，多帧 CLIP 排序在本机执行。[官方视觉接口](https://api-docs.deepseek.com/guides/vision/) · [官方网页搜索接口](https://api-docs.deepseek.com/guides/search/)
+
+同一天在本机复现了缺少旧识图凭据的故障：两次任务均在任何网页搜索调用之前失败。实际切换到 DeepSeek 后，带来源提示的地球截图返回 43 个候选；从 Chrome 选机器人表情并点击继续联网，留空描述，页面返回 32 个候选，第一项可以下载。这两次均未找回已知原件。公开样本、模型版本、下载核验和耗时见[实测回执](evidence/gif-acquisition/deepseek-only-web-20261128.json)。
+
+## 2026-11-12 的历史配置
 
 2026-11-12，香港时间。用户最新要求：当前表情检索任务只用学校 HKUST API 和自己的 DeepSeek API，DeepSeek 默认 `deepseek-flash`。不再要求 Google Vision、Google 直连 Gemini、Brave、Tavily 或其他供应商账号。
 

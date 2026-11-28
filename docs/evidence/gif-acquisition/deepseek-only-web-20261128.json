@@ -1,0 +1,66 @@
+{
+  "date": "2026-11-28",
+  "scope": "Local Windows API, PostgreSQL, independent worker, real DeepSeek API and public media downloads. Controlled engineering checks.",
+  "initial_failure": {
+    "observed_jobs": 2,
+    "error": "visual_provider_unconfigured",
+    "model_calls_per_job": 0,
+    "search_calls_per_job": 0,
+    "media_attempts_per_job": 0
+  },
+  "direct_vision_check": {
+    "input": "One public Google Noto Robot friend frame",
+    "provider": "deepseek",
+    "analysis_version": "deepseek/deepseek-flash/visible-facts-v3",
+    "model_calls": 1,
+    "observations": 8,
+    "planned_queries": 3
+  },
+  "first_worker_attempt": {
+    "status": "failed",
+    "error": "invalid_event_order",
+    "last_persisted_sequence": 4,
+    "last_persisted_event_type": "stage",
+    "reproduction": "A legacy Windows text encoding failed on a non-encodable character after assigning the event number. The recovery events skipped that number. The runner now writes UTF-8 JSONL and advances the number after flushing."
+  },
+  "direct_online_after_transport_fix": {
+    "fixture": "One frame of Wikimedia Commons Rotating earth (large), with a user description naming Wikimedia Commons. Neither reference file name, URL nor SHA was included in the query.",
+    "input_sha256": "aa697ab0d2f6da548dc4fd05969a56ba012028e9682d945ef729f6cf30225265",
+    "target_sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "policy": "deepseek-only-v1",
+    "vision": "deepseek/deepseek-flash/visible-facts-v3",
+    "planner": "deepseek/deepseek-flash/query-plan-v6-source-and-theme",
+    "model_calls": 3,
+    "search_calls": 6,
+    "page_attempts": 40,
+    "media_attempts": 75,
+    "valid_media": 62,
+    "sources_returned_before_deduplication": 166,
+    "result_count": 43,
+    "animated_results": 19,
+    "static_results": 24,
+    "status": "completed",
+    "elapsed_ms": 136383,
+    "stop_reason": "query_limit",
+    "reference_sha_present_in_ranked_media": false,
+    "exact_download_rank": null
+  },
+  "browser_continue_without_hint": {
+    "fixture": "Noto Robot friend, public CC BY 4.0, one catalog frame",
+    "entry": "live Chrome homepage picker, Local only then Continue online, empty description",
+    "policy": "deepseek-only-v1",
+    "vision": "deepseek/deepseek-flash/visible-facts-v3",
+    "planner": "deepseek/deepseek-flash/query-plan-v6-source-and-theme",
+    "status": "completed",
+    "elapsed_ms": 82694,
+    "stop_reason": "query_limit",
+    "result_count": 32,
+    "model_calls": 2,
+    "search_calls": 4,
+    "media_attempts": 80,
+    "target_sha256": "2a53e434118916a967f30b9968d1e3fd3cf6a4978d39bdb3551c9fb4c8c1fccf",
+    "exact_download_rank": null,
+    "first_download_matches_candidate_sha256": true,
+    "browser_displayed_results": true
+  }
+}

@@ -2,7 +2,7 @@
 
 Recover an animated GIF from a screenshot, review the original, and save it for offline reuse. The formal application is served at `/web/`. Choose **Local only** to search the reference library and the signed-in account’s saved GIFs. If the target is missing, **Continue online** starts a linked search. The default image-first mode searches online directly.
 
-The web worker uses HKUST vision by default or an explicitly selected HKGAI vision model. DeepSeek plans queries and searches the web. A separate public media fetch service retrieves candidates, and CLIP ranks their decoded content. Confirming a GIF saves the original bytes and schedules multi-frame indexing. PostgreSQL stores job and asset state, and versioned local vectors support offline retrieval after restart.
+The web worker uses one personal DeepSeek API key for screenshot recognition, OCR, query planning, web search and optional candidate review. A separate public media fetch service retrieves candidates, and CLIP ranks their decoded content. Confirming a GIF saves the original bytes and schedules multi-frame indexing. PostgreSQL stores job and asset state, and versioned local vectors support offline retrieval after restart. [Provider setup](docs/meme50-authorization.md)
 
 ## Run and verify
 
