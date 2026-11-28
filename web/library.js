@@ -1,3 +1,5 @@
+import { mountDiscordStickers } from "./sticker-integrations.js";
+
 const statusLabels = {
   waiting: "Waiting",
   imported: "Imported",
@@ -457,6 +459,12 @@ export function mountLibrary(api, newKey) {
     const actions = element("div");
     actions.className = "library-card-actions";
     actions.append(download, details);
+    mountDiscordStickers(
+      api,
+      actions,
+      () => asset.media_url,
+      page.controller.signal,
+    );
     body.append(actions);
     li.append(preview, body);
     return li;

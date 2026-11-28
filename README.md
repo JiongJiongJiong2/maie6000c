@@ -4,6 +4,10 @@ Recover an animated GIF from a screenshot, review the original, and save it for 
 
 The web worker uses HKUST vision by default or an explicitly selected HKGAI vision model. DeepSeek plans queries and searches the web. A separate public media fetch service retrieves candidates, and CLIP ranks their decoded content. Confirming a GIF saves the original bytes and schedules multi-frame indexing. PostgreSQL stores job and asset state, and versioned local vectors support offline retrieval after restart.
 
+**Add to Telegram GIFs** adds the selected animation directly to the user's Telegram GIF picker without sending a chat message. On a phone, choose the country or region code, get a verification code, and return to the same browser tab to confirm. The temporary Telegram connection lasts up to 15 minutes. [Enable Telegram GIF collection](docs/operations.md#enable-telegram-gif-collection)
+
+**Add to Discord Stickers** adds a GIF as an animated sticker in the configured Discord server. Open that server and use the **Stickers** tab in a channel to send it. [Use and configure Discord stickers](docs/operations.md#add-gifs-to-discord-stickers)
+
 ## Run and verify
 
 Start with the [product and Docker guide](docs/product-deployment.md) for accounts, GIF search and collection, PostgreSQL with pgvector, and existing database upgrades. The [native setup guide](docs/local-demo.md) covers the local Python launcher. See the [W13 delivery report](submissions/week13/README.md) for verification and the [database design](docs/database-and-vector-search.md) for storage details.
