@@ -29,7 +29,7 @@ const candidates = Array.from({ length: 50 }, (_, i) => ({
 
 // Deliberately controlled responses: contract/UI checks, not live quality evidence.
 
-test("the search status and results work without exposing search activity", async ({
+test("search activity shows the active stage, real counts and executed queries after reload", async ({
   page,
 }) => {
   const planned = ["orange animal reaction gif", "<b>literal query text</b>"];
@@ -91,17 +91,26 @@ test("the search status and results work without exposing search activity", asyn
     "Downloading and validating",
   );
   const activity = page.getByRole("region", { name: "Search activity" });
-  await expect(activity).toHaveCount(0);
+  await expect(activity.locator("dt")).toHaveText([
+    "Search calls",
+    "Page requests",
+    "Media fetch attempts",
+  ]);
+  await expect(activity.locator("dd")).toHaveText(["2", "4", "3"]);
+  await expect(
+    activity.getByRole("heading", { name: "Planned searches" }),
+  ).toBeVisible();
+  await expect(activity.getByRole("listitem")).toHaveText(planned);
+  await expect(activity.locator("li b")).toHaveCount(0);
   await page.reload();
-  await expect(page.locator("#status-title")).toContainText(
-    "Downloading and validating",
-  );
+  await expect(activity.getByRole("listitem")).toHaveText(planned);
   finished = true;
-  await expect(page.locator("#status-title")).toHaveText(
-    "No related images found",
-  );
-  await expect(activity).toHaveCount(0);
-  await expect(page.getByText(planned[0], { exact: true })).toHaveCount(0);
+  await expect(
+    activity.getByRole("heading", { name: "Searches run" }),
+  ).toBeVisible();
+  await expect(activity.getByRole("listitem")).toHaveText([
+    planned[0] + " · 12 sources",
+  ]);
 });
 
 test("empty text submits v2 once, pages fifty, filters, downloads and restores", async ({
