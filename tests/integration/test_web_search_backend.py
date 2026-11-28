@@ -4,7 +4,7 @@ import io
 import subprocess
 from datetime import timedelta
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import numpy as np
 import pytest
@@ -396,6 +396,96 @@ def test_web_search_failure_is_distinct_from_no_match_and_retryable(
     ).all()
     assert len(jobs) == 2
     assert jobs[1].retry_of_job_id == accepted["job_id"]
+
+
+def test_web_candidate_growing_after_size_check_is_rejected(
+    client, db_session, worker_factory, monkeypatch
+):
+    request = finish_local_job(client, db_session, worker_factory)
+    accepted = create_web_job(client, request["request_id"])
+    data = image_bytes(gif=True)
+    extra = b"x" * 100
+    monkeypatch.setattr(get_settings(), "max_candidate_bytes", len(data) + 1)
+    original_open = Path.open
+    grown = False
+
+    def growing_open(path, mode="r", *args, **kwargs):
+        nonlocal grown
+        if path.name == "candidate.gif" and mode == "rb" and not grown:
+            grown = True
+            with original_open(path, "ab") as output:
+                output.write(extra)
+        return original_open(path, mode, *args, **kwargs)
+
+    def searcher(image_path, description, work_dir):
+        result = web_candidate_searcher(image_path, description, work_dir)
+        result.candidates[0].sha256 = sha256(data + extra)
+        return result
+
+    monkeypatch.setattr(Path, "open", growing_open)
+    run_web_job(client, worker_factory, accepted["job_id"], searcher)
+    db_session.expire_all()
+    state = client.get(f"/search-requests/{request['request_id']}").json()
+    assert grown
+    assert state["status"] == "failed"
+    assert state["error"]["code"] == "invalid_candidate_media"
+    assert state["candidates"] == []
+
+
+def test_saved_retrieval_growing_after_size_check_is_rejected(
+    client, db_session, worker_factory, monkeypatch
+):
+    data = image_bytes(gif=True)
+    extra = b"x" * 100
+    asset_id = str(uuid4())
+    relative = f"saved/{asset_id}.gif"
+    atomic_write(get_settings().media_root, relative, data)
+    db_session.add(
+        SavedAsset(
+            id=asset_id,
+            sha256=sha256(data + extra),
+            title="Test",
+            source_url="https://example.com/source",
+            image_url="https://example.com/image.gif",
+            provider="test",
+            gif_path=relative,
+            frame_count=2,
+            index_status="ready",
+        )
+    )
+    db_session.commit()
+    request = client.post(
+        "/search-requests",
+        data={"client_submission_key": "growing-saved"},
+        files={"image": ("crop.png", image_bytes(), "image/png")},
+    ).json()
+    with worker_factory() as db:
+        claimed = search_worker.claim_next_search_job(db)
+        assert claimed is not None
+        assert claimed.id == request["job_id"]
+
+    monkeypatch.setattr(get_settings(), "max_candidate_bytes", len(data) + 1)
+    original_open = Path.open
+    grown = False
+
+    def growing_open(path, mode="r", *args, **kwargs):
+        nonlocal grown
+        if path.name == f"{asset_id}.gif" and mode == "rb" and not grown:
+            grown = True
+            with original_open(path, "ab") as output:
+                output.write(extra)
+        return original_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", growing_open)
+    result = RetrievalResult(
+        matches=[RetrievalMatch(reference_asset_id=UUID(asset_id), score=0.9)],
+        model_version="test",
+        corpus_version="test",
+    )
+    with pytest.raises(search_worker.RetrievalError, match="size limit"):
+        search_worker.process_search_job(request["job_id"], lambda _: result)
+    assert grown
+    assert db_session.scalar(select(Candidate.id)) is None
 
 
 def test_web_search_interruption_preserves_local_result_and_supports_retry(

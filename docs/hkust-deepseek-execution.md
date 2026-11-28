@@ -2,6 +2,23 @@
 
 2026-11-12，香港时间。HKUST 与 DeepSeek 是默认组合，优先于此前 Google Vision / Brave 方案和旧 A0/A2 服务约束。图片必填、文字可选、PNG/JPEG/WebP/GIF、约 50 个不重复动静态表情的产品目标不变。
 
+## English overview and status
+
+This provider runbook was written on 12 November 2026. It documents the
+HKUST-plus-DeepSeek default policy, optional HKGAI vision, local credential
+configuration, shared request budgets, and the historical A0-A8 acceptance
+criteria. Uploads are processed by external vision providers when online
+search is used; credentials stay in local configuration and are sent only to
+the relevant worker/provider boundary. DeepSeek web search is not pixel-level
+reverse-image search.
+
+The runbook's historical checklist is not itself proof of final acceptance.
+The 28 November real-browser workflow and the remaining user-study and
+reproduction work are summarized in the [W13 delivery report](../submissions/week13/README.md)
+and [closeout record](final-closeout-plan.md). Use this file for provider
+configuration and technical limits; use those dated reports for project
+status.
+
 ## 角色与实际接口
 
 | 角色 | 当前实现 | 输入与输出 |
@@ -74,7 +91,9 @@ MEME50_HKGAI_API_KEY=<local-only>
 
 本轮已真实通过 provider 自检：`.cache/meme50/acceptance/hkust-deepseek-probe-20261112-01/probe.json`。学校识图约 4.125 秒；DeepSeek Flash 规划约 3.8 秒，生成五条查询；DeepSeek 召回 50 条网页线索，核验五条出处。50 条网页线索不是 50 个通过验证的表情。该记录只证明服务联通，后续代码/配置修改后仍需新版本自检，不把旧记录拼接冒充新版本。
 
-## 原执行 agent 接续步骤
+## 原执行 agent 接续步骤（2026-11-12 历史交接清单）
+
+以下步骤是 11 月 12 日的执行交接快照，不是当前待办列表。当前状态以 W13 交付报告和期末收尾记录为准；保留本清单用于追溯当时的验收计划。
 
 1. 阅读本文件及当前改动，保留原 `codex/real-gif-acquisition` 工作区、未提交实现、历史 DB 和失败证据。用户已明确取消 Google Vision/Brave 必需条件，不再询问这些 key、结算或账号。
 2. 按最新角色修订恢复原完整验收目标。若 goal 工具不能直接改写目标文本，以本文件作为用户范围修订继续；不要为了换文字把未完成目标标 complete，也不要另造成功记录。

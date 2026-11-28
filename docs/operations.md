@@ -1,5 +1,9 @@
 # Operations notes
 
+> **Scope / 范围:** This page combines current operational pointers with W07-era local-launch details and historical verification records. The [product deployment guide](product-deployment.md) is the source of truth for setting up the current account-based product.
+>
+> 本文汇总当前运维入口、W07 本地启动细节和历史验证记录。当前账户产品的部署步骤以[产品部署指南](product-deployment.md)为准。
+
 For the current web application, open `/web/`. The **Local only** mode uses the reference library and the current account’s ready saved assets. **Continue online** sends the screenshot to the selected vision provider and searches via DeepSeek. The default vision service is HKUST; HKGAI is available through an explicit policy. The public media fetcher processes external sources separately. See [provider configuration](hkust-deepseek-execution.md), [database and storage lifecycle](database-and-vector-search.md), and [the W13 demo](../submissions/week13/README.md).
 
 The Windows native launcher starts PostgreSQL, API, worker, and the media fetcher. The fetcher binds to loopback port 8120 and receives only the host process variables it needs. The Docker-based local launcher also exposes its isolated fetch service on loopback. For an account-based demo, enable both `ACCOUNT_LOGIN_ENABLED` and `PRIVATE_LIBRARY_ENABLED`. For resolver environments that return non-public addresses for public media sites, `MEME50_DNS_MODE=doh` uses the supported public DNS resolution mode with peer and TLS verification. The default system resolver remains available.
