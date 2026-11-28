@@ -38,7 +38,7 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def include_object(item, name, type_, reflected, compare_to):
+def include_name(name, type_, parent_names):
     return type_ != "table" or name not in VECTOR_TABLES
 
 
@@ -54,7 +54,7 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=[target_metadata, registry] if root else target_metadata,
             compare_type=True,
-            include_object=include_object,
+            include_name=include_name,
         )
         with context.begin_transaction():
             context.run_migrations()

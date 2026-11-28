@@ -2135,6 +2135,47 @@ html[data-motion="off"] .progress-track > span {
 #web-status:empty {
   display: none;
 }
+.search-activity {
+  margin: 12px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #d9d3c9;
+  border-radius: 8px;
+  background: #faf7f3;
+  overflow-wrap: anywhere;
+}
+.search-activity h4,
+.search-activity h5 {
+  margin: 0;
+}
+.search-activity dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.search-activity dl:empty {
+  display: none;
+}
+.search-activity dl div {
+  display: flex;
+  gap: 5px;
+}
+.search-activity dd {
+  margin: 0;
+  font-weight: 700;
+}
+.search-activity ol {
+  margin: 4px 0 0;
+  padding-inline-start: 22px;
+  font-size: 13px;
+}
+.search-activity li + li {
+  margin-top: 3px;
+}
+.search-activity li span {
+  color: #604373;
+}
 .meme-controls {
   display: flex;
   align-items: center;

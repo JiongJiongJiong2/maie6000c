@@ -28,6 +28,91 @@ const candidates = Array.from({ length: 50 }, (_, i) => ({
 }));
 
 // Deliberately controlled responses: contract/UI checks, not live quality evidence.
+
+test("search activity shows the active stage, real counts and executed queries after reload", async ({
+  page,
+}) => {
+  const planned = ["orange animal reaction gif", "<b>literal query text</b>"];
+  let finished = false;
+  await page.route("**/health/ready", (route) =>
+    route.fulfill({ json: { status: "ok" } }),
+  );
+  await page.route("**/search-requests", (route) =>
+    route.fulfill({ status: 202, json: accepted }),
+  );
+  await page.route("**/search-jobs/" + jobId, (route) =>
+    route.fulfill({
+      json: {
+        ...accepted,
+        status: finished ? "completed" : "running",
+        stage: finished ? "completed" : "fetching",
+        verified_count: 1,
+        analysis: { queries: planned.map((text) => ({ text })) },
+        progress: {
+          ledger: { search_calls: 2, page_attempts: 4, media_attempts: 3 },
+        },
+        ...(finished
+          ? {
+              result_revision: "activity-revision",
+              execution: {
+                trace: [
+                  {
+                    step: "keyword_web",
+                    details: { query: { text: planned[0] }, sources: 12 },
+                  },
+                ],
+              },
+            }
+          : {}),
+      },
+    }),
+  );
+  await page.route("**/search-jobs/" + jobId + "/previews", (route) =>
+    route.fulfill({ json: { items: [] } }),
+  );
+  await page.route("**/search-jobs/" + jobId + "/results?*", (route) =>
+    route.fulfill({
+      json: {
+        revision: "activity-revision",
+        items: [],
+        total: 0,
+        total_all: 0,
+      },
+    }),
+  );
+  await page.goto("/web/");
+  await page.locator("#file-input").setInputFiles({
+    name: "activity.png",
+    mimeType: "image/png",
+    buffer: png,
+  });
+  await page.locator("#submit").click();
+  await expect(page.locator("#status-title")).toContainText(
+    "Downloading and validating",
+  );
+  const activity = page.getByRole("region", { name: "Search activity" });
+  await expect(activity.locator("dt")).toHaveText([
+    "Search calls",
+    "Page requests",
+    "Media fetch attempts",
+  ]);
+  await expect(activity.locator("dd")).toHaveText(["2", "4", "3"]);
+  await expect(
+    activity.getByRole("heading", { name: "Planned searches" }),
+  ).toBeVisible();
+  await expect(activity.getByRole("listitem")).toHaveText(planned);
+  await expect(activity.locator("li b")).toHaveCount(0);
+  await page.reload();
+  await expect(activity.getByRole("listitem")).toHaveText(planned);
+  finished = true;
+  await expect(
+    activity.getByRole("heading", { name: "Searches run" }),
+  ).toBeVisible();
+  await expect(activity.getByRole("listitem")).toHaveText([
+    planned[0] + " · 12 sources",
+  ]);
+});
+
 test("empty text submits v2 once, pages fifty, filters, downloads and restores", async ({
   page,
 }) => {

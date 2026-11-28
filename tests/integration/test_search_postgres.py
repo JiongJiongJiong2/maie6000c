@@ -621,3 +621,97 @@ def test_account_workspaces_and_migrations(postgres_backend, monkeypatch):
     monkeypatch.setattr(database, "_SESSION_FACTORY", factory)
     verify_account_libraries(engine)
     command.upgrade(config, "head")
+
+
+def test_pgvector_exact_frames_rollback_and_workspace_isolation(postgres_backend, monkeypatch):
+    from services.common.accounts import provision_workspace
+    from services.common.config import use_workspace
+    from services.common.search_models import SavedAsset
+    from services.retrieval import vector_store
+    from services.retrieval.saved_index import frame_numbers, identity
+
+    engine, factory, config = postgres_backend
+    with engine.connect() as conn:
+        if not conn.scalar(text("SELECT 1 FROM pg_available_extensions WHERE name = 'vector'")):
+            pytest.skip("PostgreSQL vector extension is not installed")
+    monkeypatch.setenv("VECTOR_BACKEND", "pgvector")
+    get_settings.cache_clear()
+    command.downgrade(config, "20261121_0008")
+    command.upgrade(config, "head")
+    command.check(config)
+
+    workspace = "acct_0123456789abcdef0123456789abcdef"
+    with factory() as db:
+        provision_workspace(db, workspace)
+        db.commit()
+    scoped_url = engine.url.update_query_dict({"options": f"-csearch_path={workspace}"})
+    scoped_engine = create_engine(scoped_url)
+    scoped_factory = make_session_factory(scoped_engine)
+    monkeypatch.setattr(vector_store, "get_session_factory", lambda: factory)
+    clip_query = [1.0] + [0.0] * 511
+    orthogonal = [0.0, 1.0] + [0.0] * 510
+
+    def saved_gif(session_factory):
+        gif = io.BytesIO()
+        Image.new("RGB", (8, 8), "red").save(
+            gif, format="GIF", save_all=True, append_images=[Image.new("RGB", (8, 8), "blue")]
+        )
+        data = gif.getvalue()
+        digest = sha256(data)
+        gif_path = f"saved/{digest}.gif"
+        atomic_write(get_settings().media_root, gif_path, data)
+        asset = SavedAsset(
+            id=str(uuid4()),
+            title="Fixture",
+            source_url="",
+            image_url="",
+            provider="local_upload",
+            sha256=digest,
+            gif_path=gif_path,
+            frame_count=2,
+            index_status="ready",
+        )
+        asset.index_version = identity(asset)[1]
+        with session_factory() as db:
+            db.add(asset)
+            db.commit()
+        return asset
+
+    try:
+        asset = saved_gif(factory)
+        frames = frame_numbers(asset.frame_count)
+        assert vector_store.rank_saved_vectors(clip_query, 3, 0.82) is None
+        assert vector_store.store_asset_vectors(
+            asset, asset.index_version, frames, [orthogonal, clip_query]
+        )
+        exact = [{"reference_asset_id": asset.id, "score": 1.0}]
+        assert vector_store.rank_saved_vectors(clip_query, 3, 0.82) == exact
+        assert not vector_store.store_asset_vectors(
+            asset, asset.index_version, frames, [orthogonal, [0.0] * 512]
+        )
+        assert vector_store.rank_saved_vectors(clip_query, 3, 0.82) == exact
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM saved_frame_vectors WHERE frame_no = 0"))
+        assert vector_store.rank_saved_vectors(clip_query, 3, 0.82) is None
+        assert vector_store.store_asset_vectors(
+            asset, asset.index_version, frames, [orthogonal, clip_query]
+        )
+        with engine.begin() as conn:
+            conn.execute(
+                text("UPDATE saved_vector_versions SET media_sha256 = :sha"), {"sha": "0" * 64}
+            )
+        assert vector_store.rank_saved_vectors(clip_query, 3, 0.82) is None
+
+        monkeypatch.setattr(vector_store, "get_session_factory", lambda: scoped_factory)
+        with use_workspace(workspace):
+            assert vector_store.rank_saved_vectors(clip_query, 3, 0.82) == []
+            private = saved_gif(scoped_factory)
+            assert vector_store.store_asset_vectors(
+                private, private.index_version, frames, [orthogonal, orthogonal]
+            )
+            assert vector_store.rank_saved_vectors(clip_query, 3, 0.82) == []
+            assert vector_store.rank_saved_vectors(orthogonal, 3, 0.82) == [
+                {"reference_asset_id": private.id, "score": 1.0}
+            ]
+    finally:
+        scoped_engine.dispose()
