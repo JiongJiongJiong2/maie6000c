@@ -1,5 +1,16 @@
 # 使用已发布的容器镜像
 
+## English overview
+
+This runbook deploys the API, worker, and isolated media-fetch images published
+from one verified `main` commit. It verifies the successful GitHub Actions
+release, the commit label on each image, and its immutable digest, then records
+the digests for reproducible startup, upgrade, and rollback. Keep the existing
+Compose project name, `.env`, database and media volumes. Back up PostgreSQL
+and media together before an upgrade. Detailed PowerShell commands follow in
+Chinese; see the [product deployment guide](product-deployment.md) for initial
+setup and data migration.
+
 容器发布流程为同一 `main` 提交生成 Linux CPU 镜像。API、worker 和媒体抓取服务分别发布到 `ghcr.io/jiongjiongjiong2/maie6000c-api`、`ghcr.io/jiongjiongjiong2/maie6000c-worker` 和 `ghcr.io/jiongjiongjiong2/maie6000c-media-fetch`。`main` 标签随发布更新。下面用 `git-<完整提交 SHA>` 找到镜像并记录 digest，升级和回滚均使用保存的 digest。使用支持 `!reset` 的 Docker Compose 插件。本文命令可用于 Compose v2.24.4 及更新版本，组合配置在 v5.3.1 验证。 [Compose 叠加文件](https://docs.docker.com/reference/compose-file/merge/)
 
 ## 固定一组已经验证的镜像
