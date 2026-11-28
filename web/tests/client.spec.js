@@ -70,6 +70,177 @@ function key(body) {
   return body.match(/name="client_submission_key"\r\n\r\n([^\r]+)/)?.[1];
 }
 
+test("the desktop Telegram QR flow offers phone sign-in when two-step verification is required", async ({
+  page,
+}) => {
+  await page.route("**/telegram/**", (route) => {
+    const request = route.request();
+    if (request.url().endsWith("/regions"))
+      return route.fulfill({ json: { GB: 44 } });
+    expect(request.url()).toMatch(/\/session$/);
+    if (request.method() === "POST")
+      return route.fulfill({ status: 201, json: { session: "qr-session" } });
+    if (request.method() === "DELETE")
+      return route.fulfill({ json: { state: "closed" } });
+    return route.fulfill({
+      json: {
+        state: "failed",
+        code: "telegram_qr_password_required",
+        message: "This account has two-step verification.",
+      },
+    });
+  });
+
+  await fixtures(page);
+  await upload(page);
+  await page.getByRole("button", { name: "This is the one" }).click();
+  await page
+    .getByRole("button", { name: "Add to Telegram GIFs", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Add to Telegram GIFs" });
+  await expect(dialog.getByLabel("Telegram phone number")).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Get verification code" }),
+  ).toBeVisible();
+});
+
+test.describe("Telegram on a phone", () => {
+  test.use({
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 390, height: 844 },
+  });
+
+  test("chooses a region and keeps the selected GIF through login and save retries", async ({
+    page,
+  }) => {
+    let sends = 0;
+    let codes = 0;
+    let saves = 0;
+    await page.route("**/telegram/**", (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (path.endsWith("/regions"))
+        return route.fulfill({ json: { HK: 852, GB: 44 } });
+      if (request.method() === "DELETE")
+        return route.fulfill({ json: { state: "closed" } });
+      if (path.endsWith("/phone")) {
+        expect(request.postDataJSON()).toEqual({
+          phone: "5555 0123",
+          region: "HK",
+        });
+        if (++sends === 1)
+          return route.fulfill({
+            status: 429,
+            headers: { "Retry-After": "1" },
+            json: {
+              detail: {
+                code: "telegram_code_rate_limited",
+                message: "Wait before trying again.",
+              },
+            },
+          });
+        return route.fulfill({
+          status: 201,
+          json: { session: `session-${sends}`, state: "code", retry_after: 1 },
+        });
+      }
+      expect(request.headers()["x-telegram-session"]).toBe(`session-${sends}`);
+      if (path.endsWith("/code")) {
+        codes++;
+        if (codes === 1)
+          return route.fulfill({
+            status: 400,
+            json: {
+              detail: {
+                code: "telegram_invalid_login_value",
+                message: "That code is incorrect.",
+              },
+            },
+          });
+        if (codes === 2)
+          return route.fulfill({
+            status: 404,
+            json: {
+              detail: {
+                code: "telegram_code_expired",
+                message: "That code has expired. Request a new one.",
+              },
+            },
+          });
+        return route.fulfill({ json: { state: "password" } });
+      }
+      if (path.endsWith("/password"))
+        return route.fulfill({ json: { state: "authorized" } });
+      expect(path).toBe(`/telegram/gifs/${candidateId}`);
+      if (++saves === 1)
+        return route.fulfill({
+          status: 409,
+          json: {
+            detail: {
+              code: "telegram_collection_full",
+              message: "Your Telegram GIF collection is full.",
+            },
+          },
+        });
+      return route.fulfill({ json: { saved: true } });
+    });
+
+    await fixtures(page);
+    await upload(page);
+    await page.getByRole("button", { name: "This is the one" }).click();
+    await page
+      .getByRole("button", { name: "Add to Telegram GIFs", exact: true })
+      .click();
+    const dialog = page.getByRole("dialog", { name: "Add to Telegram GIFs" });
+    await expect(dialog.getByRole("img")).toBeHidden();
+    await dialog.getByLabel("Country or region code").selectOption("HK");
+    const phone = dialog.getByLabel("Telegram phone number", { exact: true });
+    const send = dialog.getByRole("button", {
+      name: "Get verification code",
+      exact: true,
+    });
+    const confirm = dialog.getByRole("button", { name: "Confirm and save" });
+    await phone.fill("not-a-phone");
+    await send.click();
+    await expect(
+      dialog.getByText(/Choose a country code and enter a phone number/),
+    ).toBeVisible();
+    expect(sends).toBe(0);
+    await phone.fill("5555 0123");
+    await send.click();
+    await expect(dialog.getByText("Wait before trying again.")).toBeVisible();
+    await send.click();
+    const code = dialog.getByLabel("Telegram verification code", {
+      exact: true,
+    });
+    await expect(dialog.getByText(/Didn't get a code/)).toBeVisible();
+    await code.fill("11111");
+    await confirm.click();
+    await expect(dialog.getByText("That code is incorrect.")).toBeVisible();
+    await code.fill("22222");
+    await confirm.click();
+    await expect(
+      dialog.getByText("That code has expired. Request a new one."),
+    ).toBeVisible();
+    await expect(phone).toHaveValue("5555 0123");
+    await send.click();
+    await code.fill("12345");
+    await confirm.click();
+    await dialog
+      .getByLabel("Telegram two-step verification password")
+      .fill("test-password");
+    await confirm.click();
+    await expect(dialog.getByText(/Remove a saved GIF/)).toBeVisible();
+    await dialog.getByRole("button", { name: "Retry save" }).click();
+    await expect(
+      dialog.getByText(/Added to your saved GIFs in Telegram/),
+    ).toBeVisible();
+    expect(saves).toBe(2);
+    await expect(dialog.locator("#telegram-login-value")).toHaveValue("");
+  });
+});
+
 test("upload, state progression, authenticated animation, review and download are separate", async ({
   page,
 }) => {

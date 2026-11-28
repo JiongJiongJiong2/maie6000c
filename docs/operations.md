@@ -4,6 +4,28 @@ For the current web application, open `/web/`. The **Local only** mode uses the 
 
 The Windows native launcher starts PostgreSQL, API, worker, and the media fetcher. The fetcher binds to loopback port 8120 and receives only the host process variables it needs. The Docker-based local launcher also exposes its isolated fetch service on loopback. For an account-based demo, enable both `ACCOUNT_LOGIN_ENABLED` and `PRIVATE_LIBRARY_ENABLED`. For resolver environments that return non-public addresses for public media sites, `MEME50_DNS_MODE=doh` uses the supported public DNS resolution mode with peer and TLS verification. The default system resolver remains available.
 
+## Enable Telegram GIF collection
+
+Set `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` in the API environment using the
+credentials from [Telegram API development tools](https://my.telegram.org/apps).
+Account mode uses the existing MemeRetrieve session and private workspace. For a
+local single-user deployment with account mode disabled, set `DEVICE_TOKEN`.
+The Compose API image includes the Telegram dependencies. For a native API
+installation, run `python -m pip install -e ".[telegram]"`.
+
+Open `/web/` over HTTPS on the phone. Route `/web/`, `/auth/`, `/telegram/`,
+and the other API paths to the same service. Preserve the external `Host` and
+have the proxy replace the incoming `X-Forwarded-Proto` with `https`. Set
+`FORWARDED_ALLOW_IPS` in the API container to the address of the proxy. This
+feature keeps sessions in the API process and requires a single API process.
+
+On a GIF candidate, tap **Add to Telegram GIFs**. Choose a country or region
+code and enter the local phone number, or paste the complete international
+number. Switch to Telegram to get the code and return to the same browser tab.
+The connection lasts up to 15 minutes. Reloading the page requires authorization
+again. Disconnecting from the page or signing out of MemeRetrieve ends the
+browser's Telegram session.
+
 The W07 supported local profile runs host Python API and worker processes with Docker PostgreSQL. Follow [the local demo guide](local-demo.md), including PowerShell commands, preparation, and verification. Python 3.11 and Docker Desktop are required; Node.js is needed for browser tests. Model weights, corpus, and index must be prepared before startup. The base application Docker image lacks the optional retrieval dependencies and is not the verified inference deployment.
 
 The runner applies migrations, imports the corpus, creates an ignored random-password environment file, and starts separate API/worker processes. API: `http://127.0.0.1:8000`; web: `/web/`; database: loopback port 55432 in the `memeretrieve-local` Compose project. Stop the runner with Ctrl+C. Stop PostgreSQL without deleting records using:

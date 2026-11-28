@@ -10,7 +10,7 @@ import re
 from sqlalchemy.engine import make_url
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pythonjsonlogger.json import JsonFormatter
 
@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     model_cache_root: Path = Path("data/models")
     account_login_enabled: bool = False
     device_token: str = ""
+    telegram_api_id: int = Field(default=0, ge=0)
+    telegram_api_hash: SecretStr = SecretStr("")
     private_library_enabled: bool = False
     enable_demo_library: bool = False
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, gt=0)

@@ -48,6 +48,7 @@ def web_asset(asset: str) -> FileResponse:
         "account-stickers.webp": "image/webp",
         "account-scraps.webp": "image/webp",
         "share.js": "text/javascript",
+        "telegram.js": "text/javascript",
         "whatsapp-import.html": "text/html",
         "whatsapp-import.js": "text/javascript",
         "whatsapp-demo-pack.json": "application/json",
