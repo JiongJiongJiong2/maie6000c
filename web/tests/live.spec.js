@@ -16,10 +16,11 @@ test("real screenshot upload, live inference, saved review, refresh, and origina
 }) => {
   await page.goto("/web/#workspace");
   await expect(page.locator("#file-input")).toBeEnabled();
+  await page.getByRole("radio", { name: "Local only", exact: true }).check();
   await page
     .locator("#file-input")
     .setInputFiles(path.join(root, "data/reference/examples/1f47b.png"));
-  await page.getByRole("button", { name: "Find my GIF" }).click();
+  await page.locator("#submit").click();
   await expect(
     page.getByRole("heading", { name: "Here are your candidates" }),
   ).toBeVisible({ timeout: 90000 });
@@ -59,18 +60,44 @@ test("the example picker submits a real screenshot through the same search API",
   await page.goto("/web/#workspace");
   await expect(page.locator("#demo-library")).toBeVisible();
   await page.locator("#demo-library summary").click();
-  await page.getByRole("button", { name: "Robot friend", exact: true }).click();
-  await expect(page.locator("#file-name")).toHaveText("Robot friend.png");
+  await expect(
+    page.getByRole("button", { name: "Robot friend", exact: true }),
+  ).toBeVisible();
+  const { examples } = await (await page.request.get("/demo-library")).json();
+  const example = examples[0];
+  await page.locator(".demo-example").first().click();
+  await expect(page.locator("#file-name")).toHaveText(`${example.title}.png`);
+  await expect(
+    page.getByRole("radio", { name: "Local only", exact: true }),
+  ).toBeChecked();
   const responsePromise = page.waitForResponse(
     (response) =>
       response.url().endsWith("/search-requests") &&
       response.request().method() === "POST",
   );
-  await page.getByRole("button", { name: "Find my GIF" }).click();
+  await page.locator("#submit").click();
   expect((await responsePromise).status()).toBe(202);
   await expect(
     page.getByRole("heading", { name: "Here are your candidates" }),
   ).toBeVisible({ timeout: 90000 });
-  await page.getByRole("button", { name: "None of these match" }).click();
-  await expect(page.locator("#review-status")).toContainText("saved");
+  const manifest = JSON.parse(
+    await readFile(path.join(root, "data/reference/manifest.json"), "utf8"),
+  );
+  const expected = manifest.assets.find(
+    (item) => item.reference_asset_id === example.id,
+  ).sha256;
+  const cards = page.locator("#candidates .candidate");
+  const ids = await cards.evaluateAll((rows) =>
+    rows.slice(0, 3).map((row) => row.dataset.id),
+  );
+  const digests = await Promise.all(
+    ids.map(async (id) => {
+      const response = await page.request.get(`/candidates/${id}/media`);
+      expect(response.ok()).toBe(true);
+      return createHash("sha256")
+        .update(await response.body())
+        .digest("hex");
+    }),
+  );
+  expect(digests).toContain(expected);
 });

@@ -1,0 +1,66 @@
+{
+  "checked_utc": "2026-11-28T08:15:03+00:00",
+  "scope": "HTTP and worker acceptance on the local demo. Each PNG comes from frame floor(frame_count/3) of the indexed file. Four curated examples, no human labels.",
+  "procedure": "GET /demo-library and its example screenshot, POST image and unique client_submission_key to /search-requests, poll the accepted local job via /search-requests/{id}, GET the first ranked candidate media and decode every GIF frame.",
+  "checks": "The served PNG matched an independent rendering from the benchmark original by SHA-256. Rank-one GIF bytes matched its pinned original SHA-256 and frame count. No search hints were submitted.",
+  "evaluation_manifest_sha256": "87a83484db5e11f9a9f01d24b623c11691afdfa0683145d5f9a4b9a40b5b1d99",
+  "examples_spec_sha256_lf": "a8790f69831399a7d2a7f18c5d5014c36293cdafa334216a6391c5d241af50de",
+  "featured_example_count": 4,
+  "listed_example_count": 16,
+  "top1_original_byte_matches": 4,
+  "web_job_count": 0,
+  "examples": [
+    {
+      "example": "hakimi-phone",
+      "input_png_sha256": "8fa52b4bc068339480edd36ddd5e186b238f8619525e2acfe0983051f44fa743",
+      "source_frame_zero_based": 5,
+      "job_status": "completed",
+      "job_kind": "local",
+      "web_job_count": 0,
+      "candidate_count": 1,
+      "downloaded_candidate_rank": 1,
+      "target_and_download_sha256": "e2a811a4c6c4dce9155788ed9a36de25db982dd96ecfffd63f76737aa2c7b530",
+      "gif_frames": 16,
+      "gif_bytes": 372827
+    },
+    {
+      "example": "nailong",
+      "input_png_sha256": "997dcfe462cc108d639a36d4be2e29888af133e2e793d4310020779d1d1284f1",
+      "source_frame_zero_based": 13,
+      "job_status": "completed",
+      "job_kind": "local",
+      "web_job_count": 0,
+      "candidate_count": 1,
+      "downloaded_candidate_rank": 1,
+      "target_and_download_sha256": "dd21db42963c97f28ba36dcdc46fc176e861818efbf5a0555fd79b70af5f53ae",
+      "gif_frames": 41,
+      "gif_bytes": 668117
+    },
+    {
+      "example": "feidudu-snow",
+      "input_png_sha256": "e1cb6e40d1d56ef9ab06c11d67cd3bd3200d3aeb7026c09b38d401ce8efe7dab",
+      "source_frame_zero_based": 18,
+      "job_status": "completed",
+      "job_kind": "local",
+      "web_job_count": 0,
+      "candidate_count": 1,
+      "downloaded_candidate_rank": 1,
+      "target_and_download_sha256": "b126c8f24fc4858334447fe4d3ce3b979302436d9d515c152fab351d7ee6d35c",
+      "gif_frames": 55,
+      "gif_bytes": 597164
+    },
+    {
+      "example": "finish-code",
+      "input_png_sha256": "a8650098a02c3cc6f7deaf0652e07274f54da1a8160c6c2e70d681512d035df0",
+      "source_frame_zero_based": 1,
+      "job_status": "completed",
+      "job_kind": "local",
+      "web_job_count": 0,
+      "candidate_count": 1,
+      "downloaded_candidate_rank": 1,
+      "target_and_download_sha256": "354b53075f9c2a10bfbb5ffbd235c3ccda21924ecfc5550f7628c8efd7a17bdd",
+      "gif_frames": 4,
+      "gif_bytes": 13553
+    }
+  ]
+}
