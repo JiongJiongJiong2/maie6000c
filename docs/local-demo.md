@@ -1,6 +1,16 @@
-# Local end-to-end demo
+# W07 local demo | W07 本地演示
 
 This local integration connects Zirui's web client, Haoxuan's W07 API and PostgreSQL worker, and a completed CLIP retrieval adapter based on YuanJian's image encoder. It runs real inference over 12 attributed animated reaction GIFs. No mock search responses or test-only routes are used by the application.
+
+## Scope and status | 范围与状态
+
+This guide describes the W07 local, small-corpus profile: host-run API and
+worker, Docker PostgreSQL, and local CLIP search over 12 reference GIFs. It
+does not describe the current online-search, account, private-library, or
+pgvector product deployment. For the current product workflow, use the
+[product deployment guide](product-deployment.md) and [W13 evidence](../submissions/week13/README.md).
+
+本文记录 W07 本地小语料配置：主机运行 API 和 worker、Docker 运行 PostgreSQL，并用 CLIP 检索 12 个参考 GIF。它不代表当前包含联网搜索、账户、私人库和 pgvector 的正式产品部署。当前产品流程请看[产品部署指南](product-deployment.md)及[W13 验收证据](../submissions/week13/README.md)。
 
 ## Start
 

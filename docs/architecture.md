@@ -1,12 +1,59 @@
-# MemeRetrieve architecture
+# MemeRetrieve architecture | 系统架构
 
-## meme50-v2 implementation
+## Current product architecture | 当前产品架构 (2026-11-28)
 
-The formal web client now defaults to an image-first, optional-description web job with no local-job placeholder. [The current architecture and data-flow contract](meme50.md) documents cloud frame processing, explicit entity verification, reverse image search, shared budgets, credential-free pinned public egress, verified drafts, generic media and revision-bound results. Historical W07/W04 limits below remain attached to those profiles. The v2 implementation is not yet live-search or quality accepted: provider credentials are absent; see [the verification record](meme50-verification.md).
+**产品定位 / Product positioning**
 
-## W07 implementation
+产品愿景是连接中文互联网 meme 与全球社交表达。当前架构支撑截图检索、用户主动联网发现、人工审核、收藏、离线复用及设备支持时的用户主动分享；它尚不提供完整中文 meme 语料、自动文化本地化或海外平台自动发布。
 
-The [current W07 data-flow diagram](../submissions/week07/assets/10-w07-system-flow.png) has an [editable Mermaid source](../submissions/week07/assets/w07-system-flow.mmd). The captured Windows profile runs native PostgreSQL 16.15 in place of the Docker database described below; the API, database schema, independent worker and retrieval path are the same. See [fresh evidence](../submissions/week07/README.md).
+The vision is to connect Chinese internet memes with global social
+conversations. The current architecture supports screenshot retrieval,
+user-triggered online discovery, human review, saving, offline reuse, and
+user-directed sharing where supported. It does not yet provide a comprehensive
+Chinese meme corpus, automatic cultural localization, or automated publishing
+to overseas platforms.
+
+**中文**
+
+正式入口为 `/web/`。用户可先在浏览器中裁切并确认截图，再搜索本地参考 GIF 和已就绪的私人收藏；未命中时可主动创建关联的联网任务。本地演示另提供可选的固定 meme 示例。FastAPI 持久化请求和任务；独立 worker 运行本地 CLIP 检索、联网查询、候选下载与解码验证。用户审核通过后，原 GIF 被单独保存并建立版本化多帧索引。重启后、无外网时，已就绪的私人收藏仍可本地检索。
+
+PostgreSQL 16 保存账号工作空间、请求、任务、候选和资产状态；原件和收藏 NPZ 保存在持久媒体目录。产品 Compose 配置可启用 pgvector 精确检索，NPZ 是验证后的回退。联网工作流使用 HKUST 视觉模型（默认）或 HKGAI，并由 DeepSeek 规划查询和搜索网页；独立的 `media-fetch` 服务获取公开媒体。审核、保存和索引就绪是不同状态，检索分数是相似度，不是正确概率。
+
+2026-11-28 的一次正式网页验收完成了真实 GIF 的联网找回与重启离线复用；12 个固定参考 GIF 的多帧 Top-3 对照为 12/12。新增合成聊天界面裁切评测显示自动裁切提升库内精确 Top-3，但也大幅增加库外候选；真实聊天截图和用户误选情况尚无结果。这些是工程验证和受限样本结果，不代表大规模用户需求评估或总体检索准确率。详见[W13 交付与证据](../submissions/week13/README.md)、[裁切实验](chat-screenshot-crop.md)、[数据库与检索设计](database-and-vector-search.md)及[架构决策记录](adrs/README.md)。
+
+**English**
+
+The formal application is served at `/web/`. Users can crop and confirm a
+screenshot in the browser, search the local reference corpus and ready
+private-library assets, then explicitly start a linked web-search job. The
+local demo also offers a small set of fixed meme examples. FastAPI persists
+requests and jobs; a separate worker runs local CLIP retrieval, web search,
+candidate downloads, and decoded-media validation. After user review, the
+original GIF is persisted separately and a versioned multi-frame index is
+built. Ready private assets remain searchable locally after restart and
+without internet access.
+
+PostgreSQL 16 stores account workspaces, requests, jobs, candidates, and asset
+states. Original files and saved NPZ indexes live in persistent media storage.
+The product Compose profile can enable exact pgvector search, with validated
+NPZ fallback. Online search uses HKUST vision by default or HKGAI, and
+DeepSeek for query planning and web search; an isolated `media-fetch` service
+retrieves public media. Review, file persistence, and index readiness are
+separate states. Similarity scores are not probabilities of correctness.
+
+One formal browser acceptance on 28 November 2026 verified real-GIF recovery
+and offline reuse after restart. A multi-frame Top-3 comparison on 12 fixed
+reference GIFs scored 12/12. A new synthetic chat-interface crop evaluation
+improved exact in-library Top-3 but substantially increased out-of-library
+candidates; real-chat performance and user misidentification remain unknown.
+These are engineering checks and limited-sample results, not a large-scale
+user study or an estimate of overall retrieval accuracy. See the [W13 delivery report](../submissions/week13/README.md), the
+[database and retrieval design](database-and-vector-search.md), and the
+[architecture decision records](adrs/README.md).
+
+## Historical W07 implementation snapshot | W07 历史实现快照
+
+The [W07 data-flow diagram](../submissions/week07/assets/10-w07-system-flow.png) has an [editable Mermaid source](../submissions/week07/assets/w07-system-flow.mmd). The captured Windows profile ran native PostgreSQL 16.15 in place of the Docker database described below. This section records that milestone, not the current product boundary; see [W07 evidence](../submissions/week07/README.md).
 
 The current demo is a same-origin web client served by FastAPI. Host Python runs the API and an independent database-backed worker; Docker runs PostgreSQL 16. The API stores the uploaded crop and commits request/job rows before returning 202. The worker claims pending jobs, invokes `services/retrieval/`, and persists candidates or a typed failure. Polling displays pending, running, completed, or failed. Completed searches distinguish candidates from no_candidates. Review and GIF download are separate outcomes.
 

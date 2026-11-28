@@ -343,12 +343,29 @@ def test_shutdown_releases_claimed_but_unstarted_job(client, worker_factory):
 def test_expiry_keeps_metadata_and_active_files(client, db_session, worker_factory):
     state = complete(client, db_session, worker_factory)
     candidate = db_session.get(Candidate, state["candidates"][0]["candidate_id"])
+    candidate.preview_path = f"candidates/{state['job_id']}/preview.png"
+    preview = atomic_write(get_settings().media_root, candidate.preview_path, b"expired preview")
     candidate.cache_expires_at = utcnow() - timedelta(seconds=1)
     job = db_session.get(SearchJob, state["job_id"])
     job.started_at = utcnow() - timedelta(days=9)
     job.finished_at = utcnow() - timedelta(days=8)
     request = db_session.get(SearchRequest, state["request_id"])
     request.created_at = utcnow() - timedelta(days=8)
+    db_session.commit()
+    current_candidate = Candidate(
+        job_id=candidate.job_id,
+        reference_asset_id=candidate.reference_asset_id,
+        rank=2,
+        similarity_score=0.8,
+        local_cache_path=f"candidates/{state['job_id']}/current.gif",
+        preview_path=f"candidates/{state['job_id']}/current.png",
+        frame_count=2,
+        cache_expires_at=utcnow() + timedelta(days=1),
+    )
+    db_session.add(current_candidate)
+    current_preview = atomic_write(
+        get_settings().media_root, current_candidate.preview_path, b"current preview"
+    )
     db_session.commit()
     active = submit(client, key="active").json()
     active_request = db_session.get(SearchRequest, active["request_id"])
@@ -361,18 +378,22 @@ def test_expiry_keeps_metadata_and_active_files(client, db_session, worker_facto
     search_worker.cleanup_media(db_session)
     assert not orphan.exists()
     assert not (get_settings().media_root / candidate.local_cache_path).exists()
+    assert not preview.exists()
+    assert current_preview.exists()
     assert not (get_settings().media_root / request.input_path).exists()
     assert (get_settings().media_root / active_request.input_path).exists()
     assert client.get(state["candidates"][0]["media_url"]).status_code == 410
     assert client.get(f"/search-requests/{state['request_id']}").json()["status"] == "completed"
 
 
+@pytest.mark.parametrize("fail_preview", [False, True])
 def test_cleanup_continues_after_one_file_cannot_be_removed(
     client,
     db_session,
     worker_factory,
     monkeypatch,
     caplog,
+    fail_preview,
 ):
     state = complete(client, db_session, worker_factory)
     candidate = db_session.get(Candidate, state["candidates"][0]["candidate_id"])
@@ -386,27 +407,35 @@ def test_cleanup_continues_after_one_file_cannot_be_removed(
 
     media_root = get_settings().media_root
     candidate_path = media_root / candidate.local_cache_path
+    candidate.preview_path = f"candidates/{state['job_id']}/preview.png"
+    preview_path = atomic_write(media_root, candidate.preview_path, b"expired preview")
+    db_session.commit()
     input_path = media_root / request.input_path
     original_unlink = Path.unlink
+    failing_path = preview_path if fail_preview else candidate_path
 
     def fail_candidate_cleanup(path, *args, **kwargs):
-        if path == candidate_path:
+        if path == failing_path:
             raise PermissionError("test cleanup failure")
         return original_unlink(path, *args, **kwargs)
 
     monkeypatch.setattr(Path, "unlink", fail_candidate_cleanup)
     search_worker.cleanup_media(db_session)
 
-    assert candidate_path.exists()
+    assert candidate_path.exists() is not fail_preview
+    assert preview_path.exists() is fail_preview
     assert not input_path.exists()
+    storage_class = "candidate_preview" if fail_preview else "candidate"
     assert any(
-        record.getMessage() == "stored_file_cleanup_failed" and record.storage_class == "candidate"
+        record.getMessage() == "stored_file_cleanup_failed"
+        and record.storage_class == storage_class
         for record in caplog.records
     )
 
     monkeypatch.setattr(Path, "unlink", original_unlink)
     search_worker.cleanup_media(db_session)
     assert not candidate_path.exists()
+    assert not preview_path.exists()
 
 
 def test_orphan_cleanup_continues_after_one_file_cannot_be_removed(

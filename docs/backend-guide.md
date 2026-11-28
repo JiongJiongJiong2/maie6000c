@@ -1,47 +1,59 @@
-# Backend guide: W07 and post-midterm integration
+# Backend guide | 后端开发与验证
 
-Owner: Haoxuan Jiang (21313230). This implements the backend portion of
-[the team plan](week07-plan.md), not the web client or pretrained retrieval.
-The W04 architecture remains a proposal/history document.
+## Current status / 当前状态 (2026-11-28)
 
-## Status and integration boundary
+**中文**
 
-Implemented: multipart submissions, PostgreSQL migrations, persistent jobs,
-atomic claims, retry/review idempotency, GIF catalog import and validation,
-shared storage, media expiry, and Docker API/worker separation.
+本指南记录当前产品后端，而非 W07 初版。FastAPI 与 PostgreSQL 持久化请求、本地和联网任务、候选、审核、收藏和索引状态；独立 worker 执行 CLIP 本地检索、联网候选处理、媒体校验和收藏索引更新。`services.retrieval` 中的候选处理和索引模块已实现。网页端由独立模块维护，边界见[团队计划](final-project-plan.md)。
 
-Post-midterm backend additions include linked web-search jobs, persisted agent
-execution traces, provenance-bearing temporary candidates, idempotent collection
-into a separate saved-asset table, and a durable saved-index queue. A saved GIF
-is never inserted into `reference_assets` merely because it was collected.
+完整生命周期集成测试使用确定性替身验证提交、worker、候选、审核、收藏、索引和本地复用；它不证明线上供应商可用性或总体检索准确率。2026 年 11 月 28 日的一次真实网页闭环及尚未完成的评估工作见[W13 交付报告](../submissions/week13/README.md)。
+
+**English**
+
+This guide describes the current product backend, not only the original W07
+slice. FastAPI and PostgreSQL persist requests, local and web jobs, candidates,
+reviews, saved assets, and index states. A separate worker runs CLIP retrieval,
+web-candidate processing, media validation, and saved-asset indexing. The
+candidate-processing and saved-index modules are implemented under
+`services.retrieval`. The web client is maintained separately; see the
+[team plan](final-project-plan.md) for ownership boundaries.
+
+The deterministic lifecycle integration test covers submission, worker
+execution, candidate delivery, review, saving, indexing, and local reuse. It
+does not prove live-provider availability or overall retrieval accuracy. The
+[W13 delivery report](../submissions/week13/README.md) records the real browser
+workflow verified on 28 November and the evaluation work that remains open.
+
+## Implementation and integration details
+
+Owner: Haoxuan Jiang. This document covers backend services rather than the
+web-client implementation. The W04 architecture and the W07 submission are
+historical milestones; the [current architecture](architecture.md) summarizes
+the product as of 2026-11-28.
+
+Implemented backend behavior includes multipart submissions, PostgreSQL
+migrations, persistent jobs, atomic claims, retry/review idempotency, GIF
+catalog import and validation, shared storage, media expiry, and Docker
+API/worker separation.
+
+Post-midterm additions include linked web-search jobs, persisted agent
+execution traces, provenance-bearing temporary candidates, idempotent
+collection into a separate saved-asset table, and a durable saved-index queue.
+A saved GIF is not inserted into `reference_assets` merely because it was
+collected.
 
 Migration `20261109_0003` alters existing PostgreSQL tables in place to preserve
 inbound foreign keys; Alembic uses batch table recreation only where SQLite
 requires it. PostgreSQL CI validates migration upgrade, downgrade, and ORM
 metadata consistency. Local SQLite tests and generated PostgreSQL SQL alone
-do not replace that live-database validation.
+do not replace live-database validation.
 
 The worker calls `services.retrieval.search(image_path, top_k=3)` and the
-`services.search_agent` runner in bounded subprocesses. Two YuanJian-owned
-adapters remain required for a real end-to-end web flow:
-
-- `services.retrieval.prepare_candidates(image_path, sources, work_dir, budget)`
-  must return validated, multi-frame GIF candidates. If absent, the web job
-  fails as `candidate_processor_unavailable`; discovered pages are never counted
-  as recovered GIFs.
-- `services.retrieval.index_saved_asset(asset_id)` must update the shared
-  multi-frame index and return an index version (a string or
-  `{"index_version": "..."}`). It must build and validate a replacement before
-  atomically switching the active index, so a failed update leaves the prior
-  index usable. If absent, saved files remain durable with `index_status=failed`
-  and can be retried; they are not reported as searchable.
-
-The local retrieval implementation must return ready saved-asset IDs as well as
-curated reference IDs after an index update. The worker resolves either ID type
-to its separate data model and verifies the media checksum and frame count.
-Automated tests inject deterministic results to verify backend behavior; they
-are not evidence of real external GIF retrieval, index rebuilding, or retrieval
-quality. The client remains Zirui's responsibility.
+`services.search_agent` runner in bounded subprocesses. Candidate processing
+validates downloaded media; saved-index updates validate the original file and
+publish a versioned index before reporting it ready. The worker resolves
+reference and saved-asset IDs through their separate data models and verifies
+media checksums and frame counts.
 
 ## Run (PowerShell, from the repository root)
 
@@ -139,7 +151,9 @@ inference/file operations outside the claim transaction. Candidates and final
 state commit together. Retrieval has a 120-second default subprocess timeout.
 Each candidate must match its catalog checksum, be a fully decoded multi-frame
 GIF, and fit 25 MiB, 20 megapixels per frame, 1000 frames, and 100 megapixels
-total decoding work. At most three are stored.
+total decoding work. The worker enforces the byte limit during the read for
+both web candidates and saved GIFs used in local retrieval, even if a file
+grows after it is created. At most three are stored.
 Scores are finite ranking signals, not probabilities.
 PostgreSQL also rejects non-finite similarity scores, invalid job state/timestamp
 combinations, and terminal times earlier than their start times. The request /
@@ -149,7 +163,7 @@ so no redundant single-column indexes are created.
 Startup recovery changes abandoned `running` jobs to `failed` /
 `worker_interrupted`; it never silently reruns them. A user retry creates a new
 attempt and retains the old failure. Cleanup preserves active inputs and
-metadata, removes expired transport files, and returns `410 media_expired` for
+metadata, removes expired transport files and candidate previews, and returns `410 media_expired` for
 expired candidates. Re-submit with a **new submission key** after media expiry.
 
 ## Corpus import
@@ -314,19 +328,29 @@ CI supplies that connection and verifies migration upgrade/downgrade,
 metadata agreement, eight concurrent duplicate submissions, retries, and
 reviews, row-lock claims, active-job uniqueness, and cross-job review constraints.
 
-For the deployed backend before local retrieval or candidate processing has
-been integrated:
+Run the deterministic full search lifecycle integration test with:
+
+```powershell
+.venv\Scripts\python.exe -m pytest tests\integration\test_web_search_backend.py::test_web_search_lifecycle_save_index_and_local_reuse -q -W error
+```
+
+This test exercises submission, worker processing, candidate delivery,
+acceptance, saving, indexing and local reuse with deterministic test doubles.
+It validates application and persistence contracts, not live provider
+availability or retrieval quality.
+
+For a deployed-stack smoke test, point the test at a running product API:
 
 ```powershell
 $env:SMOKE_BASE_URL="http://localhost:8000"
-$env:SMOKE_EXPECTED_SEARCH_ERROR="retrieval_unavailable"
-pytest tests\smoke\test_smoke_search.py -q
+.venv\Scripts\python.exe -m pytest tests\smoke\test_smoke_search.py -q
 ```
 
-After integrating real retrieval, remove `SMOKE_EXPECTED_SEARCH_ERROR` so any
-failure fails verification. The synthetic smoke crop does not establish
-retrieval accuracy; run the retrieval owner's permitted positive/no-match
-examples separately. Starter smoke tests require the `starter` profile.
+The smoke test must reach a successful terminal state; a failed search is a
+test failure, not an expected result. The synthetic crop and a single request
+do not establish retrieval accuracy or large-scale performance. Evaluate
+permitted positive and no-match examples separately. Starter smoke tests
+require the `starter` profile.
 
 ### Earlier deployed verification
 
@@ -352,6 +376,9 @@ deprecation warnings were present during this historical run. The isolated
 verification stack and its test volumes were removed afterward.
 
 ### Latest dependency and deployment verification
+
+The following is a historical deployment snapshot and predates the current
+successful-search smoke-test requirement:
 
 After the FastAPI/test-client dependency refresh, storage-cleanup regression
 tests, and corpus import improvements, `pytest -q -W error` reported **45 passed,

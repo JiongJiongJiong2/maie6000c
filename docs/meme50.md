@@ -1,5 +1,19 @@
 # 图片主导检索 meme50-v2
 
+## English overview
+
+`meme50-v2` is the image-first, multi-result web-search workflow. It analyzes
+an uploaded image, plans and executes bounded web searches, fetches and
+validates public media through an isolated service, and publishes revisioned
+candidate results for review. HKUST vision is the default, HKGAI is optional,
+and DeepSeek handles query planning and web search. The uploaded image is
+represented by resized frames sent to the configured vision provider; provider
+and data-handling choices therefore matter. The workflow is not pixel-level
+reverse image search and cannot guarantee that every result is the original
+GIF. Recorded live examples are engineering evidence, not a large-scale
+relevance study. See the [W13 delivery report](../submissions/week13/README.md)
+and [provider execution guide](hkust-deepseek-execution.md).
+
 最新已确认重复失败的修复、回归和交付见 [2026-11-13 去重修复](meme50-dedup-fix-20261113.md)。当前去重为 `meme50-temporal-local-v8`；原 v8 评测产物和真人 pending 状态作为历史记录保留。
 
 最新数量、网页、回归及 pending 项见 [v8 结果](meme50-v8-results.md)，修复历史见 [实测记录](meme50-live-20261112.md)，真人操作见 [审阅与复现](meme50-human-review.md)。历史完整验收工具、真实源站修复、新留出及状态见 [2026-11-12 执行报告](meme50-acceptance-20261112.md)。`meme50_acceptance` 提供 probe/run-suite/review/score/finalize；不会将未知标签、零候选或未复现自动判为产品通过。

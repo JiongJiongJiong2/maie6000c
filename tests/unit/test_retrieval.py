@@ -76,6 +76,28 @@ def test_ranking_ties_are_stable_and_top_k_is_applied():
     assert result == [{"reference_asset_id": "a", "score": 1.0}]
 
 
+def test_ranking_preserves_scores_and_threshold():
+    features = np.array([[0.75, 0.5], [0.7, 0.6]], dtype=np.float32)
+    result = retrieval.rank_assets(
+        features,
+        ["lower", "higher"],
+        np.array([0.8, 0.6], dtype=np.float32),
+        2,
+        0.91,
+    )
+    assert result == [{"reference_asset_id": "higher", "score": pytest.approx(0.92)}]
+
+
+def test_ranking_includes_matches_after_the_scoring_batch_boundary():
+    features = np.full((1025, 2), [0.5, 0], dtype=np.float32)
+    features[-1, 0] = 0.95
+    result = retrieval.rank_assets(features, ["asset"] * 1024 + ["best"], np.array([1, 0]), 2, 0.5)
+    assert result == [
+        {"reference_asset_id": "best", "score": pytest.approx(0.95)},
+        {"reference_asset_id": "asset", "score": pytest.approx(0.5)},
+    ]
+
+
 def test_saved_indexes_validate_media_and_join_fixed_ranking(tmp_path, monkeypatch):
     import io
     from types import SimpleNamespace
