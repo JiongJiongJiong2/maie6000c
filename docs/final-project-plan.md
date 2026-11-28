@@ -1,6 +1,10 @@
 # MemeRetrieve 后半程方向与四人任务
 
-确定日期：2026-11-06；分工更新：2026-11-09。负责人：Jiongle He。本文固定中期之后的项目方向、四人主责和交接标准；后续开发以本文为准。首轮采用相对工作日排期，具体课程截止时间由 Jiongle 核对正式作业后补充。
+> **文档状态 / Document status:** 本文形成于 2026-11-06，分工更新于 2026-11-09，记录当时的产品方向、责任边界和评估方案。文中的“待完成”是计划形成时的状态，不是最新进度。当前实现、验证证据和剩余事项请以 [W13 交付报告](../submissions/week13/README.md) 与[期末收尾记录](final-closeout-plan.md)为准。
+>
+> This plan was created on 2026-11-06 and its ownership table was updated on 2026-11-09. It records the scope, ownership, and evaluation protocol at that time. Items described as pending reflect the plan's original status, not the latest project status. See the [W13 delivery report](../submissions/week13/README.md) and [closeout record](final-closeout-plan.md) for current implementation evidence and remaining work.
+
+确定日期：2026-11-06；分工更新：2026-11-09。负责人：Jiongle He。本文记录当时中期之后的项目方向、四人主责和交接标准。首轮采用相对工作日排期，具体课程截止时间由 Jiongle 核对正式作业后补充。
 
 **项目方向**
 

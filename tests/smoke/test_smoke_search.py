@@ -40,18 +40,13 @@ def test_smoke_search_submission_and_terminal_state():
             time.sleep(0.5)
         else:
             pytest.fail("Search worker did not persist a terminal state")
-        if state["status"] == "failed":
-            expected = os.getenv("SMOKE_EXPECTED_SEARCH_ERROR")
-            assert expected, f"Unexpected search failure: {state['error']}"
-            assert state["error"]["code"] == expected
-            assert state["result_kind"] is None
-        else:
-            assert state["error"] is None
-            assert state["result_kind"] in {"candidates", "no_candidates"}
-            assert len(state["candidates"]) <= 3
-            for candidate in state["candidates"]:
-                media = client.get(candidate["media_url"])
-                assert media.status_code == 200
-                with Image.open(io.BytesIO(media.content)) as gif:
-                    assert gif.format == "GIF"
-                    assert getattr(gif, "n_frames", 1) > 1
+        assert state["status"] == "completed", f"Search did not complete: {state}"
+        assert state["error"] is None
+        assert state["result_kind"] in {"candidates", "no_candidates"}
+        assert len(state["candidates"]) <= 3
+        for candidate in state["candidates"]:
+            media = client.get(candidate["media_url"])
+            assert media.status_code == 200
+            with Image.open(io.BytesIO(media.content)) as gif:
+                assert gif.format == "GIF"
+                assert getattr(gif, "n_frames", 1) > 1
