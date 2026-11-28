@@ -23,6 +23,8 @@ test.beforeEach(async ({ page }) => {
             id: "example",
             title: "Mind blown",
             screenshot_url: "/example.png",
+            source_reference: "https://example.org/artist",
+            permission_note: "Artist credit <b>as provided</b>.",
           },
         ],
       },
@@ -42,12 +44,57 @@ test("example picker initializes without AbortSignal.any", async ({ page }) => {
     name: "Local only",
     exact: true,
   });
-  await localOnly.check();
-  await expect(localOnly).toBeChecked();
+  const online = page.getByRole("radio", {
+    name: "Online search",
+    exact: true,
+  });
+  await expect(online).toBeChecked();
+  const requests = [];
+  await page.route("**/search-requests", (route) => {
+    requests.push(route.request().postDataBuffer());
+    return route.fulfill({
+      status: 422,
+      json: { detail: "Stopped after checking upload" },
+    });
+  });
   await page.locator("#demo-library summary").click();
   await page.getByRole("button", { name: "Mind blown", exact: true }).click();
   await expect(page.locator("#file-name")).toHaveText("Mind blown.png");
+  await expect(localOnly).toBeChecked();
+  await expect(page.locator("#demo-credit")).toContainText(
+    "Artist credit <b>as provided</b>.",
+  );
+  await expect(page.locator("#demo-credit b")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "View source" })).toHaveAttribute(
+    "href",
+    "https://example.org/artist",
+  );
   await expect(page.locator("#submit")).toBeEnabled();
+  expect(requests).toHaveLength(0);
+  await page.locator("#submit").click();
+  await expect.poll(() => requests.length).toBe(1);
+  expect(requests[0].includes(exampleImage)).toBe(true);
+  expect(requests[0].includes(Buffer.from('name="search_profile"'))).toBe(
+    false,
+  );
+  await online.check();
+  await expect(online).toBeChecked();
+  await expect(page.locator("#file-name")).toHaveText("Mind blown.png");
+  await expect(page.locator("#demo-credit")).toContainText("Artist credit");
+  await page.locator("#submit").click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1].includes(exampleImage)).toBe(true);
+  expect(requests[1].includes(Buffer.from('name="search_profile"'))).toBe(true);
+  expect(requests[1].includes(Buffer.from("meme50-v2"))).toBe(true);
+  await expect(page.locator("#file-input")).toBeEnabled();
+  await page.locator("#file-input").setInputFiles({
+    name: "own.png",
+    mimeType: "image/png",
+    buffer: exampleImage,
+  });
+  await expect(page.locator("#file-name")).toHaveText("own.png");
+  await expect(online).toBeChecked();
+  await expect(page.locator("#demo-credit")).toBeHidden();
   expect(errors).toEqual([]);
 });
 

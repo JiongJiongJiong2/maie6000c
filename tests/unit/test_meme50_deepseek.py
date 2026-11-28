@@ -296,6 +296,106 @@ def test_verification_binds_to_actual_search_url_and_query_limit(monkeypatch):
 
 
 @pytest.mark.parametrize(
+    "user_text,ocr_text,first_response,second_query,expected,trace_origin",
+    [
+        ("找哈吉米", "", "empty", "猫摇头 GIF", "哈基米 猫摇头 GIF", "user_text"),
+        ("", "哈基米", "empty", "哈基米 摇头 GIF", "哈吉米 摇头 GIF", "ocr"),
+        ("找哈吉米", "", "error", "猫摇头 GIF", "猫摇头 GIF", None),
+        ("找哈吉米", "", "source", "猫摇头 GIF", "猫摇头 GIF", None),
+        ("找猫图", "", "empty", "猫摇头 GIF", "猫摇头 GIF", None),
+        ("找哈吉米", "", "empty", "哈基米 猫摇头 GIF", "哈基米 猫摇头 GIF", None),
+        ("不是哈吉米，是奶龙", "哈吉米", "empty", "猫摇头 GIF", "猫摇头 GIF", None),
+        ("不要搜哈基米", "哈吉米", "empty", "猫摇头 GIF", "猫摇头 GIF", None),
+    ],
+)
+def test_empty_keyword_search_may_adapt_one_remaining_query(
+    monkeypatch, tmp_path, user_text, ocr_text, first_response, second_query, expected, trace_origin
+):
+    from types import SimpleNamespace
+
+    from services.search_agent import meme_pipeline as pipeline
+
+    searched = []
+
+    def request(method, url, ledger, **kwargs):
+        assert url == "https://api.deepseek.com/v1/tools/search"
+        searched.append(kwargs["json"]["query"])
+        if len(searched) == 1:
+            if first_response == "error":
+                raise PipelineError("deepseek_service_error")
+            if first_response == "source":
+                return {"results": [{"url": "https://example.org/post"}]}
+        return {"results": []}
+
+    monkeypatch.setattr(deepseek, "bounded_json", request)
+    path = tmp_path / "哈吉米.png"  # Never source a character hypothesis from the filename.
+    screenshot = Image.new("RGB", (20, 20), "orange")
+    screenshot.save(path)
+    first_query = "哈基米举爪" if ocr_text == "哈基米" else "哈吉米举爪"
+    analysis = VisualAnalysis(
+        ocr_text=ocr_text,
+        queries=[
+            Query(text=first_query, angle="appearance"),
+            Query(text=second_query, angle="action"),
+        ],
+    )
+    monkeypatch.setattr(pipeline, "analyze_image", lambda *_: (analysis, [screenshot]))
+    monkeypatch.setattr(pipeline, "verify_entities", lambda analysis, *a, **kw: (analysis, []))
+    monkeypatch.setattr(deepseek.DeepSeekQueryPlanner, "plan", lambda self, a: a.queries)
+    result = pipeline.search_memes(
+        path,
+        user_text,
+        tmp_path / "work",
+        settings=settings().model_copy(
+            update={"max_queries": 2, "max_search_calls": 2, "max_pages": 0}
+        ),
+        embeddings=SimpleNamespace(
+            load_model=lambda: None,
+            encode_images=lambda frames: np.ones((len(frames), 1)),
+            encode_texts=lambda texts: np.ones((len(texts), 1)),
+        ),
+    )
+    assert searched == [first_query, expected]
+    assert result["ledger"]["queries"] == result["ledger"]["search_calls"] == 2
+    assert result["status"] == "completed" and result["candidate_keys"] == []
+    notes = [t["details"] for t in result["trace"] if t["step"] == "empty_keyword_spelling_retry"]
+    assert [note["origin"] for note in notes] == ([trace_origin] if trace_origin else [])
+
+
+def test_spelling_retry_keeps_source_and_broad_slots_and_preserves_quoted_caption():
+    ledger = Ledger(settings())
+    text = "哈吉米 动图，来自 Tenor"
+    plan = deepseek.prioritize_user_source(
+        [
+            Query(text="哈吉米摇头", angle="action"),
+            Query(text='"哈吉米在此" 摇头', angle="appearance"),
+        ],
+        text,
+        3,
+        ledger,
+    )
+    original_plan = [q.text for q in plan]
+    assert len(plan) == 3 and plan[0].text.startswith("site:tenor.com ")
+    assert not deepseek.recover_hakimi_spelling(plan[:2], 0, text, "", ledger)
+    assert deepseek.recover_hakimi_spelling(plan, 0, text, "", ledger)
+    assert [q.text for q in plan] == [*original_plan[:2], '哈基米 "哈吉米在此" 摇头']
+
+
+def test_spelling_retry_requires_the_original_spelling_in_the_actual_empty_query():
+    plan = [Query(text="摇头", angle="action"), Query(text="猫摇头 GIF", angle="appearance")]
+    assert not deepseek.recover_hakimi_spelling(plan, 0, "找哈吉米", "", Ledger(settings()))
+    assert plan[1].text == "猫摇头 GIF"
+
+
+def test_spelling_retry_needs_an_unused_search_call_as_well_as_a_planned_query():
+    ledger = Ledger(settings())
+    ledger.take("search_calls", ledger.settings.max_search_calls)
+    plan = [Query(text="哈吉米摇头", angle="action"), Query(text="猫摇头", angle="appearance")]
+    assert not deepseek.recover_hakimi_spelling(plan, 0, "找哈吉米", "", ledger)
+    assert plan[1].text == "猫摇头"
+
+
+@pytest.mark.parametrize(
     "data",
     [
         {"choices": [{"finish_reason": "length", "message": {"content": "{}"}}]},

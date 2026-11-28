@@ -1,0 +1,33 @@
+{
+  "version": "cn-course-v1",
+  "assets": [
+    {
+      "id": "hakimi-phone",
+      "title": "哈吉米接电话",
+      "sha256": "e2a811a4c6c4dce9155788ed9a36de25db982dd96ecfffd63f76737aa2c7b530",
+      "source_page": "https://y-g-jiang.github.io/hakimi.html",
+      "permission_note": "哈基米猫梗收集页「中猫 电话」。本机课程试用，原始作者与再分发许可待核实。"
+    },
+    {
+      "id": "nailong",
+      "title": "奶龙",
+      "sha256": "dd21db42963c97f28ba36dcdc46fc176e861818efbf5a0555fd79b70af5f53ae",
+      "source_page": "https://naiwahub.com/zh/memes/gh-nailong-memes-dd21db42963c",
+      "permission_note": "NaiwaHub 收录的奶龙本体动图。本机课程试用，角色与单张作品的再分发许可待核实。"
+    },
+    {
+      "id": "feidudu-snow",
+      "title": "肥嘟嘟在雪地摇摆",
+      "sha256": "b126c8f24fc4858334447fe4d3ce3b979302436d9d515c152fab351d7ee6d35c",
+      "source_page": "https://naiwahub.com/zh/memes/dot-feidudu-b126c8f24fc4",
+      "permission_note": "NaiwaHub 社区收录的袋鼠头企鹅动图。本机课程试用，品牌归属与再分发许可待核实。"
+    },
+    {
+      "id": "finish-code",
+      "title": "回来把代码写完",
+      "sha256": "354b53075f9c2a10bfbb5ffbd235c3ccda21924ecfc5550f7628c8efd7a17bdd",
+      "source_page": "https://github.com/shumengya/meme-api/blob/d452126069915ee401a125227081cb7ba7ece4b3/public/meme/%E7%A8%8B%E5%BA%8F%E5%91%98/37.gif",
+      "permission_note": "萌芽表情包图库 shumengya/meme-api，程序员分类第 37 项。图库标注 CC BY-NC-SA 4.0，本机课程试用。"
+    }
+  ]
+}

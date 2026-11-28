@@ -1,8 +1,26 @@
 # MemeRetrieve 期末收尾计划
 
-计划日期为 2026-11-27。范围和四人分工沿用[后半程项目计划](final-project-plan.md)。本轮在 PR #10 的私人表情库代码线上推进。正式入口为 `/web/`，主流程是截图本地检索、主动联网续搜、找回原 GIF、确认收藏和后续本地复用。私人库的批量导入、备份还原和可选识别一并做集成回归。
+计划日期为 2026-11-27。范围和四人分工沿用[后半程项目计划](final-project-plan.md)。本页同时保留阶段计划、当时的分支快照和后续实际验收记录，应结合各节日期阅读；当前汇总见[W13 交付报告](../submissions/week13/README.md)。
 
-## 11 月 28 日开发交付快照
+## 当前状态 / Current status
+
+**中文**
+
+截至 2026-11-28，正式网页已完成一条真实媒体闭环：本地未命中、联网找回、确认收藏、索引就绪、重启并阻断外联后离线再次命中；两次下载与独立原件逐字节一致。12 个固定参考 GIF 的多帧对照也已完成，但样本规模有限。至少 30 个真实需求的 A/B/C 评估、真人判分、四位成员独立复现签收及课程平台提交回执仍待团队确认。下方分支表是验收开始时的历史快照，不代表当前分支状态。
+
+**English**
+
+As of 28 November 2026, the formal web application completed one real-media
+workflow: local no-match, online recovery, user confirmation, index readiness,
+and an offline re-match after restart with external access blocked. Both
+downloads were byte-identical to an independently retained original. A
+multi-frame comparison on 12 fixed reference GIFs was also completed, but its
+sample is limited. The A/B/C study on at least 30 real requests, human scoring,
+independent reproduction sign-offs from all four members, and the course
+submission receipt still require team confirmation. The branch table below is
+a historical snapshot from the start of acceptance, not a current branch map.
+
+## 11 月 28 日开发交付快照 / 28 November development snapshot
 
 当日核对 GitHub 共 18 个分支。开始验收时，`dev` 在 `1e8feb0`，已集成多帧截图检索、持久化搜索、在线候选获取、动画校验、去重和原件下载。最近一次有完整记录的真实网页任务返回 48 个文件，含 25 个动画，逐个验证了解码和原件 SHA-256。该记录可支撑这些功能的演示；真实用户截图的原 GIF Top-3 命中率另按独立样本统计。[真实媒体验收](meme50-dedup-fix-20261113.md)
 

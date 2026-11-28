@@ -1,6 +1,16 @@
-# Local end-to-end demo
+# W07 local demo | W07 本地演示
 
 This local integration connects Zirui's web client, Haoxuan's W07 API and PostgreSQL worker, and a completed CLIP retrieval adapter based on YuanJian's image encoder. It runs real inference over 12 attributed animated reaction GIFs. No mock search responses or test-only routes are used by the application.
+
+## Scope and status | 范围与状态
+
+This guide describes the W07 local, small-corpus profile: host-run API and
+worker, Docker PostgreSQL, and local CLIP search over 12 reference GIFs. It
+does not describe the current online-search, account, private-library, or
+pgvector product deployment. For the current product workflow, use the
+[product deployment guide](product-deployment.md) and [W13 evidence](../submissions/week13/README.md).
+
+本文记录 W07 本地小语料配置：主机运行 API 和 worker、Docker 运行 PostgreSQL，并用 CLIP 检索 12 个参考 GIF。它不代表当前包含联网搜索、账户、私人库和 pgvector 的正式产品部署。当前产品流程请看[产品部署指南](product-deployment.md)及[W13 验收证据](../submissions/week13/README.md)。
 
 ## Start
 
@@ -56,12 +66,26 @@ This starts PostgreSQL on loopback port 55432 with the password in the ignored `
 ### Browser walkthrough
 
 1. Scroll to **Okay, show us the evidence.**
-2. Upload a PNG/JPEG/WebP crop, or expand **No screenshot? Borrow some evidence.** and choose a reaction. These examples are actual frames extracted from the library; the picker creates a normal PNG upload.
+2. Upload a PNG/JPEG/WebP crop, or expand **No screenshot? Borrow some evidence.** and choose an example. Choosing a library example selects **Local only** and loads a frame from its original GIF as a regular PNG upload. You can still switch search modes before submitting.
 3. Click **Find my GIF**. The API persists the input and a pending job. The independent worker claims it, performs local CLIP inference, and stores the ranked candidates.
 4. Click **This is the one** to save your choice, then **Download GIF**. The download contains the original multi-frame animation.
 5. Refresh to restore the current browser search. **Start a new search** allows another upload; **None of these match** stores a rejection.
 
-Example PNGs are also available in `data/reference/examples/`. Try `1f92f.png` (Mind blown), `1f47b.png` (Boo crew), or `1f916.png` (Robot friend). Only the 12-GIF local collection is searchable. Arbitrary screenshots from the internet may have no corresponding GIF here.
+The default reference collection has 12 Noto GIFs. Standalone example frames for those files are in `data/reference/examples/`. A prepared local course benchmark can also supply four Chinese meme examples for this page.
+
+### Use the four examples from the local benchmark
+
+With the [Chinese evaluation corpus](retrieval-benchmark-at-scale.md) already present, run the following from the repository root before starting the demo. The preparation step verifies each selected original against its frozen SHA-256. The normal demo launcher imports the resulting manifest into its database at startup.
+
+```powershell
+.\.venv\Scripts\python.exe scripts/prepare_demo.py --evaluation-library .cache/meme-eval-cn
+.\.venv\Scripts\python.exe -m services.retrieval.engine index
+.\.venv\Scripts\python.exe scripts/run_windows_demo.py
+```
+
+The local picker will show 哈吉米接电话、奶龙、肥嘟嘟在雪地摇摆 and 回来把代码写完 ahead of the existing examples. This 16-GIF demo index contains 124 frame vectors. The larger quantitative benchmark uses its own indexes. The example media stay in the local course installation. The checked-in [selection](demo-evaluation-examples.json) identifies the source and use conditions for each asset.
+
+All four example PNGs went through the local API and worker. In each case the first-ranked download matched the benchmark GIF byte for byte. The [acceptance record](evidence/home-example-retrieval-20261128.json) includes the query hash, download hash and decoded frame count.
 
 ## Retrieval and provenance
 

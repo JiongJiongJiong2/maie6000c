@@ -79,7 +79,14 @@ def build_index() -> dict:
 
 
 def rank_assets(embeddings, asset_ids, query, top_k: int, minimum: float) -> list[dict]:
-    scores = np.sum(embeddings * query, axis=1, dtype=np.float64)
+    scores = np.empty(len(embeddings), dtype=np.float64)
+    for start in range(0, len(embeddings), 1024):
+        stop = start + 1024
+        scores[start:stop] = np.sum(
+            embeddings[start:stop] * query,
+            axis=1,
+            dtype=np.float64,
+        )
     best = {}
     for asset_id, score in zip(asset_ids, scores, strict=True):
         best[str(asset_id)] = max(float(score), best.get(str(asset_id), -1.0))

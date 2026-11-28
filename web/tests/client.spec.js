@@ -70,6 +70,164 @@ function key(body) {
   return body.match(/name="client_submission_key"\r\n\r\n([^\r]+)/)?.[1];
 }
 
+for (const mode of ["Online search", "Local only"]) {
+  test(`a pasted screenshot sends only the applied crop in ${mode}`, async ({
+    page,
+  }) => {
+    const captured = await fixtures(page);
+    await page.evaluate(async () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 100;
+      canvas.height = 80;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "red";
+      ctx.fillRect(0, 0, 100, 80);
+      ctx.fillStyle = "blue";
+      ctx.fillRect(25, 20, 50, 40);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve));
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([blob], "chat.png", { type: blob.type }));
+      document.body.dispatchEvent(
+        new ClipboardEvent("paste", { bubbles: true, clipboardData: transfer }),
+      );
+    });
+    await page.locator("#crop-open").click();
+    const stage = page.locator("#crop-stage");
+    await stage.scrollIntoViewIfNeeded();
+    const bounds = await stage.boundingBox();
+    await page.mouse.move(
+      bounds.x + bounds.width * 0.75,
+      bounds.y + bounds.height * 0.75,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      bounds.x + bounds.width * 0.25,
+      bounds.y + bounds.height * 0.25,
+    );
+    await page.mouse.up();
+    await expect(page.locator("#crop-size")).toContainText("50 × 40 px");
+    await page.locator("#crop-apply").click();
+    await expect(page.locator("#file-name")).toHaveText("screenshot-crop.png");
+    await page.getByRole("radio", { name: mode, exact: true }).check();
+    await expect(page.locator("#crop-restore")).toBeVisible();
+    expect(captured.uploads).toHaveLength(0);
+
+    const sending = page.waitForRequest("**/search-requests");
+    await page.locator("#submit").click();
+    const sent = await sending;
+    const form = await new Response(sent.postDataBuffer(), {
+      headers: { "Content-Type": sent.headers()["content-type"] },
+    }).formData();
+    expect(form.get("search_profile")).toBe(
+      mode === "Online search" ? "meme50-v2" : null,
+    );
+    const sentFile = form.get("image");
+    expect(sentFile.name).toBe("screenshot-crop.png");
+    expect(sent.postDataBuffer().includes(Buffer.from("chat.png"))).toBe(false);
+    const pixels = await page.evaluate(
+      async (bytes) => {
+        const image = await createImageBitmap(
+          new Blob([Uint8Array.from(bytes)], { type: "image/png" }),
+        );
+        const canvas = document.createElement("canvas");
+        canvas.width = image.width;
+        canvas.height = image.height;
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0);
+        const rgba = context.getImageData(0, 0, image.width, image.height).data;
+        const blueOnly = rgba.every(
+          (value, index) => value === (index % 4 < 2 ? 0 : 255),
+        );
+        return [image.width, image.height, blueOnly];
+      },
+      [...new Uint8Array(await sentFile.arrayBuffer())],
+    );
+    expect(pixels).toEqual([50, 40, true]);
+    expect(captured.errors).toEqual([]);
+  });
+}
+
+test.describe("mobile touchscreen", () => {
+  test.use({ hasTouch: true, viewport: { width: 360, height: 740 } });
+  test("touch drag selects the visible part of the screenshot", async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(
+      browserName !== "chromium",
+      "Touch gestures use Chromium's input API.",
+    );
+    const captured = await fixtures(page);
+    await page
+      .locator("#file-input")
+      .setInputFiles({ name: "chat.png", mimeType: "image/png", buffer: png });
+    await page.locator("#crop-open").tap();
+    await expect(page.locator("#crop-title")).toBeFocused();
+    const stage = page.locator("#crop-stage");
+    await stage.scrollIntoViewIfNeeded();
+    const bounds = await stage.boundingBox();
+    const touch = await page.context().newCDPSession(page);
+    for (const [type, position] of [
+      ["touchStart", 0.25],
+      ["touchMove", 0.75],
+    ]) {
+      await touch.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: [
+          {
+            x: bounds.x + bounds.width * position,
+            y: bounds.y + bounds.height * position,
+          },
+        ],
+      });
+    }
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    await expect(page.locator("#crop-size")).toContainText("12 × 12 px");
+    await page.locator("#crop-apply").tap();
+    await expect(page.locator("#file-name")).toHaveText("screenshot-crop.png");
+    expect(captured.uploads).toHaveLength(0);
+  });
+});
+
+test("keyboard crop can be cancelled or restored byte-for-byte on a narrow screen", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  const captured = await fixtures(page);
+  await page
+    .locator("#file-input")
+    .setInputFiles({ name: "old.png", mimeType: "image/png", buffer: png });
+  await page.locator("#crop-open").click();
+  const right = page.getByRole("spinbutton", { name: "Right", exact: true });
+  await right.fill("0");
+  await expect(page.locator("#crop-apply")).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#file-name")).toHaveText("old.png");
+  await page.locator("#crop-open").press("Enter");
+  await expect(right).toHaveValue("24");
+  await right.fill("12");
+  await page.locator("#crop-apply").press("Enter");
+  await expect(page.locator("#file-name")).toHaveText("screenshot-crop.png");
+  await page.reload();
+  await page.locator("#crop-open").click();
+  await expect(right).toHaveValue("12");
+  await right.fill("6");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.locator("#file-name")).toHaveText("screenshot-crop.png");
+  await page.locator("#crop-restore").click();
+  await expect(page.locator("#file-name")).toHaveText("old.png");
+  await expect(page.locator("#crop-restore")).toBeHidden();
+  expect(captured.uploads).toHaveLength(0);
+  const sending = page.waitForRequest("**/search-requests");
+  await page.locator("#submit").click();
+  const sent = await sending;
+  expect(sent.postDataBuffer().includes(png)).toBe(true);
+  expect(captured.errors).toEqual([]);
+});
+
 test("upload, state progression, authenticated animation, review and download are separate", async ({
   page,
 }) => {

@@ -10,7 +10,7 @@ def test_client_and_assets_are_served_without_shadowing_api(client):
     assert "MemeRetrieve" in page.text
     assert 'src="./app.js"' in page.text
     for asset in (
-        "app.js", "api.js", "store.js", "meme50.js", "share.js", "styles.css",
+        "app.js", "api.js", "crop.js", "store.js", "meme50.js", "share.js", "styles.css",
         "home.css", "home.js", "motion.js",
     ):
         response = client.get(f"/web/{asset}")
@@ -40,7 +40,7 @@ def test_module_types_do_not_depend_on_windows_registry(client, monkeypatch):
 
     mimetypes.init()
     monkeypatch.setitem(mimetypes.types_map, ".js", "text/plain")
-    for asset in ("app.js", "api.js", "store.js", "meme50.js", "share.js"):
+    for asset in ("app.js", "api.js", "crop.js", "store.js", "meme50.js", "share.js"):
         response = client.get(f"/web/{asset}")
         assert response.status_code == 200
         assert response.headers["content-type"].split(";")[0] == "text/javascript"

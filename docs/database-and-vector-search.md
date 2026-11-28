@@ -1,5 +1,21 @@
 # MemeRetrieve 数据库与向量检索设计
 
+## English summary
+
+The product stores relational state in PostgreSQL 16 and original GIFs in
+persistent media storage. A pinned CLIP model produces normalized 512-dimensional
+vectors for up to eight sampled frames per GIF. Product Compose can use exact
+pgvector search; validated NPZ indexes remain available as a durable fallback.
+Account workspaces have separate schemas and media roots, while reference
+assets and model weights are shared. Search scores are similarity rankings,
+not calibrated probabilities.
+
+The 12-GIF corpus comparison and the 28 November real-media browser run are
+specific engineering checks, not a large-scale user study. See the [W13
+delivery report](../submissions/week13/README.md) for evidence and outstanding
+evaluation work, and the [deployment guide](product-deployment.md) for
+operational procedures.
+
 PostgreSQL 16 保存账户、任务、收藏和索引状态，共享媒体卷保存原始 GIF。固定 CLIP 产生 512 维图像帧向量。产品 Docker 配置使用 pgvector 执行精确匹配，现有 NPZ 文件同时充当可验证的持久备份与检索回退。原件、账户和 API 标识沿用原格式。[部署与升级](product-deployment.md)
 
 ## 已实现的关系数据
@@ -32,6 +48,29 @@ erDiagram
 
 关系模型和迁移是校验依据。 [任务、候选与资产模型](../services/common/search_models.py) · [私有库模型](../services/common/library_models.py) · [账户注册表](../services/common/accounts.py)
 
+### Relational model and constraints
+
+The global `library_accounts` registry maps each account to a unique workspace.
+Within a workspace, a request can have a local search, linked web searches,
+and explicit retries. Submission, web-search, retry, review, and save keys
+provide idempotent replay and reject changed payloads. A partial unique index
+allows at most one pending or running job per request; workers claim jobs
+using `FOR UPDATE SKIP LOCKED`.
+
+Candidates belong to a job and retain media provenance. They can refer to
+either a curated reference asset or a previously saved asset, which remain
+separate data models. Reviews must target a candidate from the same job.
+Saved assets are deduplicated by SHA-256 within a workspace; saving the
+original and making its derived index ready are separate operations.
+
+Library imports bind a batch key to a manifest digest. Each item has a stable
+client item ID and reports imported, duplicate, or rejected status. Manual
+metadata, consent-gated AI annotations, and similarity scans are tracked
+separately. The SQLAlchemy models and migrations are the schema source of
+truth: [search models](../services/common/search_models.py),
+[library models](../services/common/library_models.py), and
+[account registry](../services/common/accounts.py).
+
 ## 账户和生命周期
 
 开启 `ACCOUNT_LOGIN_ENABLED` 后，API 根据随机会话令牌的摘要查找有效账户，再由服务端选定 workspace。请求携带的账号标识只用于检测页面会话是否已经切换。PostgreSQL 的公共注册表和原单用户库位于 `public`。新账户使用 `acct_<uuid>` 独立 schema 和 `MEDIA_ROOT/accounts/<workspace>`，SQLite 开发环境则使用该目录下的独立数据库文件。账号数据库连接只查自己的 schema，worker 按已登记 workspace 扫描队列。原单用户库可由部署者使用有时效的 owner setup 绑定，资产和索引路径沿用原路径。固定参考素材与模型权重是共享只读资源，参考资产关系在开户时复制，语料变更要同步已有 schema 的参考元数据。 [账户中间件](../services/api/app/accounts.py) · [workspace 配置](../services/common/config.py) · [账户创建](../services/common/accounts.py)
@@ -40,6 +79,30 @@ erDiagram
 
 任务输入和候选媒体有默认 7 天保留窗口。worker 跳过仍有活动任务或近期完成任务的输入，清理过期候选原媒体以及已到期、任务不活跃的草稿，扫除超过一天的无引用文件。收藏原件及其当前索引独立保留。候选元数据、已发布预览、旧索引版本和任务 trace 没有完整的自动删除策略，需另定保留期。若增加主动删除，建议先把资产和所有代索引标为不可检索，在事务内处理导入与收藏回执的引用关系，再由可重试的清理任务去除文件和衍生向量。对历史任务应保留明确的已删除状态，既有幂等键不得复活原资产。 [worker 清理](../services/worker/app/search_worker.py) · [收藏文件发布锁](../services/common/saved_publish.py)
 
+### Accounts and lifecycle
+
+When account login is enabled, the API resolves a random session token by its
+stored digest and selects the workspace server-side. The account identifier
+sent by the client is only used to detect a changed browser session. The
+global registry and legacy single-user data live in `public`; each new
+account gets its own PostgreSQL schema and media root. SQLite development
+uses a separate database file per workspace. The worker scans registered
+workspaces. Shared reference assets and model weights are read-only resources.
+
+Isolation currently relies on application session routing, PostgreSQL schema
+search paths, and media roots; the database role itself may still access
+multiple schemas. Public deployment requiring database-enforced tenant
+isolation needs a separate least-privilege role and migration design.
+
+Inputs and candidate media have a default seven-day retention window. The
+worker preserves files used by active or recent jobs, removes expired
+candidates and inactive drafts, and cleans unreferenced files older than one
+day. Saved originals and their active indexes are retained independently.
+Candidate metadata, published previews, old index versions, and job traces do
+not yet have a complete automatic deletion policy. A future deletion flow
+should mark assets and derived indexes unavailable before removing files and
+vectors through a retryable cleanup job.
+
 ## 已实现的向量读写
 
 CLIP 模型为 `openai/clip-vit-base-patch32`，修订 `37000f5cdccec47a3f6f83142bff131370757470`。权重预先下载，运行时从本机加载。图像转 RGBA 后叠白底进入编码器，输出 512 维、L2 归一化的 `float32`。每个 GIF 均匀抽取至多 8 帧，包含端点。参考库使用 `gif-frames.npz`，保存语料清单摘要、语料与模型版本、帧序号、素材 ID 和矩阵。W07 的 12 个参考 GIF 有 96 个向量。 [编码器](../services/retrieval/encoder.py) · [参考索引与查询](../services/retrieval/engine.py) · [W07 运行说明](local-demo.md)
@@ -47,6 +110,32 @@ CLIP 模型为 `openai/clip-vit-base-patch32`，修订 `37000f5cdccec47a3f6f8314
 收藏或导入把原字节和元数据持久化后，worker 领取索引任务。校验原件 SHA、大小和帧数，生成 `saved-index/<asset_id>/<index_version>.npz` 并原子发布。版本绑定资产 ID、原件 SHA、模型、文件格式、采样版本和帧数。写后重读校验通过才更新为 `ready`，失败保留原资产并可重试。程序重启将中断的索引标为失败。ZIP 用户备份搬运原 GIF 和选定元数据，目的库通过任务重建向量。 [收藏索引](../services/retrieval/saved_index.py) · [索引状态转换](../services/worker/app/search_worker.py)
 
 本地搜图对新截图编码，读取固定矩阵与当前库的 ready 收藏向量。收藏读取时检查 NPZ 形状、有限值、版本和原文件 SHA，遇到坏索引则跳过并记录日志。精确归一化点积按 GIF 的最高帧分聚合，按得分降序、ID 排序处理并列，最多返回 3 个资产。实验阈值默认 `0.82`，分数是相似度。私有库的文字查询走标题、人工标签、OCR 及语义规则，联网补搜对实际下载候选单独计算临时表示与重排。两者的评测与本地图像向量索引分开。 [私有库查询](../services/api/app/library.py) · [外网媒体排序](../services/search_agent/meme_pipeline.py)
+
+### Vector creation and local search
+
+The pinned encoder is `openai/clip-vit-base-patch32` at revision
+`37000f5cdccec47a3f6f83142bff131370757470`. It produces normalized,
+512-dimensional `float32` vectors. Up to eight evenly spaced frames,
+including endpoints, are sampled per GIF. The public reference index stores
+the corpus-manifest digest, corpus and model versions, frame numbers, asset
+IDs, and vector matrix.
+
+After an original GIF and metadata are durably saved, the worker claims an
+index job. It verifies the original's SHA-256, size, and frame count, writes a
+versioned NPZ atomically, and reads it back for validation before marking the
+asset `ready`. The version binds the asset, original checksum, model,
+sampling, file format, and frame count. A failed or interrupted update keeps
+the original saved and exposes a retryable failed state. Backups preserve the
+original GIF and selected metadata; the destination rebuilds derived vectors.
+
+For local image search, the query is encoded and compared with the reference
+matrix and ready saved-asset vectors. Saved indexes are checked for shape,
+finite values, version, and original-media checksum; invalid indexes are
+skipped and logged. Normalized dot products are aggregated by the highest
+frame score per GIF. Results are ordered by score, then ID for stable ties,
+and limited to three assets. The experimental default threshold is `0.82`;
+scores are similarity signals, not probabilities. Private-library text search
+and online-candidate ranking are separate evaluation paths.
 
 ## 容量与演进条件
 
@@ -62,6 +151,35 @@ CLIP 模型为 `openai/clip-vit-base-patch32`，修订 `37000f5cdccec47a3f6f8314
 
 每次比较都核对租户隔离、索引完整、备份还原和磁盘成本。单账户媒体目录、每账户迁移和单 worker 顺序轮询有各自的扩容边界。向量索引对队列调度和关系表访问没有直接收益。
 
+### Capacity and evolution criteria
+
+Each raw vector occupies 2 KiB; eight frames require about 16 KiB per GIF.
+Two thousand eight-frame saved GIFs require about 31.25 MiB of raw vectors,
+and ten thousand require about 156.25 MiB, before NPZ files, decompressed
+matrices, scoring temporaries, and media reads. Exact ranking grows linearly
+with the number of frames. A query also starts a subprocess, loads the local
+model, opens saved NPZ files, and re-reads and hashes originals.
+
+Measure queue wait, model startup and encoding, index reads and original-file
+verification, and similarity scoring separately before optimizing. The
+proposed benchmark uses 100, 1,000, 5,000, and 10,000 saved assets per account,
+with cold and warm runs and concurrency 1 and 4. Record P50/P95 latency, RSS,
+disk reads, failures, and index-readiness time. Compare original-GIF SHA,
+Top-3 IDs, threshold-edge cases, no-match cases, and ties. These are proposed
+decision thresholds, not achieved measurements:
+
+| Trigger | Evaluation action |
+|---|---|
+| Model cold start or file validation dominates | Evaluate controlled process reuse, per-workspace matrix snapshots, batched validation, or background integrity checks while retaining checksum and download-time validation. |
+| Hot exact search P95 remains above 300 ms and dominates end-to-end time | Test exact pgvector search on a cloned database. The proposed goal is at least 30% lower hot-search P95 with equivalent threshold semantics and nearly identical ranking. |
+| Exact pgvector still exceeds the budget | Test HNSW on a separate held-out set. Proposed gates are asset-level Recall@3 of at least 0.98, no loss of exact original-GIF hits, and repeatable end-to-end P95 improvement. Fall back to exact search when candidates or index versions are incomplete. |
+
+Every comparison must also check workspace isolation, index completeness,
+backup/restore, and disk cost. Per-account media directories, per-account
+migrations, and single-worker sequential polling each have separate scaling
+limits. A vector index does not accelerate queue scheduling or relational
+table access.
+
 ## PostgreSQL 图像帧与动画检索
 
 每个索引条目是一张图像帧的 512 维 CLIP 向量。动画 GIF 取最多八张代表帧，离线搜索把用户的新截图编码为查询向量，对每个 GIF 取最高帧分，再按素材返回 Top-3。用户上传的截图使用现有任务输入保留期，检索向量在请求内计算。私人库的收藏与导入接收原始动画 GIF。
@@ -74,8 +192,46 @@ CLIP 模型为 `openai/clip-vit-base-patch32`，修订 `37000f5cdccec47a3f6f8314
 
 PostgreSQL 用准确的余弦距离计算帧分、按资产取最高分。扩展不可用、向量不完整、版本不符或数值临界可能影响顺序时，查询回退到经过校验的 NPZ。原件读取继续校验 SHA，参考和私人收藏的 NPZ 文件及文件格式都保持兼容。规模增长后可用前述基准判断是否需要 HNSW。[pgvector 精确与近似检索](https://github.com/pgvector/pgvector#indexing)
 
+### PostgreSQL frame-vector search
+
+Each vector represents one GIF frame. A GIF contributes up to eight sampled
+frames; a screenshot is encoded once, compared with those vectors, and each
+asset is ranked by its best frame. Local search returns up to three assets.
+Screenshot uploads follow the existing task-input retention policy; query
+vectors are computed per request. Private-library imports and saves retain
+the original animated GIF.
+
+| Storage | Scope and constraints |
+|---|---|
+| Public reference frames | Mirror the fixed corpus. The corpus version, manifest SHA-256, and model revision identify the readable vector generation. |
+| `saved_vector_versions` | Per-workspace asset/version primary key; stores the original SHA-256 and expected frame count. Asset deletion cascades to derived rows. |
+| `saved_frame_vectors` | Per-workspace asset/version/frame primary key; stores `vector(512)`. All frames for one version commit together. |
+
+PostgreSQL computes exact cosine distance and aggregates by the best frame per
+asset. If the extension is unavailable, vectors are incomplete, versions
+mismatch, or numeric proximity could affect ordering, search falls back to
+validated NPZ data. Original media is still checked by SHA-256, and the NPZ
+files and format remain compatible. Use the benchmark criteria above before
+considering HNSW; see [pgvector indexing](https://github.com/pgvector/pgvector#indexing).
+
 ## 升级、回退和验证
 
 升级前暂停写入，同一时间点备份整个 PostgreSQL 和媒体卷。既有 Compose 的 PostgreSQL 数据用逻辑备份导入独立的 pgvector 卷，保留迁移前账户和原文件路径。数据库迁移对 PostgreSQL 的已注册 workspace 逐个执行，无扩展的部署继续以 NPZ 运行。
 
 部署者启用扩展后运行 provision，再用保存的旧 NPZ 回填各私人 workspace。回填校验原字节和索引版本，保持资产 ID、原件路径和收藏状态。运行参考索引命令同步固定语料的帧向量。配置 `VECTOR_BACKEND=npz` 并重启 worker 可立即切回文件索引，媒体和关系数据继续由相同卷提供。[运行命令与备份步骤](product-deployment.md)
+
+### Upgrade, fallback, and verification
+
+Before upgrading, stop writes and back up PostgreSQL and the media volume at
+the same point in time. Import existing PostgreSQL data into the separate
+pgvector volume while preserving account workspaces and file paths. Apply
+migrations to every registered workspace. Deployments without pgvector
+continue using NPZ.
+
+After enabling the extension, run provisioning and backfill each workspace
+from its previously validated NPZ indexes. Backfill verifies original bytes
+and index versions without changing asset IDs, file paths, or save state.
+Rebuild the public reference vectors from the fixed corpus. To roll back to
+file search, set `VECTOR_BACKEND=npz` and restart the worker; relational data
+and media remain on their existing volumes. See the [deployment commands and
+backup steps](product-deployment.md).

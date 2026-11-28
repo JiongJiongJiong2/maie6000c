@@ -336,11 +336,12 @@ def process_search_job(job_id: str, retriever: Retriever = invoke_retrieval) -> 
                     if saved_asset is None:
                         raise RuntimeError("Search match does not resolve to an asset")
                     path = contained_path(settings.media_root, saved_asset.gif_path)
-                    if path.stat().st_size > settings.max_candidate_bytes:
+                    with path.open("rb") as source:
+                        data = source.read(settings.max_candidate_bytes + 1)
+                    if len(data) > settings.max_candidate_bytes:
                         raise RetrievalError(
                             "corpus_corrupted", "Saved GIF exceeds the configured size limit"
                         )
-                    data = path.read_bytes()
                     media_format = saved_asset.media_format
                     frames = saved_frame_count(data, media_format)
                     expected_sha = saved_asset.sha256
@@ -572,14 +573,17 @@ def process_web_search_job(
             finished_at = utcnow()
             for rank, candidate in enumerate(result.candidates, start=1):
                 source_path = contained_path(work_dir, candidate.relative_path)
-                if (
-                    not source_path.is_file()
-                    or source_path.stat().st_size > settings.max_candidate_bytes
-                ):
+                try:
+                    with source_path.open("rb") as source:
+                        data = source.read(settings.max_candidate_bytes + 1)
+                except FileNotFoundError as exc:
+                    raise RetrievalError(
+                        "invalid_candidate_media", "Candidate file is missing or too large"
+                    ) from exc
+                if len(data) > settings.max_candidate_bytes:
                     raise RetrievalError(
                         "invalid_candidate_media", "Candidate file is missing or too large"
                     )
-                data = source_path.read_bytes()
                 try:
                     frames = validate_image(data, animated_gif=True)
                 except MediaError as exc:
@@ -780,6 +784,11 @@ def cleanup_media(db: Session) -> None:
             contained_path(settings.media_root, candidate.local_cache_path),
             storage_class="candidate",
         )
+        if candidate.preview_path is not None:
+            remove_file_after_failure(
+                contained_path(settings.media_root, candidate.preview_path),
+                storage_class="candidate_preview",
+            )
 
     for request in db.scalars(
         select(SearchRequest)

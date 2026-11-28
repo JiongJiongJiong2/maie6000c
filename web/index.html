@@ -262,7 +262,10 @@
                 <h3 id="input-title">Got a screenshot?</h3>
                 <span class="section-number">01 / INPUT</span>
               </div>
-              <p class="muted">Crop to one meme. Give us your best clue.</p>
+              <p class="muted">
+                Choose, drop or paste a screenshot. You can crop it before
+                searching.
+              </p>
               <label class="dropzone" id="dropzone" for="file-input">
                 <input
                   id="file-input"
@@ -313,6 +316,82 @@
                 <span id="file-name">No image selected</span
                 ><span id="file-size"></span>
               </div>
+              <div id="crop-tools" class="crop-actions" hidden>
+                <button id="crop-open" class="secondary" type="button">
+                  Crop screenshot
+                </button>
+                <button id="crop-restore" class="quiet" type="button" hidden>
+                  Restore original
+                </button>
+              </div>
+              <dialog
+                id="crop-dialog"
+                aria-labelledby="crop-title"
+                aria-describedby="crop-help"
+              >
+                <form method="dialog">
+                  <h3 id="crop-title" tabindex="-1" autofocus>
+                    Crop screenshot
+                  </h3>
+                  <p id="crop-help" class="muted">
+                    Drag around one meme or enter its edges in pixels. The
+                    selection becomes a still PNG when you apply it. This
+                    browser keeps the original until you replace the image or
+                    clear the local search.
+                  </p>
+                  <div id="crop-stage">
+                    <canvas
+                      id="crop-preview"
+                      aria-label="Original screenshot"
+                    ></canvas>
+                    <div id="crop-region" aria-hidden="true"></div>
+                  </div>
+                  <fieldset id="crop-edges">
+                    <legend>Selection edges (pixels)</legend>
+                    <label
+                      >Left<input
+                        name="left"
+                        type="number"
+                        min="0"
+                        step="1"
+                        required
+                    /></label>
+                    <label
+                      >Top<input
+                        name="top"
+                        type="number"
+                        min="0"
+                        step="1"
+                        required
+                    /></label>
+                    <label
+                      >Right<input
+                        name="right"
+                        type="number"
+                        min="1"
+                        step="1"
+                        required
+                    /></label>
+                    <label
+                      >Bottom<input
+                        name="bottom"
+                        type="number"
+                        min="1"
+                        step="1"
+                        required
+                    /></label>
+                  </fieldset>
+                  <p id="crop-size" class="muted" role="status"></p>
+                  <div class="crop-actions">
+                    <button id="crop-apply" class="primary" value="apply">
+                      Apply crop
+                    </button>
+                    <button class="secondary" value="cancel" formnovalidate>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </dialog>
               <fieldset id="search-mode" class="choice-group" disabled>
                 <legend>Search mode</legend>
                 <div class="choice-track">
@@ -370,26 +449,16 @@
               <details id="demo-library" class="demo-library" hidden>
                 <summary>No screenshot? Borrow some evidence.</summary>
                 <p class="muted">
-                  Pick a real frame from our 12-GIF demo collection, then hit
-                  Find my GIF.
+                  Pick a frame from the reference library to try Local only. You
+                  can switch to Online search before submitting.
                 </p>
                 <div id="demo-examples" class="demo-examples"></div>
-                <p class="demo-credit">
-                  Animated emoji by
-                  <a
-                    href="https://googlefonts.github.io/noto-emoji-animation/"
-                    target="_blank"
-                    rel="noreferrer"
-                    >Google Noto Emoji</a
-                  >,
-                  <a
-                    href="https://creativecommons.org/licenses/by/4.0/"
-                    target="_blank"
-                    rel="noreferrer"
-                    >CC BY 4.0</a
-                  >. Example screenshots are extracted frames on a white
-                  background. Downloads preserve the original GIFs.
-                </p>
+                <p
+                  class="demo-credit"
+                  id="demo-credit"
+                  role="status"
+                  hidden
+                ></p>
               </details>
               <p class="privacy-note">
                 <span aria-hidden="true">▣</span> This browser remembers your
@@ -502,6 +571,19 @@
               <section id="web-results" aria-labelledby="web-title" hidden>
                 <h3 id="web-title">Online results</h3>
                 <p id="web-status" role="status"></p>
+                <section
+                  id="search-activity"
+                  class="search-activity"
+                  aria-labelledby="search-activity-title"
+                  hidden
+                >
+                  <h4 id="search-activity-title">Search activity</h4>
+                  <dl id="search-metrics"></dl>
+                  <div id="search-query-activity" hidden>
+                    <h5 id="search-query-title"></h5>
+                    <ol id="search-query-list"></ol>
+                  </div>
+                </section>
                 <div id="meme-controls" class="meme-controls" hidden>
                   <fieldset
                     id="media-filter"

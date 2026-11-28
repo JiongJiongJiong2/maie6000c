@@ -1,0 +1,12 @@
+<View>
+  <Header value="表情包版本核对" />
+  <HyperText name="pair" value="$preview" inline="true" selectionEnabled="false" />
+  <Header value="请对照画面、字幕和动作。静图可以正常作为候选；参照有动画、候选只有静帧时，请按内容判断版本。文件加载失败或已知动画损坏时选 broken。" />
+  <Choices name="gif_match" toName="pair" choice="single-radio" required="true">
+    <Choice value="exact" hint="确认是同一版本" />
+    <Choice value="variant" hint="同一场景或梗，但字幕、动作或版本不同" />
+    <Choice value="wrong" hint="和目标不匹配" />
+    <Choice value="unsure" hint="证据不足，无法确认" />
+    <Choice value="broken" hint="候选无法加载或播放" />
+  </Choices>
+</View>

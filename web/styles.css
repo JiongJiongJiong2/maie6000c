@@ -734,6 +734,72 @@ footer {
 .file-meta span:last-child {
   flex-shrink: 0;
 }
+.crop-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.crop-actions button {
+  touch-action: manipulation;
+}
+#crop-tools {
+  margin-bottom: 18px;
+}
+#crop-dialog {
+  width: min(480px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  margin: auto;
+  padding: 18px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+}
+#crop-dialog::backdrop {
+  background: #222126b3;
+}
+#crop-title {
+  margin: 0;
+}
+#crop-stage {
+  margin: 12px auto;
+  position: relative;
+  overflow: hidden;
+  background: var(--white);
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+#crop-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+#crop-region {
+  position: absolute;
+  pointer-events: none;
+  border: 2px solid var(--lime);
+  outline: 1px solid var(--ink);
+  box-shadow: 0 0 0 100vmax #22212699;
+}
+#crop-edges {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  margin: 0;
+}
+#crop-edges legend {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+#crop-edges input {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  font-size: 16px;
+}
 .primary,
 .secondary {
   padding: 12px 16px;
@@ -2134,6 +2200,47 @@ html[data-motion="off"] .progress-track > span {
 }
 #web-status:empty {
   display: none;
+}
+.search-activity {
+  margin: 12px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #d9d3c9;
+  border-radius: 8px;
+  background: #faf7f3;
+  overflow-wrap: anywhere;
+}
+.search-activity h4,
+.search-activity h5 {
+  margin: 0;
+}
+.search-activity dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.search-activity dl:empty {
+  display: none;
+}
+.search-activity dl div {
+  display: flex;
+  gap: 5px;
+}
+.search-activity dd {
+  margin: 0;
+  font-weight: 700;
+}
+.search-activity ol {
+  margin: 4px 0 0;
+  padding-inline-start: 22px;
+  font-size: 13px;
+}
+.search-activity li + li {
+  margin-top: 3px;
+}
+.search-activity li span {
+  color: #604373;
 }
 .meme-controls {
   display: flex;
