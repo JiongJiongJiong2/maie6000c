@@ -8,14 +8,18 @@ test.skip(
 
 async function start(page) {
   await page.goto("/web/");
+  await expect(page.getByLabel("Beta invite code")).toBeHidden();
   await page.getByRole("radio", { name: "Register" }).check();
   await page.getByLabel("Username").fill("tester-" + crypto.randomUUID());
   await page.getByLabel("Password").fill("fixture-password");
+  await page.getByLabel("Beta invite code").fill("test-only-invite");
   await page
     .getByRole("button", { name: "Create account", exact: true })
     .click();
   await expect(page.locator("#file-input")).toBeEnabled();
-  await page.getByRole("radio", { name: "Local only", exact: true }).check();
+  await expect(
+    page.getByRole("radio", { name: "Local only", exact: true }),
+  ).toBeChecked();
   const crop = await page.request.get("/__test__/crop");
   await page.locator("#file-input").setInputFiles({
     name: "fixture.png",
@@ -24,6 +28,33 @@ async function start(page) {
   });
   await expect(page.locator("#submit")).toBeEnabled();
 }
+
+test("beta feedback opens the configured form without search or account context", async ({
+  page,
+  context,
+}) => {
+  await start(page);
+  await page.getByRole("radio", { name: "Online search" }).check();
+  await page.locator("#description").fill("private text from a tester");
+  await expect(page.locator(".input-panel .image-disclosure")).toContainText(
+    "a few minutes",
+  );
+  const endpoint = "https://feedback.example/beta-form";
+  const link = page.getByRole("link", { name: "Give beta feedback" });
+  await expect(link).toHaveAttribute("href", endpoint);
+  await context.route(endpoint, (route) =>
+    route.fulfill({ body: "Feedback fixture" }),
+  );
+  const opened = context.waitForEvent(
+    "request",
+    (request) => request.url() === endpoint,
+  );
+  await link.click();
+  const request = await opened;
+  expect(request.method()).toBe("GET");
+  expect(request.postData()).toBeNull();
+  expect((await request.allHeaders()).referer).toBeUndefined();
+});
 
 test("real API + database + worker: upload replay, review replay and two-frame GIF download", async ({
   page,
@@ -114,6 +145,7 @@ test("a returning account restores its browser session and a second account star
   await page.getByRole("radio", { name: "Register" }).check();
   await page.getByLabel("Username").fill("second-" + crypto.randomUUID());
   await page.getByLabel("Password").fill("fixture-password");
+  await page.getByLabel("Beta invite code").fill("test-only-invite");
   await page
     .getByRole("button", { name: "Create account", exact: true })
     .click();
@@ -123,6 +155,10 @@ test("a returning account restores its browser session and a second account star
   await page.goto("/web/sign-in#setup=fixture-setup");
   const login = page.getByRole("radio", { name: "Sign in" });
   await expect(page.getByRole("radio", { name: "Register" })).toBeChecked();
+  await expect(page.getByLabel("Beta invite code")).toHaveAttribute(
+    "required",
+    "",
+  );
   for (const width of [1440, 800, 390, 320]) {
     await page.setViewportSize({ width, height: 800 });
     await expect(login).toBeInViewport();
@@ -137,6 +173,7 @@ test("a returning account restores its browser session and a second account star
     ).toBe(true);
   }
   await login.check();
+  await expect(page.getByLabel("Beta invite code")).toBeHidden();
   await expect(page.getByLabel("Password")).toHaveAttribute(
     "autocomplete",
     "current-password",
@@ -147,7 +184,9 @@ test("a returning account restores its browser session and a second account star
   await page.getByLabel("Username").fill(user);
   await page.getByLabel("Password").fill("fixture-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  expect((await loginRequest).postDataJSON()).not.toHaveProperty("owner_setup");
+  const loginBody = (await loginRequest).postDataJSON();
+  expect(loginBody).not.toHaveProperty("owner_setup");
+  expect(loginBody).not.toHaveProperty("beta_invite_code");
   await expect(page.locator("#file-name")).toHaveText("fixture.png");
 });
 

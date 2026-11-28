@@ -6,6 +6,7 @@ from time import monotonic
 
 from sqlalchemy import func, select, tuple_, update
 
+from services.common.config import get_settings
 from services.common.library_metadata import Annotation, annotation_version
 from services.common.library_models import AssetMetadata, LibraryActivation, SimilarityScan
 from services.common.library_frames import annotation_frames
@@ -65,6 +66,8 @@ def claim_annotation(db):
 
 
 def annotate(asset, settings):
+    if not get_settings().online_search_enabled:
+        raise PipelineError("online_search_disabled")
     if not settings.hkust_api_key.strip():
         raise PipelineError("annotation_unconfigured")
     if not re.fullmatch(r"[a-zA-Z0-9.\-]{1,100}", settings.hkust_model):

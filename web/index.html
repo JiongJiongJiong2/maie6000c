@@ -394,7 +394,10 @@
                 <h3 id="input-title">Got a screenshot?</h3>
                 <span class="section-number">01 / INPUT</span>
               </div>
-              <p class="muted">Crop to one meme. Give us your best clue.</p>
+              <p class="muted">
+                Crop to one meme. Leave out names, chat messages and other
+                personal details.
+              </p>
               <label class="dropzone" id="dropzone" for="file-input">
                 <input
                   id="file-input"
@@ -476,7 +479,11 @@
                 </div>
               </fieldset>
               <p id="local-hint" class="muted" hidden>
-                Use a PNG, JPEG, or WebP screenshot.
+                Use a PNG, JPEG, or WebP screenshot. Local only searches this
+                server’s GIF library without calling external search providers.
+                <span id="online-unavailable" hidden
+                  >Online search is turned off on this installation.</span
+                >
               </p>
               <label for="description" class="optional-description"
                 >Description or preference (optional)</label
@@ -488,9 +495,10 @@
                 placeholder="For example: a happy reaction, or the same character looking angry"
               ></textarea>
               <p class="muted image-disclosure">
-                Resized images or representative frames are sent to external
-                visual and image-search services to understand and find related
-                memes.
+                Online search sends a resized image or frames to the vision
+                provider and uses DeepSeek to search the web. Keep your
+                description free of personal details. Results can take a few
+                minutes.
               </p>
               <button id="submit" class="primary full" disabled>
                 Find my GIF ↗
@@ -526,7 +534,7 @@
               <p class="privacy-note">
                 <span aria-hidden="true">▣</span> This browser remembers your
                 search.<br />
-                Processing also uses the server and configured image providers.
+                Clear local search to remove this browser’s saved search.
               </p>
             </div>
           </section>
@@ -622,8 +630,9 @@
                     rows="2"
                   ></textarea>
                   <p class="muted image-disclosure">
-                    Resized images or representative frames are sent to external
-                    visual and image-search services to find related memes.
+                    Continuing sends a resized image or frames to the vision
+                    provider and uses DeepSeek to search the web. Leave out
+                    personal details. Results can take a few minutes.
                   </p>
                   <button id="continue-submit" class="secondary" type="submit">
                     Continue online
@@ -706,6 +715,12 @@
                   <dd id="review-id">Not reviewed yet</dd>
                 </dl>
               </details>
+              <p class="muted beta-feedback" data-beta-feedback hidden>
+                <a data-feedback-link target="_blank" rel="noopener noreferrer"
+                  >Give beta feedback ↗</a
+                >
+                Tell us which step you tried and what happened.
+              </p>
             </div>
           </section>
         </div>

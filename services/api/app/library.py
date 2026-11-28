@@ -30,6 +30,7 @@ from services.api.app.search import (
     authorize,
     fail,
     publish_saved_gif,
+    require_online_search,
     verify_saved_asset_media,
 )
 from services.common.config import get_settings
@@ -481,6 +482,7 @@ class AnnotationRequest(BaseModel):
 def request_annotations(payload: AnnotationRequest, db: Database) -> dict:
     if not payload.consent:
         raise fail(422, "annotation_consent_required", "Explicit AI consent is required")
+    require_online_search()
     settings = MemeSettings()
     if not settings.hkust_api_key.strip():
         raise fail(503, "annotation_unconfigured", "The vision gateway is not configured")

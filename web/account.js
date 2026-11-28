@@ -33,6 +33,14 @@ function render() {
   $("password").autocomplete = register ? "new-password" : "current-password";
   $("password").minLength = register ? 8 : 1;
   $("password").placeholder = register ? "At least 8 characters" : "";
+  const invite = $("beta-invite");
+  const needsInvite =
+    register && document.documentElement.hasAttribute("data-invite-required");
+  $("invite-label").hidden = !needsInvite;
+  invite.hidden = !needsInvite;
+  invite.disabled = !needsInvite;
+  invite.required = needsInvite;
+  if (!needsInvite) invite.value = "";
   $("account-error").hidden = true;
 }
 modes.addEventListener("change", () => {
@@ -50,6 +58,8 @@ $("account-form").addEventListener("submit", async (event) => {
       password: $("password").value,
     };
     if (register && setup) body.owner_setup = setup;
+    if (register && $("beta-invite").required)
+      body.beta_invite_code = $("beta-invite").value;
     const response = await fetch(register ? "/auth/register" : "/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

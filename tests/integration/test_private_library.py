@@ -123,6 +123,39 @@ def add_asset(db, data, *, title, provider="local_upload"):
     return asset
 
 
+def test_offline_policy_blocks_new_and_previously_queued_annotations(
+    client, db_session, monkeypatch
+):
+    from services.common.db import make_session_factory
+    from services.common.library_models import AssetMetadata
+    from services.search_agent.meme_providers import HKUSTVision
+    from services.worker.app.library_worker import claim_annotation, process_annotation
+
+    auth = enable(monkeypatch)
+    monkeypatch.setenv("MEME50_HKUST_API_KEY", "fixture-key")
+    asset = add_asset(db_session, gif(), title="My GIF")
+    payload = {"asset_ids": [asset.id], "consent": True}
+    assert client.post("/library/annotations", headers=auth, json=payload).status_code == 200
+    job = claim_annotation(db_session)
+    assert job is not None
+
+    def must_not_call(*args, **kwargs):
+        raise AssertionError("Offline annotation reached a provider")
+
+    monkeypatch.setattr(HKUSTVision, "request", must_not_call)
+    monkeypatch.setenv("ONLINE_SEARCH_ENABLED", "false")
+    get_settings.cache_clear()
+    process_annotation(make_session_factory(db_session.get_bind()), job)
+    db_session.expire_all()
+    metadata = db_session.get(AssetMetadata, asset.id)
+    assert metadata.annotation_status == "failed"
+    assert metadata.annotation_error == "online_search_disabled"
+    blocked = client.post("/library/annotations", headers=auth, json=payload)
+    assert blocked.status_code == 403
+    assert blocked.json()["detail"]["code"] == "online_search_disabled"
+    assert client.get(f"/saved-assets/{asset.id}/media", headers=auth).content == gif()
+
+
 def test_consent_annotations_and_offline_search(client, db_session, monkeypatch):
     from services.common.db import make_session_factory
     from services.common.library_models import AssetMetadata

@@ -178,10 +178,27 @@
               maxlength="256"
             />
             <p id="account-error" role="alert" hidden></p>
+            <label id="invite-label" for="beta-invite" hidden
+              >Beta invite code</label
+            >
+            <input
+              id="beta-invite"
+              type="password"
+              autocomplete="off"
+              hidden
+              disabled
+            />
             <button id="account-submit" class="library-primary" type="submit">
               Sign in
             </button>
           </form>
+          <p class="muted beta-feedback" data-beta-feedback hidden>
+            <a data-feedback-link target="_blank" rel="noopener noreferrer"
+              >Give beta feedback ↗</a
+            >
+            Tell us where you got stuck. Keep passwords and invite codes
+            private.
+          </p>
         </div>
       </section>
       <div class="account-parade" aria-hidden="true">

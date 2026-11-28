@@ -70,6 +70,45 @@ function key(body) {
   return body.match(/name="client_submission_key"\r\n\r\n([^\r]+)/)?.[1];
 }
 
+test("local-only installation restores old online drafts as fresh local searches", async ({
+  page,
+}) => {
+  const captured = await fixtures(page);
+  await expect(
+    page.getByRole("radio", { name: "Online search" }),
+  ).toBeChecked();
+  await page.locator("#file-input").setInputFiles({
+    name: "draft.png",
+    mimeType: "image/png",
+    buffer: png,
+  });
+  await expect(page.locator("#submit")).toBeEnabled();
+  await page.route("**/web/", async (route) => {
+    const response = await route.fetch();
+    const html = (await response.text()).replace(
+      '<html lang="en">',
+      '<html lang="en" data-online-disabled>',
+    );
+    await route.fulfill({ response, body: html });
+  });
+  await page.reload();
+  await expect(
+    page.getByRole("radio", { name: "Online search" }),
+  ).toBeDisabled();
+  await expect(page.getByRole("radio", { name: "Local only" })).toBeChecked();
+  await expect(page.locator("#online-unavailable")).toBeVisible();
+  await expect(page.locator("[data-annotate]").locator("..")).toHaveAttribute(
+    "hidden",
+    "",
+  );
+  await expect(page.locator(".input-panel .image-disclosure")).toBeHidden();
+  await page.locator("#submit").click();
+  await expect(page.locator(".candidate")).toHaveCount(1);
+  expect(captured.uploads).toHaveLength(1);
+  expect(captured.uploads[0]).not.toContain('name="search_profile"');
+  await expect(page.locator("#continue-panel")).toBeHidden();
+});
+
 test("upload, state progression, authenticated animation, review and download are separate", async ({
   page,
 }) => {

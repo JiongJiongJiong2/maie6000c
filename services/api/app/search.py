@@ -58,6 +58,15 @@ def fail(status: int, code: str, message: str) -> HTTPException:
     return HTTPException(status_code=status, detail={"code": code, "message": message})
 
 
+def require_online_search() -> None:
+    if not get_settings().online_search_enabled:
+        raise fail(
+            403,
+            "online_search_disabled",
+            "Online search and external AI are disabled here. Local search is available.",
+        )
+
+
 def authorize(request: Request, db: Annotated[Session, Depends(get_db)]) -> None:
     settings = get_settings()
     if settings.account_login_enabled:
@@ -204,6 +213,8 @@ def create_search(
         return replay_submission(
             db, existing, digest, user_keywords, client_item_id, search_profile, target_count
         )
+    if search_profile == "meme50-v2":
+        require_online_search()
 
     relative = f"inputs/{uuid4()}.image"
     try:
@@ -475,6 +486,7 @@ def create_web_search(
     existing = db.scalar(key_query)
     if existing is not None:
         return replay(existing)
+    require_online_search()
     input_path = contained_path(get_settings().media_root, request.input_path)
     if not input_path.is_file():
         raise fail(410, "input_expired", "Search input is unavailable")
@@ -835,12 +847,16 @@ def replay_retry(
 @router.post("/search-requests/{request_id}/retry", response_model=AcceptedSearch, status_code=202)
 def retry_search(request_id: UUID, payload: RetryCreate, db: Database) -> AcceptedSearch:
     request = require_request(db, str(request_id), lock=True)
-    previous = latest_local_job(db, request.id)
+    previous = (
+        latest_job(db, request.id)
+        if request.search_profile == "meme50-v2"
+        else latest_local_job(db, request.id)
+    )
     existing = db.scalar(
         select(SearchJob).where(SearchJob.client_retry_key == payload.client_retry_key)
     )
     if existing is not None:
-        if existing.job_kind != "local":
+        if existing.job_kind != previous.job_kind:
             raise fail(409, "retry_key_conflict", "Retry key belongs to a different job")
         return replay_retry(existing, request.id)
     return create_retry(db, request, previous, payload)
@@ -868,6 +884,8 @@ def create_retry(
 ) -> AcceptedSearch:
     if previous.status != "failed":
         raise fail(409, "retry_not_allowed", "Only a failed request can be retried")
+    if previous.job_kind == "web" or previous.search_profile == "meme50-v2":
+        require_online_search()
     active = db.scalar(
         select(SearchJob).where(
             SearchJob.request_id == request.id,

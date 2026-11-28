@@ -11,7 +11,7 @@ from sqlalchemy.engine import make_url
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pythonjsonlogger.json import JsonFormatter
 
@@ -27,20 +27,28 @@ class Settings(BaseSettings):
     reference_root: Path = Path("data/reference")
     model_cache_root: Path = Path("data/models")
     account_login_enabled: bool = False
+    beta_invite_code: SecretStr | None = None
     vector_backend: Literal["npz", "pgvector"] = "npz"
     device_token: str = ""
     private_library_enabled: bool = False
     enable_demo_library: bool = False
+    public_beta_enabled: bool = False
+    beta_feedback_url: str = ""
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, gt=0)
     max_candidate_bytes: int = Field(default=25 * 1024 * 1024, gt=0)
     media_retention_days: int = Field(default=7, ge=1)
     retrieval_timeout_seconds: float = Field(default=120.0, gt=0)
+    online_search_enabled: bool = True
     web_search_timeout_seconds: float = Field(default=60.0, gt=0, le=300)
     web_search_call_timeout_seconds: float = Field(default=12.0, gt=0, le=60)
     web_search_max_downloads: int = Field(default=6, ge=0, le=6)
     saved_index_timeout_seconds: float = Field(default=300.0, gt=0, le=600)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @property
+    def beta_invite_required(self) -> bool:
+        return bool(self.beta_invite_code and self.beta_invite_code.get_secret_value())
 
 
 @lru_cache(maxsize=1)

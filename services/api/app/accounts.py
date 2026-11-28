@@ -35,6 +35,10 @@ class Credentials(BaseModel):
     owner_setup: str | None = Field(default=None, max_length=128)
 
 
+class Registration(Credentials):
+    beta_invite_code: SecretStr | None = None
+
+
 def password_hash(password, salt):
     return hashlib.scrypt(
         password.encode(), salt=bytes.fromhex(salt), n=2**15, r=8, p=1, maxmem=64 * 1024 * 1024
@@ -121,7 +125,14 @@ def validated_credentials(payload):
 
 
 @router.post("/register", status_code=201)
-def register(payload: Credentials, request: Request, response: Response):
+def register(payload: Registration, request: Request, response: Response):
+    settings = get_settings()
+    if settings.beta_invite_required:
+        supplied = payload.beta_invite_code.get_secret_value() if payload.beta_invite_code else ""
+        if not hmac.compare_digest(
+            supplied.encode(), settings.beta_invite_code.get_secret_value().encode()
+        ):
+            raise HTTPException(403, "Enter a valid beta invitation code to register.")
     username, password = validated_credentials(payload)
     if len(password) < 8:
         raise HTTPException(422, "Choose a password with at least 8 characters.")

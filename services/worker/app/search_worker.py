@@ -869,6 +869,12 @@ def process_workspace_queue(factory, iteration, stop_event):
             return False
     if job is not None:
         try:
+            if (job.job_kind == "web" or job.search_profile == "meme50-v2") and (
+                not get_settings().online_search_enabled
+            ):
+                with factory() as db:
+                    fail_job(db, job.id, "online_search_disabled", "Online search is disabled")
+                return True
             if job.search_profile == "meme50-v2":
                 from .meme_worker import process_meme_job
 

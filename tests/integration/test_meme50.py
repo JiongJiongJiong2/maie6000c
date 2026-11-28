@@ -1,4 +1,5 @@
 import io
+from threading import Event
 from datetime import timedelta
 from uuid import uuid4
 
@@ -84,6 +85,37 @@ def test_missing_image_and_replay_conflict(client):
         ).status_code
         == 409
     )
+
+
+def test_offline_deployment_blocks_direct_submissions_and_queued_web_retries(
+    client, db_session, monkeypatch
+):
+    from services.worker.app import meme_worker, search_worker
+
+    key = str(uuid4())
+    first = upload(client, client_submission_key=key)
+    assert first.status_code == 202
+    monkeypatch.setenv("ONLINE_SEARCH_ENABLED", "false")
+    get_settings.cache_clear()
+    assert upload(client, client_submission_key=key).json() == first.json()
+    blocked = upload(client)
+    assert blocked.status_code == 403
+    assert blocked.json()["detail"]["code"] == "online_search_disabled"
+    assert len(db_session.scalars(select(SearchRequest)).all()) == 1
+
+    def must_not_run(*args, **kwargs):
+        pytest.fail("An offline worker attempted a provider job")
+
+    monkeypatch.setattr(meme_worker, "process_meme_job", must_not_run)
+    factory = make_session_factory(db_session.get_bind())
+    assert search_worker.process_workspace_queue(factory, 1, Event())
+    db_session.expire_all()
+    job = client.get(f"/search-jobs/{first.json()['job_id']}").json()
+    assert job["status"] == "failed" and job["error"]["code"] == "online_search_disabled"
+    for resource, ident in [("search-jobs", job["job_id"]), ("search-requests", job["request_id"])]:
+        retry = client.post(f"/{resource}/{ident}/retry", json={"client_retry_key": str(uuid4())})
+        assert retry.status_code == 403
+        assert retry.json()["detail"]["code"] == "online_search_disabled"
 
 
 def test_fifty_stable_results_filters_and_integrity(client, db_session):

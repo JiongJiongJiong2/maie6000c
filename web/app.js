@@ -16,6 +16,11 @@ import {
 
 const $ = (id) => document.getElementById(id);
 const api = new Api();
+const onlineEnabled = !document.documentElement.hasAttribute(
+  "data-online-disabled",
+);
+const localFirst =
+  !onlineEnabled || document.documentElement.hasAttribute("data-local-first");
 const states = {
   pending: [
     "Waiting for processing",
@@ -60,7 +65,7 @@ function newKey() {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-mountLibrary(api, newKey);
+mountLibrary(api, newKey, onlineEnabled);
 
 function notice(message = "") {
   $("notice").textContent = message;
@@ -102,7 +107,9 @@ function restoreChoice(group, value) {
 }
 
 function renderInput() {
-  restoreChoice("search-mode", session?.searchProfile);
+  const preferred =
+    session?.searchProfile || (localFirst ? "legacy" : undefined);
+  restoreChoice("search-mode", onlineEnabled ? preferred : "legacy");
   $("description").value = session?.description || "";
   $("continue-description").value =
     session?.online?.creation?.payload.description || "";
@@ -148,7 +155,10 @@ function render() {
     ? "image/png,image/jpeg,image/webp"
     : "image/png,image/jpeg,image/webp,image/gif";
   $("search-mode").disabled = busy || !initialized;
+  $("search-mode").querySelector('[value="meme50-v2"]').disabled =
+    !onlineEnabled;
   $("local-hint").hidden = !local;
+  $("online-unavailable").hidden = onlineEnabled;
   document.querySelector(".image-disclosure").hidden = local;
   $("description").hidden = local;
   document.querySelector('label[for="description"]').hidden = local;
@@ -158,7 +168,9 @@ function render() {
     ? "Submitting…"
     : session?.submissionStarted
       ? "Retry this upload ↗"
-      : "Find related memes ↗";
+      : local
+        ? "Find my GIF ↗"
+        : "Find related memes ↗";
   $("file-input").disabled = busy || !initialized;
   $("new-search").hidden = !accepted;
   $("new-search").disabled = busy;
@@ -254,7 +266,7 @@ function renderOnline() {
   const completed = status === "completed";
   const paged = completed && !!result?.page;
   const localReady = session?.result?.status === "completed" && !direct;
-  $("continue-panel").hidden = !localReady;
+  $("continue-panel").hidden = !localReady || !onlineEnabled;
   $("continue-form").hidden = status === "failed" && !state?.creation;
   $("continue-description").disabled = !!(busy || active || state?.creation);
   $("continue-submit").disabled = !!(busy || active);
@@ -263,7 +275,7 @@ function renderOnline() {
     : "Continue online";
   $("web-results").hidden = !state?.accepted;
   $("meme-controls").hidden = !paged;
-  $("meme-retry").hidden = status !== "failed";
+  $("meme-retry").hidden = status !== "failed" || !onlineEnabled;
   $("meme-retry").disabled = busy || !!state?.creation;
   const matchedSource = result?.analysis?.evidence?.find(
     (entry) =>
@@ -525,7 +537,7 @@ async function submit() {
         session.file,
         session.submissionKey,
         lifetime.signal,
-        session.searchProfile === "legacy"
+        (session.searchProfile || searchProfile()) === "legacy"
           ? {}
           : {
               search_profile: "meme50-v2",
@@ -975,6 +987,18 @@ window.addEventListener("pageshow", (event) => {
 
 try {
   session = (await loadSession()) || null;
+  if (
+    !onlineEnabled &&
+    session?.file &&
+    !session.accepted &&
+    session.searchProfile !== "legacy"
+  ) {
+    // A local submission must not reuse an online request's idempotency key.
+    session.searchProfile = "legacy";
+    session.submissionKey = newKey();
+    session.submissionStarted = false;
+    await saveSession(session);
+  }
   if (session?.accepted) validAccepted(session.accepted);
   if (
     session?.accepted &&
@@ -996,6 +1020,7 @@ try {
   renderInput();
 } catch (error) {
   session = null;
+  renderInput();
   notice(error.message);
 } finally {
   initialized = true;
@@ -1111,6 +1136,7 @@ async function readJobResult(requestId, id, kind, summary = null) {
 $("continue-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (
+    !onlineEnabled ||
     busy ||
     session?.result?.status !== "completed" ||
     ["pending", "running"].includes(
@@ -1191,7 +1217,7 @@ $("previous-page").addEventListener("click", async () => {
 });
 $("meme-retry").addEventListener("click", async () => {
   const state = onlineState();
-  if (busy || state?.result?.status !== "failed") return;
+  if (!onlineEnabled || busy || state?.result?.status !== "failed") return;
   busy = true;
   render();
   try {

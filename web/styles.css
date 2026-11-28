@@ -3127,6 +3127,14 @@ html[data-motion="off"] .progress-track > span {
   font-family: "Computer Modern", Georgia, serif;
   overflow-wrap: anywhere;
 }
+.beta-feedback {
+  margin: 1rem 0 0;
+  line-height: 1.5;
+}
+.beta-feedback a {
+  color: var(--ink);
+  text-underline-offset: 0.15em;
+}
 
 .account-form-heading,
 .account-fields form label {

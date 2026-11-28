@@ -1,0 +1,36 @@
+# Local rehearsal only. Layer after compose.yaml, compose.local-model.yaml and compose.pgvector.yaml.
+services:
+  api:
+    # Docker Desktop publishes host ports through a regular bridge. Only the
+    # cookie-authenticated API has one; the search and fetch processes do not.
+    networks: [default, beta_entry]
+    ports: !override
+      - "127.0.0.1:${BETA_HOST_PORT:-58095}:8000"
+    environment:
+      PUBLIC_BETA_ENABLED: "true"
+      ONLINE_SEARCH_ENABLED: "false"
+      BETA_INVITE_CODE: ${BETA_INVITE_CODE:?Set a private invite code in the rehearsal env file}
+      ACCOUNT_LOGIN_ENABLED: "true"
+      PRIVATE_LIBRARY_ENABLED: "true"
+      MEME50_HKUST_API_KEY: ""
+  db:
+    ports: !reset []
+  worker:
+    environment:
+      ACCOUNT_LOGIN_ENABLED: "true"
+      PRIVATE_LIBRARY_ENABLED: "true"
+      ONLINE_SEARCH_ENABLED: "false"
+      DEEPSEEK_API_KEY: ""
+      MEME50_HKUST_API_KEY: ""
+      MEME50_HKGAI_API_KEY: ""
+      BRAVE_API_KEY: ""
+      TAVILY_API_KEY: ""
+      SEARXNG_URL: ""
+
+networks:
+  beta_entry:
+    driver: bridge
+  default:
+    internal: true
+  media_egress:
+    internal: true

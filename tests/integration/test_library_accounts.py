@@ -1,4 +1,5 @@
 import io
+from time import time
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -6,7 +7,7 @@ from PIL import Image
 
 from services.api.app.main import app
 from services.common import db as database
-from services.common.accounts import digest, issue_owner_setup, registry
+from services.common.accounts import digest, issue_owner_setup, owner_setup, registry
 from services.common.config import get_settings
 from services.common.search_models import SavedAsset
 from services.common.storage import atomic_write, sha256
@@ -132,5 +133,59 @@ def test_private_accounts(tmp_path, monkeypatch):
     registry.create_all(engine)
     try:
         verify_account_libraries(engine)
+    finally:
+        engine.dispose()
+
+
+def test_invitation_for_new_accounts_only(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'beta.db'}")
+    monkeypatch.setenv("PRIVATE_LIBRARY_ENABLED", "true")
+    monkeypatch.setenv("ACCOUNT_LOGIN_ENABLED", "true")
+    monkeypatch.setenv("BETA_INVITE_CODE", "test-cohort-code")
+    get_settings.cache_clear()
+    monkeypatch.setattr(database, "_ENGINE", None)
+    monkeypatch.setattr(database, "_SESSION_FACTORY", None)
+    engine = database.get_engine()
+    database.Base.metadata.create_all(engine)
+    registry.create_all(engine)
+    credentials = {"username": "tester", "password": "test-only-password"}
+    try:
+        with TestClient(app) as browser:
+            owner_code = "fixture-owner-setup"
+            with engine.begin() as connection:
+                connection.execute(
+                    owner_setup.insert().values(
+                        id=1, digest=digest(owner_code), expires=int(time()) + 1800
+                    )
+                )
+            for attempt in ({}, {"beta_invite_code": "wrong", "owner_setup": owner_code}):
+                denied = browser.post("/auth/register", json={**credentials, **attempt})
+                assert denied.status_code == 403
+                assert "set-cookie" not in denied.headers
+            response = browser.post(
+                "/auth/register",
+                json={
+                    **credentials,
+                    "beta_invite_code": "test-cohort-code",
+                    "owner_setup": owner_code,
+                },
+            )
+            assert response.status_code == 201
+            assert response.json() == {"username": "tester"}
+            assert browser.post("/auth/logout").is_success
+            monkeypatch.setenv("BETA_INVITE_CODE", "rotated-code")
+            get_settings.cache_clear()
+            assert browser.post("/auth/login", json=credentials).is_success
+            assert (
+                browser.post(
+                    "/auth/register",
+                    json={
+                        **credentials,
+                        "username": "tester2",
+                        "beta_invite_code": "test-cohort-code",
+                    },
+                ).status_code
+                == 403
+            )
     finally:
         engine.dispose()

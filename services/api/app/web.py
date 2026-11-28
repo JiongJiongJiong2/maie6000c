@@ -1,14 +1,43 @@
 """Serve the dependency-free W07 client without shadowing API routes."""
 
+from html import escape
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
+from pydantic import HttpUrl, ValidationError
 
 from services.common.config import get_settings
 
 router = APIRouter(include_in_schema=False)
 WEB_ROOT = Path(__file__).resolve().parents[3] / "web"
+
+
+def browser_page(filename: str, username: str | None = None):
+    settings = get_settings()
+    html = (WEB_ROOT / filename).read_text(encoding="utf-8")
+    attributes = []
+    if filename == "account.html" and settings.beta_invite_required:
+        attributes.append("data-invite-required")
+    if filename == "index.html" and settings.public_beta_enabled:
+        attributes.append("data-local-first")
+    if filename == "index.html" and not settings.online_search_enabled:
+        attributes.append("data-online-disabled")
+    if username:
+        attributes.append(f'data-account="{escape(username, quote=True)}"')
+    if attributes:
+        html = html.replace('<html lang="en"', f'<html {" ".join(attributes)} lang="en"', 1)
+    if settings.beta_feedback_url:
+        try:
+            url = HttpUrl(settings.beta_feedback_url)
+        except ValidationError:
+            url = None
+        if url and url.scheme == "https" and not url.username and not url.password:
+            html = html.replace("data-beta-feedback hidden", "data-beta-feedback").replace(
+                "data-feedback-link", f'href="{escape(str(url), quote=True)}"'
+            )
+    cache = "no-store" if filename == "account.html" or username else "no-cache"
+    return HTMLResponse(html, headers={"Cache-Control": cache})
 
 
 @router.get("/web/")
@@ -17,20 +46,13 @@ def web_index(request: Request):
         account = getattr(request.state, "account", None)
         if not account:
             return sign_in_page()
-        # The account name is restricted to ASCII letters, digits, hyphens, dots and underscores.
-        html = (
-            (WEB_ROOT / "index.html")
-            .read_text(encoding="utf-8")
-            .replace('<html lang="en">', f'<html lang="en" data-account="{account.username}">')
-        )
-        return HTMLResponse(html, headers={"Cache-Control": "no-store"})
-
-    return FileResponse(WEB_ROOT / "index.html", headers={"Cache-Control": "no-cache"})
+        return browser_page("index.html", account.username)
+    return browser_page("index.html")
 
 
 @router.get("/web/sign-in")
 def sign_in_page():
-    return FileResponse(WEB_ROOT / "account.html", headers={"Cache-Control": "no-store"})
+    return browser_page("account.html")
 
 
 @router.get("/web/{asset}")

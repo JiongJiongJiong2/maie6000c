@@ -12,7 +12,7 @@ const element = (tag, text = "") => {
   return node;
 };
 
-export function mountLibrary(api, newKey) {
+export function mountLibrary(api, newKey, onlineEnabled) {
   const storageKey = api.account
     ? "private-library-import:" + api.account
     : "private-library-import";
@@ -34,6 +34,7 @@ export function mountLibrary(api, newKey) {
   const assets = panel.querySelector("[data-assets]");
   const query = panel.querySelector("input[type=search]");
   const annotate = panel.querySelector("[data-annotate]");
+  annotate.parentElement.hidden = !onlineEnabled;
   const confirmation = panel.querySelector("#library-analysis-confirm");
   for (const input of [picker, backupPicker]) {
     const description = document.getElementById(
@@ -444,8 +445,11 @@ export function mountLibrary(api, newKey) {
       originalCaption.hidden = !!asset.caption_en || !asset.caption_zh;
       retry.hidden = asset.index_status !== "failed";
       failure.textContent = asset.annotation_error
-        ? `Analysis failed (${asset.annotation_error}). Select this GIF and choose Analyze selected GIFs to retry.`
+        ? `Analysis failed (${asset.annotation_error}).`
         : "";
+      if (failure.textContent && onlineEnabled)
+        failure.textContent +=
+          " Select this GIF and choose Analyze selected GIFs to retry.";
       failure.hidden = !failure.textContent;
     }
     paintAnalysis({});
@@ -862,7 +866,7 @@ export function mountLibrary(api, newKey) {
     search();
   });
   annotate.addEventListener("click", () => {
-    if (active || confirmation.open) return;
+    if (!onlineEnabled || active || confirmation.open) return;
     const asset_ids = [...selection];
     if (!asset_ids.length || asset_ids.length > 20) {
       report("Select 1–20 GIFs.");

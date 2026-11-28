@@ -29,6 +29,10 @@ os.environ.update(
     MODEL_CACHE_ROOT=str(storage / "models"),
     PRIVATE_LIBRARY_ENABLED="true",
     ACCOUNT_LOGIN_ENABLED="true",
+    PUBLIC_BETA_ENABLED="true",
+    BETA_INVITE_CODE="test-only-invite",
+    BETA_FEEDBACK_URL="https://feedback.example/beta-form",
+    ONLINE_SEARCH_ENABLED="true",
     LOG_LEVEL="WARNING",
 )
 

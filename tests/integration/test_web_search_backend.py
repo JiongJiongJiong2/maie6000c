@@ -87,6 +87,28 @@ def create_web_job(client, request_id: str) -> dict:
     return response.json()
 
 
+def test_offline_policy_preserves_local_search_and_continuation_replays(
+    client, db_session, worker_factory, monkeypatch
+):
+    monkeypatch.setenv("ONLINE_SEARCH_ENABLED", "false")
+    get_settings.cache_clear()
+    local = finish_local_job(client, db_session, worker_factory)
+    route = f"/search-requests/{local['request_id']}/web-search"
+    for options in ({}, {"search_profile": "meme50-v2"}):
+        new = {"client_search_key": "new-web", "description": "cat", **options}
+        blocked = client.post(route, json=new)
+        assert blocked.status_code == 403
+        assert blocked.json()["detail"]["code"] == "online_search_disabled"
+    assert len(db_session.scalars(select(SearchJob)).all()) == 1
+
+    monkeypatch.setenv("ONLINE_SEARCH_ENABLED", "true")
+    get_settings.cache_clear()
+    first = create_web_job(client, local["request_id"])
+    monkeypatch.setenv("ONLINE_SEARCH_ENABLED", "false")
+    get_settings.cache_clear()
+    assert create_web_job(client, local["request_id"]) == first
+
+
 def web_candidate_searcher(image_path: Path, description: str, work_dir: Path):
     assert image_path.is_file()
     assert description == "dancing cat gif"
