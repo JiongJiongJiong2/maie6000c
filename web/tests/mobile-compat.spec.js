@@ -35,7 +35,7 @@ test.beforeEach(async ({ page }) => {
 test("example picker initializes without AbortSignal.any", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/web/");
+  await page.goto("/web/search");
   await expect(page.locator("#demo-library")).toBeVisible();
   await page.route("**/example.png", (route) =>
     route.fulfill({ contentType: "image/png", body: exampleImage }),
@@ -101,7 +101,7 @@ test("example picker initializes without AbortSignal.any", async ({ page }) => {
 test("fallback cancels work from either source and handles an already stopped source", async ({
   page,
 }) => {
-  await page.goto("/web/");
+  await page.goto("/web/search");
   const results = await page.evaluate(async () => {
     const { combineSignals } = await import("/web/api.js");
     const results = [];

@@ -1,0 +1,34 @@
+{
+  "demo": true,
+  "example": "sample.jpg",
+  "packs": [
+    {
+      "id": "pond-post",
+      "name": "Pond Post",
+      "publisher": "MemeRetrieve",
+      "creator": "MemeRetrieve Studio",
+      "description": "An origami frog for hellos and tea breaks.",
+      "permission_note": "Original illustrations generated for the MemeRetrieve demonstration.",
+      "color": "green",
+      "archive": true,
+      "stickers": [
+        { "id": "hello", "name": "Hello!", "file": "art/hello.webp" },
+        { "id": "tea-break", "name": "Tea break", "file": "art/tea-break.webp" }
+      ]
+    },
+    {
+      "id": "tin-can-club",
+      "name": "Tin Can Club",
+      "publisher": "MemeRetrieve",
+      "creator": "MemeRetrieve Studio",
+      "description": "A pocket-sized robot for little wins and rolling out.",
+      "permission_note": "Original illustrations generated for the MemeRetrieve demonstration.",
+      "color": "lilac",
+      "archive": true,
+      "stickers": [
+        { "id": "good-job", "name": "Good job!", "file": "art/good-job.webp" },
+        { "id": "roll-out", "name": "Roll out", "file": "art/roll-out.webp" }
+      ]
+    }
+  ]
+}

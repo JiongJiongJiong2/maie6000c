@@ -2368,6 +2368,18 @@ html[data-motion="off"] .progress-track > span {
   box-shadow: none;
   font-size: 14px;
 }
+.candidate .library-save {
+  background: #48334f;
+  color: #fffdf6;
+  border-radius: 6px;
+}
+.candidate .library-save:hover {
+  background: #33213a;
+}
+.library-card:focus {
+  outline: 3px solid #795789;
+  outline-offset: 3px;
+}
 .meme50-grid .candidate-body a {
   width: fit-content;
   padding: 3px 0;
@@ -2418,10 +2430,11 @@ html[data-motion="off"] .progress-track > span {
   padding: 1rem var(--library-gutter);
   font-size: clamp(1.55rem, 3.5vw, 2.35rem);
   line-height: 1.15;
-  list-style: none;
 }
-.library-heading::-webkit-details-marker {
-  display: none;
+.library-heading h1 {
+  margin: 0;
+  font: inherit;
+  font-weight: 700;
 }
 .library-mark {
   position: relative;
@@ -2445,17 +2458,6 @@ html[data-motion="off"] .progress-track > span {
   background:
     linear-gradient(transparent 64%, var(--ink) 64% 70%, transparent 70%),
     #e1d2f3;
-}
-.library-chevron {
-  margin-left: auto;
-  width: 0.62rem;
-  height: 0.62rem;
-  border: solid var(--ink);
-  border-width: 0 1.5px 1.5px 0;
-  transform: rotate(45deg);
-}
-#private-library[open] > summary .library-chevron {
-  transform: rotate(225deg);
 }
 .library-body {
   padding: 1.35rem var(--library-gutter) 1.6rem;
@@ -2785,19 +2787,28 @@ html[data-motion="off"] .progress-track > span {
   font-size: 0.95rem;
 }
 .library-card-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
   margin-top: auto;
   padding-top: 0.55rem;
   border-top: 1px solid var(--library-edge);
   font-size: 0.94rem;
 }
 .library-card-actions > a {
-  float: right;
-  margin-left: 0.45rem;
+  justify-self: start;
   text-decoration: underline;
   text-underline-offset: 0.15em;
 }
+.library-card-actions > p,
+.library-card-actions > details {
+  grid-column: 1 / -1;
+}
+.library-card-actions > p:empty {
+  display: none;
+}
 .library-card-actions details[open] > :not(summary) {
-  clear: both;
   padding-top: 0.6rem;
 }
 .library-card-actions form {
@@ -3189,11 +3200,6 @@ html[data-motion="off"] .progress-track > span {
   color: #9b341d;
   margin: 0 0 0.5rem;
 }
-.account-name {
-  font-family: "Computer Modern", Georgia, serif;
-  overflow-wrap: anywhere;
-}
-
 .account-form-heading,
 .account-fields form label {
   display: flex;

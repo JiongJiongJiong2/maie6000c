@@ -9,23 +9,41 @@ from services.common.config import get_settings
 
 router = APIRouter(include_in_schema=False)
 WEB_ROOT = Path(__file__).resolve().parents[3] / "web"
+WORKSPACE_PATHS = {"/web/search", "/web/library", "/web/stickers"}
 
 
 @router.get("/web/")
-def web_index(request: Request):
-    if get_settings().account_login_enabled:
-        account = getattr(request.state, "account", None)
-        if not account:
-            return sign_in_page()
-        # The account name is restricted to ASCII letters, digits, hyphens, dots and underscores.
-        html = (
-            (WEB_ROOT / "index.html")
-            .read_text(encoding="utf-8")
-            .replace('<html lang="en">', f'<html lang="en" data-account="{account.username}">')
-        )
-        return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+def web_home():
+    return FileResponse(WEB_ROOT / "home.html", headers={"Cache-Control": "no-cache"})
 
-    return FileResponse(WEB_ROOT / "index.html", headers={"Cache-Control": "no-cache"})
+
+@router.get("/web/search")
+def web_search(request: Request):
+    return workspace_page(request, "search")
+
+
+@router.get("/web/library")
+def web_library(request: Request):
+    return workspace_page(request, "library")
+
+
+def workspace_identity(html: str, request: Request) -> str:
+    account = getattr(request.state, "account", None)
+    if account:
+        # Usernames are restricted to ASCII letters, digits, dots, underscores and hyphens.
+        return html.replace(
+            '<html lang="en">', f'<html lang="en" data-account="{account.username}">', 1
+        )
+    return html
+
+
+def workspace_page(request: Request, page: str):
+    if get_settings().account_login_enabled and not getattr(request.state, "account", None):
+        return sign_in_page()
+    html = (WEB_ROOT / "index.html").read_text(encoding="utf-8")
+    html = workspace_identity(html, request)
+    html = html.replace('data-workspace-page="search"', f'data-workspace-page="{page}"', 1)
+    return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
 @router.get("/web/sign-in")
@@ -49,6 +67,13 @@ def web_asset(asset: str) -> FileResponse:
         "account-stickers.webp": "image/webp",
         "account-scraps.webp": "image/webp",
         "share.js": "text/javascript",
+        "sticker-packs.css": "text/css",
+        "sticker-packs.js": "text/javascript",
+        "workspace.css": "text/css",
+        "workspace.js": "text/javascript",
+        "home.css": "text/css",
+        "home.js": "text/javascript",
+        "motion.js": "text/javascript",
         "whatsapp-import.html": "text/html",
         "whatsapp-import.js": "text/javascript",
         "whatsapp-demo-pack.json": "application/json",

@@ -1,3 +1,4 @@
+import { mountMediaShare } from "./share.js";
 import { ApiError, combineSignals, sameOriginPath } from "./api.js";
 let signature = "";
 const urls = new Set();
@@ -263,16 +264,16 @@ export function renderMemeResults(container, result, api, signal, callbacks) {
         }),
       );
       body.append(download);
-      if (item.media_format === "GIF" && item.frame_count > 1) {
-        callbacks.share(
-          body,
-          download,
-          item.candidate_id,
-          mediaUrl,
-          cardSignal,
-        );
-        callbacks.favorite(result.job_id, item, body, download, cardSignal);
-      }
+      mountMediaShare({
+        api,
+        body,
+        download,
+        id: item.candidate_id,
+        url: item.media_url,
+        format: item.media_format || "GIF",
+        signal: cardSignal,
+      });
+      callbacks.favorite(result.job_id, item, body, download, cardSignal);
       if (item.source_url) {
         const link = document.createElement("a");
         link.href = item.source_url;

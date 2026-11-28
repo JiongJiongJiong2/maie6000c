@@ -16,6 +16,11 @@
 
 **能力边界：**现有参考语料是小规模演示集，并非完整的中文互联网 meme 资源库。产品目前不自动翻译梗的文化语境，也不自动发布到海外社交平台；大规模授权语料、文化解释/本地化及平台发布集成仍需后续设计和验证。
 
+Open `/stickers/` to recover an official sticker pack from a screenshot or
+browse the public demo collection. See the [sticker pack guide](docs/official-sticker-packs.md)
+to publish a brand catalog and measure acquisition actions.
+
+
 **English**
 
 **Vision:** Help people discover, understand, and share Chinese internet memes, bringing culturally specific expressions into global social conversations.

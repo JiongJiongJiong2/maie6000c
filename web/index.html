@@ -8,24 +8,20 @@
       name="description"
       content="Lost the meme? Drop a screenshot, find matching GIFs, and bring the reaction back."
     />
-    <title>MemeRetrieve — Lost the meme. Found the vibe.</title>
+    <title>Search · MemeRetrieve</title>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%23cbf45e'/%3E%3Cellipse cx='14' cy='18' rx='5' ry='8' fill='%231b1b20'/%3E%3Cellipse cx='27' cy='18' rx='5' ry='8' fill='%231b1b20'/%3E%3C/svg%3E"
     />
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./workspace.css" />
     <script type="module" src="./app.js"></script>
   </head>
-  <body>
-    <a class="skip-link" href="#workspace">Skip to upload</a>
+  <body data-workspace-page="search">
+    <a class="skip-link" id="workspace-skip" href="#workspace"
+      >Skip to content</a
+    >
     <header class="topbar">
-      <a class="brand" href="./" aria-label="MemeRetrieve home"
-        ><span class="brand-mark" aria-hidden="true"><i></i><i></i></span
-        ><span
-          >Meme<span class="brand-light">Retrieve</span
-          ><small>INTERNET LOST & FOUND</small></span
-        ></a
-      >
       <nav class="header-actions" aria-label="Page controls">
         <button id="motion-toggle" class="quiet small" aria-pressed="true">
           Motion: on
@@ -34,19 +30,14 @@
           <span class="status-dot" id="health-dot"></span
           ><span id="health-label">Connecting</span>
         </span>
-        <span id="account-name" class="account-name" hidden></span>
-        <button id="sign-out" class="quiet small" type="button" hidden>
-          Sign out
-        </button>
       </nav>
     </header>
-    <main>
-      <details id="private-library" lang="en">
-        <summary class="library-heading">
+    <main id="library-view" hidden>
+      <section id="private-library" aria-labelledby="library-title">
+        <div class="library-heading">
           <span class="library-mark" aria-hidden="true"></span>
-          <span>My GIF Library</span>
-          <span class="library-chevron" aria-hidden="true"></span>
-        </summary>
+          <h1 id="library-title" tabindex="-1">My Library</h1>
+        </div>
         <div class="library-body">
           <form data-search class="library-search">
             <label for="library-query">Search your collection</label>
@@ -98,7 +89,7 @@
                     type="file"
                     aria-label="Choose GIFs"
                     aria-describedby="library-file-names"
-                    accept=".gif,image/gif"
+                    accept="image/gif"
                     multiple
                   /><span aria-hidden="true">Choose GIFs</span
                   ><span id="library-file-names">No file chosen</span></span
@@ -111,8 +102,8 @@
             <details class="library-restore">
               <summary>Restore a backup</summary>
               <p>
-                Unzip the backup, select its GIFs above and choose the manifest
-                below.
+                Unzip the backup, select its image files above and choose the
+                manifest below.
               </p>
               <div class="library-form-row">
                 <label for="library-backup-manifest"
@@ -169,7 +160,7 @@
                 aria-haspopup="dialog"
                 aria-controls="library-analysis-confirm"
               >
-                Analyze selected GIFs
+                Analyze selected images
               </button>
             </div>
             <form data-bulk-tags>
@@ -191,7 +182,7 @@
                 ><input type="checkbox" data-export-annotations />Saved AI
                 analysis</label
               >
-              <button type="button" data-export>Back up selected GIFs</button>
+              <button type="button" data-export>Back up selected images</button>
             </div>
           </div>
           <dialog
@@ -200,11 +191,11 @@
             aria-labelledby="library-confirm-title"
             aria-describedby="library-confirm-description"
           >
-            <h2 id="library-confirm-title">Analyze selected GIFs?</h2>
+            <h2 id="library-confirm-title">Analyze selected images?</h2>
             <p id="library-confirm-description">
-              For each GIF, up to four frames will be sent to the configured AI
-              vision service. These frames include any text or images visible in
-              the GIF.
+              For each image, up to four frames will be sent to the configured
+              AI vision service. These frames include any text or images visible
+              in the image.
             </p>
             <form method="dialog">
               <button value="cancel" autofocus>Cancel</button>
@@ -219,9 +210,14 @@
           ></p>
           <div class="library-gallery-heading">
             <h2>Collection</h2>
+            <button type="button" data-show-all hidden>Show all images</button>
             <span data-visible-count aria-live="polite"></span>
           </div>
-          <ul data-assets id="library-gallery" aria-label="GIF collection"></ul>
+          <ul
+            data-assets
+            id="library-gallery"
+            aria-label="Image collection"
+          ></ul>
           <div class="library-paging">
             <button
               type="button"
@@ -241,147 +237,19 @@
             </button>
           </div>
         </div>
-      </details>
-      <section class="intro" aria-labelledby="hero-title">
-        <div class="hero-copy">
-          <p class="eyebrow">
-            <span class="tiny-star" aria-hidden="true">✳</span> SERIOUS SEARCH.
-            UNSERIOUS CONTENT.
-          </p>
-          <h1 id="hero-title">
-            LOST YOUR<br /><span class="meme-word"
-              >MEME<span class="question">?</span></span
-            >
-          </h1>
-          <p class="intro-copy">
-            You have the screenshot.<br />We have a very particular set of
-            <s>skills</s> GIFs.
-          </p>
-          <div class="hero-actions">
-            <a class="hero-cta" href="#workspace"
-              >Let's find that little guy <span aria-hidden="true">↘</span></a
-            ><span class="hero-aside"
-              >less scrolling.<br />more <em>lol.</em></span
-            >
-          </div>
-        </div>
-        <div class="hero-art" id="hero-art">
-          <span class="floating-star star-one" aria-hidden="true">✳</span>
-          <div class="sticker screenshot-sticker" aria-hidden="true">
-            <span class="sticker-eyebrow">LAST SEEN</span>
-            <div class="pixel-face">(·_·)</div>
-            <span>in your camera roll</span>
-            <div class="tape"></div>
-          </div>
-          <div class="mascot-window">
-            <div class="window-bar">
-              <span><i></i><i></i><i></i></span><span>vibe_recovery.exe</span
-              ><span aria-hidden="true">↗</span>
-            </div>
-            <div class="mascot-screen">
-              <span class="screen-tag">MISSING: ONE (1) BRAIN CELL</span>
-              <button
-                id="mascot"
-                class="mascot"
-                aria-label="Poke the mascot"
-                aria-describedby="mascot-caption"
-              >
-                <svg
-                  viewBox="0 0 300 250"
-                  role="img"
-                  aria-label="A goofy purple creature with big eyes and a pink tongue"
-                >
-                  <path
-                    class="blob-shadow"
-                    d="M57 204C15 165 43 128 31 96 18 49 65 15 108 33 142-2 182 14 201 36 253 13 283 50 264 93 299 123 282 165 257 180 277 226 221 251 188 227 139 258 92 245 80 221Z"
-                  />
-                  <path
-                    class="blob-body"
-                    d="M50 194C8 155 36 118 24 86 11 39 58 5 101 23 135-12 175 4 194 26 246 3 276 40 257 83 292 113 275 155 250 170 270 216 214 241 181 217 132 248 85 235 73 211Z"
-                  />
-                  <g class="mascot-eyes">
-                    <ellipse cx="109" cy="97" rx="36" ry="46" />
-                    <ellipse cx="181" cy="91" rx="36" ry="46" />
-                    <g class="pupils">
-                      <ellipse cx="120" cy="104" rx="12" ry="21" />
-                      <ellipse cx="192" cy="98" rx="12" ry="21" />
-                      <circle cx="124" cy="96" r="4" />
-                      <circle cx="196" cy="90" r="4" />
-                    </g>
-                  </g>
-                  <path
-                    d="M105 157Q154 183 205 147Q207 198 162 202Q120 204 105 157Z"
-                    fill="#202024"
-                    stroke="#202024"
-                    stroke-width="4"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="M149 179Q170 166 188 178L194 211Q182 238 161 224Z"
-                    fill="#ff91c8"
-                    stroke="#202024"
-                    stroke-width="4"
-                  />
-                  <path
-                    d="M169 182L176 208"
-                    fill="none"
-                    stroke="#202024"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                  />
-                  <path
-                    d="M58 137L74 141M219 127L233 121"
-                    stroke="#202024"
-                    stroke-width="5"
-                    stroke-linecap="round"
-                  />
-                </svg>
-              </button>
-              <p id="mascot-caption" class="mascot-caption" aria-live="polite">
-                head empty. GIF folder full.
-              </p>
-            </div>
-            <div class="window-footer">
-              <span class="pixel-dot"></span> certified little weirdo
-              <span>click to boop ↑</span>
-            </div>
-          </div>
-          <div class="sticker round-sticker" aria-hidden="true">
-            <span>SMALL FILE.</span><b>BIG<br />MOOD.</b
-            ><span>↖ VERY IMPORTANT</span>
-          </div>
-          <span class="floating-star star-two" aria-hidden="true">✦</span>
-          <span class="scribble" aria-hidden="true">the suspect ↑</span>
-        </div>
       </section>
-      <div class="ticker" aria-hidden="true">
-        <div class="ticker-track">
-          <span
-            >LOST THE MEME. FOUND THE VIBE. <b>✳</b> SCREENSHOT IN. CHAOS OUT.
-            <b>✳</b> PUT THAT REACTION BACK. <b>✳</b> </span
-          ><span
-            >LOST THE MEME. FOUND THE VIBE. <b>✳</b> SCREENSHOT IN. CHAOS OUT.
-            <b>✳</b> PUT THAT REACTION BACK. <b>✳</b>
-          </span>
-        </div>
-      </div>
+    </main>
+    <main id="search-view">
       <section
         class="workbench"
         id="workspace"
-        aria-labelledby="workbench-title"
+        aria-labelledby="search-title"
+        tabindex="-1"
       >
-        <div class="workbench-heading">
-          <div>
-            <p class="eyebrow">THE RECOVERY ROOM</p>
-            <h2 id="workbench-title">Okay, show us the evidence.</h2>
-          </div>
-          <span class="desk-note">one frame is all it takes to start ↙</span>
-        </div>
-        <ol class="steps" aria-label="How it works">
-          <li class="active"><b>01</b><span>Drop the evidence</span></li>
-          <li><b>02</b><span>Let us investigate</span></li>
-          <li><b>03</b><span>Reunite with your GIF</span></li>
-        </ol>
+        <hgroup class="workspace-search-title">
+          <h1 id="search-title">Search GIFs</h1>
+          <p>Upload a screenshot to find the original animation.</p>
+        </hgroup>
         <div id="notice" class="notice" role="alert" hidden></div>
         <div class="workspace">
           <section class="panel input-panel" aria-labelledby="input-title">
@@ -787,37 +655,10 @@
           <button id="forget" class="text-button">Clear local search</button>
         </div>
       </section>
-      <section
-        class="how-it-works"
-        aria-label="A very serious three-step process"
-      >
-        <article>
-          <span>01 / THE CLUE</span>
-          <h3>Screenshot happens.</h3>
-          <p>Crop the meme you want. One target, one tiny mystery.</p>
-        </article>
-        <article>
-          <span>02 / THE SEARCH</span>
-          <h3>Pixels, meet pixels.</h3>
-          <p>We compare your image with frames from our GIF collection.</p>
-        </article>
-        <article>
-          <span>03 / THE REUNION</span>
-          <h3>That's the little guy.</h3>
-          <p>Pick a match, download the GIF, and check that it plays.</p>
-        </article>
-      </section>
     </main>
-    <footer>
-      <span class="footer-brand">Memeory<span aria-hidden="true">✳</span></span
-      ><span>Built for the bit.<br /><small>MAIE 6000C · W07</small></span
-      ><a href="#hero-title">Back to the weird stuff ↑</a>
-    </footer>
     <div id="celebration" class="celebration" aria-hidden="true"></div>
     <noscript
-      ><p class="notice">
-        Enable JavaScript to upload images and search for GIFs.
-      </p></noscript
+      ><p class="notice">Enable JavaScript to use MemeRetrieve.</p></noscript
     >
   </body>
 </html>

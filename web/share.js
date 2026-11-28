@@ -1,58 +1,68 @@
-const prepareLabel = "分享动图 · Share GIF";
-const openLabel = "打开分享面板 · Open share menu";
-const fallback = "此浏览器暂不支持分享此文件，请下载 GIF 后手动发送。";
+const imageTypes = {
+  GIF: ["image/gif", "gif"],
+  JPEG: ["image/jpeg", "jpg"],
+  PNG: ["image/png", "png"],
+  WEBP: ["image/webp", "webp"],
+};
 let sharing = false;
 
-export function mountGifShare(
+export function mountMediaShare({
   api,
   body,
   download,
-  candidateId,
-  mediaUrl,
+  id,
+  url,
+  format,
   signal,
-) {
+}) {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "secondary share-gif";
-  button.textContent = prepareLabel;
-  button.hidden = download.hidden;
+  button.className = "secondary share-media";
+  button.textContent = "Share";
   const status = document.createElement("p");
   status.setAttribute("role", "status");
   body.append(button, status);
 
   let prepared;
   let preparation;
-  const eligible = () =>
-    !signal.aborted && button.isConnected && !download.hidden;
+  let fallbackUrl;
+  const mediaUrl = () => download.dataset.mediaUrl || url;
+  const active = () => !signal.aborted && button.isConnected;
   function invalidate() {
     preparation?.abort();
     preparation = null;
     prepared = null;
-    button.textContent = prepareLabel;
+    if (fallbackUrl) URL.revokeObjectURL(fallbackUrl);
+    fallbackUrl = null;
+    button.textContent = "Share";
     button.disabled = false;
     status.textContent = "";
   }
   signal.addEventListener("abort", invalidate, { once: true });
   download.addEventListener("mediachange", invalidate);
-  download.addEventListener("eligibilitychange", () => {
-    button.hidden = download.hidden;
-    if (button.hidden) invalidate();
-  });
+
+  function offerDownload(
+    file,
+    message = "This browser can’t share this file. Download the original to send it.",
+  ) {
+    status.textContent = message;
+    if (fallbackUrl) URL.revokeObjectURL(fallbackUrl);
+    fallbackUrl = null;
+    if (download.hidden && file) {
+      const link = document.createElement("a");
+      fallbackUrl = URL.createObjectURL(file);
+      link.href = fallbackUrl;
+      link.download = file.name;
+      link.textContent = "Download original";
+      status.append(" ", link);
+    }
+  }
 
   button.addEventListener("click", async () => {
-    if (!eligible() || preparation) return;
-    if (
-      !window.isSecureContext ||
-      typeof navigator.share !== "function" ||
-      typeof navigator.canShare !== "function"
-    ) {
-      status.textContent = fallback;
-      return;
-    }
-    const url = mediaUrl();
-    if (prepared?.url === url) {
+    if (!active() || preparation) return;
+    if (prepared?.url === mediaUrl()) {
       if (sharing) {
-        status.textContent = "已有分享面板打开，请先完成该操作。";
+        status.textContent = "Finish sharing the other image first.";
         return;
       }
       const file = prepared.file;
@@ -60,11 +70,14 @@ export function mountGifShare(
       button.disabled = true;
       try {
         await navigator.share({ files: [file] });
-        if (eligible() && prepared?.file === file)
-          status.textContent = "已交给系统分享，请在目标应用中确认发送。";
+        if (active() && prepared?.file === file)
+          status.textContent = "Opened in system sharing.";
       } catch {
-        if (eligible() && prepared?.file === file)
-          status.textContent = "分享未完成，可重试或下载 GIF。";
+        if (active() && prepared?.file === file)
+          offerDownload(
+            file,
+            "Sharing didn’t finish. Try again or download the original.",
+          );
       } finally {
         sharing = false;
         if (prepared?.file === file) button.disabled = false;
@@ -72,28 +85,39 @@ export function mountGifShare(
       return;
     }
 
+    invalidate();
+    const supported =
+      window.isSecureContext &&
+      typeof navigator.share === "function" &&
+      typeof navigator.canShare === "function";
+    if (!supported && !download.hidden) {
+      offerDownload();
+      return;
+    }
+    const source = mediaUrl();
     const controller = new AbortController();
     preparation = controller;
     button.disabled = true;
-    status.textContent = "正在准备 GIF…";
+    status.textContent = "Preparing original…";
     const current = () =>
-      preparation === controller && eligible() && mediaUrl() === url;
+      preparation === controller && active() && mediaUrl() === source;
     try {
-      const blob = await api.media(url, controller.signal);
+      const blob = await api.media(source, controller.signal);
       if (!current()) return;
-      if (blob.type !== "image/gif") {
-        status.textContent = "原文件不是 GIF，无法分享动图。";
+      const type = imageTypes[format];
+      if (!type || blob.type.split(";")[0] !== type[0]) {
+        status.textContent =
+          "The original file’s format doesn’t match this result.";
         return;
       }
-      const file = new File([blob], `meme-${candidateId}.gif`, {
-        type: "image/gif",
-      });
-      if (!navigator.canShare({ files: [file] })) {
-        status.textContent = fallback;
+      const file = new File([blob], `meme-${id}.${type[1]}`, { type: type[0] });
+      if (!supported || !navigator.canShare({ files: [file] })) {
+        offerDownload(file);
         return;
       }
-      prepared = { url, file };
-      button.textContent = openLabel;
+      // A fresh click preserves the user activation required by native share sheets.
+      prepared = { url: source, file };
+      button.textContent = "Open share menu";
       status.textContent = "";
     } catch (error) {
       if (current()) status.textContent = error.message;

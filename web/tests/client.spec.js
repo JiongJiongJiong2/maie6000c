@@ -53,7 +53,7 @@ async function fixtures(page, state = complete) {
     reviews.push(route.request().postDataJSON());
     return route.fulfill({ status: 201, json: { review_id: reviewId } });
   });
-  await page.goto("/web/");
+  await page.goto("/web/search");
   await expect(page.locator("#file-input")).toBeEnabled();
   return { uploads, reviews, errors };
 }
@@ -359,7 +359,7 @@ test("expired GIF download preserves the accepted review", async ({ page }) => {
   );
   await page.locator(".download").click();
   await expect(page.locator("#download-status")).toContainText(
-    "GIF has expired",
+    "image has expired",
   );
   await expect(page.locator("#review-status")).toContainText("Choice saved");
 });
@@ -568,7 +568,7 @@ test("private library resumes waiting GIFs and requires consent for vision", asy
   );
   await fixtures(page);
   const openLibrary = async () => {
-    await page.getByText("My GIF Library", { exact: true }).click();
+    await page.getByRole("link", { name: "My Library", exact: true }).click();
     await page
       .getByRole("button", { name: "Import GIFs", exact: true })
       .click();
@@ -604,10 +604,10 @@ test("private library resumes waiting GIFs and requires consent for vision", asy
   await page.getByRole("checkbox", { name: "Select 旧收藏" }).check();
   await page.getByRole("button", { name: /Selection tools/ }).click();
   const vision = page.getByRole("button", {
-    name: "Analyze selected GIFs",
+    name: "Analyze selected images",
   });
   const confirmation = page.getByRole("dialog", {
-    name: "Analyze 1 selected GIF?",
+    name: "Analyze 1 selected image?",
   });
   await vision.click();
   await expect(confirmation).toBeVisible();
@@ -706,7 +706,7 @@ test("private library splits imports, keeps selection, and downloads a backup", 
   });
 
   await fixtures(page);
-  await page.getByText("My GIF Library", { exact: true }).click();
+  await page.getByRole("link", { name: "My Library", exact: true }).click();
   await page.getByRole("button", { name: "Import GIFs", exact: true }).click();
   await page.getByText("Sample one", { exact: true }).waitFor();
   await page.locator("#library-files").setInputFiles(
@@ -732,12 +732,12 @@ test("private library splits imports, keeps selection, and downloads a backup", 
   await page.getByRole("button", { name: /Selection tools/ }).click();
   await page.locator("[data-bulk-tags] input").fill("归档、保留");
   await page.getByRole("button", { name: "Apply tags" }).click();
-  await expect(page.getByText("Tags updated for 2 GIFs.")).toBeVisible();
+  await expect(page.getByText("Tags updated for 2 images.")).toBeVisible();
   expect(added).toEqual({ asset_ids: ids, tags: ["归档", "保留"] });
 
   await page.locator("[data-export-manual]").check();
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Back up selected GIFs" }).click();
+  await page.getByRole("button", { name: "Back up selected images" }).click();
   expect((await download).suggestedFilename()).toBe("private-gifs.zip");
   expect(exported).toEqual({
     asset_ids: ids,
@@ -862,7 +862,7 @@ test("backup restore reports each current receipt and only restores successful m
     });
   });
   await fixtures(page);
-  await page.getByText("My GIF Library", { exact: true }).click();
+  await page.getByRole("link", { name: "My Library", exact: true }).click();
   await page.getByRole("button", { name: "Import GIFs", exact: true }).click();
   await expect(
     page.getByText(/Previous restore was not started/),
@@ -899,7 +899,9 @@ test("backup restore reports each current receipt and only restores successful m
 
   await page.locator("#library-files").setInputFiles(files[0].upload);
   await restore.click();
-  await expect(results.getByText("Small — Original GIF missing")).toBeVisible();
+  await expect(
+    results.getByText("Small — Original image missing"),
+  ).toBeVisible();
   await expect(
     results.getByText("Large — Exceeds the destination file limit"),
   ).toBeVisible();
@@ -945,7 +947,7 @@ test("library previews private GIFs automatically and collapses extra pages", as
     return route.fulfill({ body: gif, contentType: "image/gif" });
   });
   await fixtures(page);
-  await page.getByText("My GIF Library", { exact: true }).click();
+  await page.getByRole("link", { name: "My Library", exact: true }).click();
   const gallery = page.locator("#library-gallery");
   const preview = gallery.getByRole("img", { name: "Laugh" });
   await expect(preview).toBeVisible();
@@ -1079,7 +1081,7 @@ test("selected GIFs show completed AI tags without a refresh or an index retry",
     });
   });
   await fixtures(page);
-  await page.getByText("My GIF Library", { exact: true }).click();
+  await page.getByRole("link", { name: "My Library", exact: true }).click();
   await page.getByRole("button", { name: "Load more" }).click();
   for (const asset of batch)
     await page.getByRole("checkbox", { name: `Select ${asset.title}` }).check();
@@ -1092,9 +1094,9 @@ test("selected GIFs show completed AI tags without a refresh or an index retry",
   await card.getByText("Edit details", { exact: true }).click();
   await card.getByLabel("Title", { exact: true }).fill("Unsaved title");
   await page.getByRole("button", { name: /Selection tools/ }).click();
-  await page.getByRole("button", { name: "Analyze selected GIFs" }).click();
+  await page.getByRole("button", { name: "Analyze selected images" }).click();
   await page
-    .getByRole("dialog", { name: "Analyze 2 selected GIFs?" })
+    .getByRole("dialog", { name: "Analyze 2 selected images?" })
     .getByRole("button", { name: "Analyze", exact: true })
     .click();
   await expect(card.getByText("celebration", { exact: true })).toBeVisible({
@@ -1116,7 +1118,7 @@ test("selected GIFs show completed AI tags without a refresh or an index retry",
   await expect(page.getByRole("button", { name: "Show fewer" })).toBeVisible();
 });
 
-test("legacy share waits for confirmation and falls back to original download", async ({
+test("local results offer sharing and original download before confirmation", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -1134,15 +1136,14 @@ test("legacy share waits for confirmation and falls back to original download", 
     route.fulfill({ contentType: "image/gif", body: animatedGif }),
   );
   await upload(page);
-  const share = page.locator(".share-gif");
-  await expect(share).toBeHidden();
-  await page.getByRole("button", { name: "This is the one" }).click();
+  const share = page.getByRole("button", { name: "Share", exact: true });
+  await expect(share).toBeVisible();
   await share.click();
-  await expect(page.getByText(/暂不支持分享/)).toBeVisible();
+  await expect(page.getByText(/browser can’t share/)).toBeVisible();
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: /Download GIF/ }).click();
+  await page.getByRole("link", { name: "Download original" }).click();
   expect(readFileSync(await (await download).path())).toEqual(animatedGif);
-  expect(reviews).toHaveLength(1);
+  expect(reviews).toHaveLength(0);
 });
 
 test("saved local GIF shares its permanent file even with failed indexing", async ({
@@ -1170,7 +1171,7 @@ test("saved local GIF shares its permanent file even with failed indexing", asyn
     route.fulfill({ contentType: "image/gif", body: animatedGif }),
   );
   await upload(page);
-  await page.getByRole("button", { name: /Share GIF/ }).click();
+  await page.getByRole("button", { name: "Share", exact: true }).click();
   await page.getByRole("button", { name: /Open share menu/ }).click();
   await expect
     .poll(() => page.evaluate(() => window.shared))
@@ -1200,16 +1201,16 @@ test("share media errors stay on the card and never invoke the share menu", asyn
       : route.fulfill({ contentType: "image/png", body: png }),
   );
   await upload(page);
-  const share = page.getByRole("button", { name: /Share GIF/ });
+  const share = page.getByRole("button", { name: "Share", exact: true });
   const card = page.locator(".candidate").filter({ has: share });
   await share.click();
   await expect(card.getByText("Sign in to open your library.")).toBeVisible();
   failure = 410;
   await share.click();
-  await expect(card.getByText(/GIF has expired/)).toBeVisible();
+  await expect(card.getByText(/image has expired/)).toBeVisible();
   failure = 0;
   await share.click();
-  await expect(card.getByText(/原文件不是 GIF/)).toBeVisible();
+  await expect(card.getByText(/format doesn’t match/)).toBeVisible();
   await expect(share).toBeEnabled();
   expect(await page.evaluate(() => window.shareCalls)).toBe(0);
 });
@@ -1239,7 +1240,7 @@ test("changing the screenshot discards an in-flight GIF preparation", async ({
   });
   await upload(page);
   const pending = page.waitForRequest(`**/saved-assets/${asset}/media`);
-  await page.getByRole("button", { name: /Share GIF/ }).click();
+  await page.getByRole("button", { name: "Share", exact: true }).click();
   await pending;
   await page.locator("#file-input").setInputFiles({
     name: "replacement.png",
@@ -1248,9 +1249,86 @@ test("changing the screenshot discards an in-flight GIF preparation", async ({
   });
   await expect(page.locator("#file-name")).toHaveText("replacement.png");
   respond();
-  await expect(page.locator(".share-gif")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Share", exact: true }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: /Open share menu/ }),
   ).toHaveCount(0);
   expect(await page.evaluate(() => window.shareCalls)).toBe(0);
+});
+
+test("My Library shares saved originals with their file types", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    navigator.canShare = () => true;
+    navigator.share = async ({ files: [file] }) => {
+      window.sharedLibraryFile = {
+        name: file.name,
+        type: file.type,
+        bytes: [...new Uint8Array(await file.arrayBuffer())],
+      };
+    };
+  });
+  await fixtures(page);
+  const jpeg = Buffer.from(
+    await page.evaluate(() => {
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 4;
+      return canvas.toDataURL("image/jpeg").split(",")[1];
+    }),
+    "base64",
+  );
+  const samples = [
+    {
+      id: candidateId,
+      format: "JPEG",
+      type: "image/jpeg",
+      suffix: "jpg",
+      bytes: jpeg,
+      frames: 1,
+    },
+    {
+      id: requestId,
+      format: "GIF",
+      type: "image/gif",
+      suffix: "gif",
+      bytes: animatedGif,
+      frames: 2,
+    },
+  ];
+  await page.route("**/library/assets?*", (route) =>
+    route.fulfill({
+      json: {
+        assets: samples.map((s) => ({
+          asset_id: s.id,
+          title: s.format,
+          media_format: s.format,
+          media_url: `/saved-assets/${s.id}/media`,
+          frame_count: s.frames,
+          index_status: "ready",
+          annotation_status: "not_requested",
+        })),
+      },
+    }),
+  );
+  for (const s of samples) {
+    await page.route(`**/saved-assets/${s.id}/media`, (route) =>
+      route.fulfill({ contentType: s.type, body: s.bytes }),
+    );
+  }
+  await page.getByRole("link", { name: "My Library", exact: true }).click();
+  for (const s of samples) {
+    const card = page.locator(`#library-gallery [data-asset-id="${s.id}"]`);
+    await card.getByRole("button", { name: "Share", exact: true }).click();
+    await card.getByRole("button", { name: "Open share menu" }).click();
+    await expect
+      .poll(() => page.evaluate(() => window.sharedLibraryFile))
+      .toEqual({
+        name: `meme-${s.id}.${s.suffix}`,
+        type: s.type,
+        bytes: [...s.bytes],
+      });
+  }
 });

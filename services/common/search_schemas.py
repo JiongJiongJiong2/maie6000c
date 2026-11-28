@@ -58,7 +58,11 @@ class CandidateRead(BaseModel):
     @model_serializer(mode="wrap")
     def compatible_json(self, handler):
         data = handler(self)
-        if self.contract_version == 1:
+        if (
+            self.contract_version == 1
+            and self.media_format == "GIF"
+            and self.media_kind == "animated"
+        ):
             for key in [
                 "media_format",
                 "mime_type",

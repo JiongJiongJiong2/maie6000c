@@ -15,13 +15,13 @@ fetch service. The detailed PowerShell setup and upgrade commands below are
 maintained in Chinese. See the [W13 delivery report](../submissions/week13/README.md)
 for the verified workflow and its limitations.
 
-打开 `http://127.0.0.1:8000/web/`。首次使用点 **Register** 选择用户名和至少八位的密码，之后用 **Sign in** 打开自己的收藏。右上角的 **Sign out** 结束当前会话。每个账号的收藏、导入和搜索历史存放在独立工作空间。
+打开 `http://127.0.0.1:8000/web/`，点击 **Enter workspace**。首次使用点 **Register** 选择用户名和至少八位的密码，之后用 **Sign in** 打开自己的收藏。右上角的 **Sign out** 结束当前会话。每个账号的收藏、导入和搜索历史存放在独立工作空间。
 
 ## 用网页找回和收藏 GIF | Recover and save GIFs in the web app
 
 选择、拖入或粘贴 PNG、JPEG 或 WebP 截图后，可点 **Crop screenshot** 框选表情并确认；也可以保留整图。确认后的同一张图用于本地检索和后续联网搜索。选择 **Local only** 搜索参考库和你已索引的收藏。目标不在结果里时，点 **Continue online** 并描述画面、动作或记得的来源。联网模式需要运营者配置识图模型和 DeepSeek。结果页的 **Search activity** 展示真实调用数和查询计划，任务结束后可查看实际执行的查询及返回的来源数。
 
-在结果中播放动画。联网结果可点 **Confirm and save** 收藏并等待索引完成。本地参考结果可点 **This is the one** 后下载。通过 **My GIF Library** 管理、下载或批量导入原始 GIF，也可以换一帧重新本地检索。下载按钮提供原件。在支持 Web Share 的浏览器可选择 **Share GIF**，再在系统分享面板选接收应用。
+在结果中播放动画。在已完成的搜索结果上点 **Add to My Library** 可收藏静态图或动图原件。点 **View in My Library** 即可查看刚收藏的图片。索引完成后可用本地搜索找回。本地参考结果可点 **This is the one** 后下载。通过 **My Library** 管理、下载或批量导入原始 GIF，也可以换一帧重新本地检索。下载按钮提供原件。搜索结果与 **My Library** 中的静态图、动图都可点 **Share**。文件就绪后点 **Open share menu**，在系统分享面板选择接收应用。浏览器不支持该格式的文件分享时，可下载原件发送。
 
 Select, drop, or paste a PNG, JPEG, or WebP screenshot. Choose **Crop
 screenshot** to select and confirm the meme region, or keep the full image.

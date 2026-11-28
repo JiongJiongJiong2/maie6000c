@@ -10,7 +10,11 @@ COPY pyproject.toml README.md /app/
 COPY services /app/services
 COPY web/account-scraps.webp web/account-stickers.webp web/account-folder.webp web/account.html web/account.js web/index.html web/styles.css web/app.js web/api.js web/store.js web/meme50.js web/library.js web/share.js /app/web/
 COPY web/whatsapp-* /app/web/
+COPY web/sticker-packs.* /app/web/
+COPY web/workspace.css web/workspace.js /app/web/
+COPY web/home.html web/home.css web/home.js web/motion.js /app/web/
 COPY web/fonts /app/web/fonts
+COPY sticker_packs/demo /app/sticker_packs/demo
 COPY scripts /app/scripts
 COPY alembic /app/alembic
 COPY alembic.ini /app/alembic.ini

@@ -3,6 +3,8 @@
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
+from services.common.media import FORMATS
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from services.common.library_metadata import Annotation, MetadataEdit
@@ -41,13 +43,17 @@ class BackupAnnotation(Annotation):
     sampled_frames: list[BackupFrame] = Field(min_length=1, max_length=4)
 
 
+def valid_backup_path(digest: str, path: str) -> bool:
+    return path in {f"assets/{digest}.{suffix}" for _, suffix in FORMATS.values()}
+
+
 class BackupEntry(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     sha256: Digest
     path: str = Field(max_length=80)
     byte_size: int = Field(gt=0, le=MAX_BACKUP_BYTES)
-    frame_count: int = Field(ge=2, le=1000)
+    frame_count: int = Field(ge=1, le=1000)
     title: str = Field(min_length=1, max_length=200)
     source: BackupSource | None = None
     manual: MetadataEdit | None = None
@@ -55,7 +61,7 @@ class BackupEntry(BaseModel):
 
     @model_validator(mode="after")
     def check_identity(self):
-        if self.path != f"assets/{self.sha256}.gif":
+        if not valid_backup_path(self.sha256, self.path):
             raise ValueError("Invalid GIF archive path")
         if self.annotation is not None and (
             self.annotation.sha256 != self.sha256

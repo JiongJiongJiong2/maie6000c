@@ -7,7 +7,7 @@ test.skip(
 );
 
 async function start(page) {
-  await page.goto("/web/");
+  await page.goto("/web/search");
   await page.getByRole("radio", { name: "Register" }).check();
   await page.getByLabel("Username").fill("tester-" + crypto.randomUUID());
   await page.getByLabel("Password").fill("fixture-password");
@@ -106,7 +106,7 @@ test("a returning account restores its browser session and a second account star
   await page.reload();
   await expect(page.locator("#account-name")).toHaveText(user);
   const secondTab = await page.context().newPage();
-  await secondTab.goto("/web/");
+  await secondTab.goto("/web/search");
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(
     secondTab.getByRole("heading", { name: "Sign in" }),
@@ -175,4 +175,189 @@ test("stickers keep moving inside both account forms with reduced motion enabled
   await expect(page.getByRole("button", { name: /motion|pause/i })).toHaveCount(
     0,
   );
+});
+
+test("a search result shares the same original before and after saving to My Library", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    navigator.canShare = () => true;
+    navigator.share = async ({ files: [file] }) => {
+      window.sharedOriginal = {
+        name: file.name,
+        type: file.type,
+        bytes: [...new Uint8Array(await file.arrayBuffer())],
+      };
+    };
+  });
+  await start(page);
+  await page.locator("#submit").click();
+  await expect(page.locator("#status-title")).toHaveText(
+    "Waiting for processing",
+  );
+  expect((await page.request.post("/__test__/complete/candidates")).ok()).toBe(
+    true,
+  );
+  await page.locator("#refresh").click();
+  const card = page.locator("#candidates .candidate");
+  await expect(card).toBeVisible();
+  const id = await card.getAttribute("data-id");
+  const response = await page.request.get(`/candidates/${id}/media`);
+  expect(response.ok()).toBe(true);
+  const bytes = [...(await response.body())];
+  async function checkShare(container, fileId) {
+    await container.getByRole("button", { name: "Share", exact: true }).click();
+    await container.getByRole("button", { name: "Open share menu" }).click();
+    await expect
+      .poll(() => page.evaluate(() => window.sharedOriginal))
+      .toEqual({
+        name: `meme-${fileId}.gif`,
+        type: "image/gif",
+        bytes,
+      });
+  }
+  await checkShare(card, id);
+  await card.getByRole("button", { name: "Add to My Library" }).click();
+  await card.getByRole("button", { name: "View in My Library" }).click();
+  const saved = page.locator("#library-gallery .library-card");
+  await expect(saved).toBeVisible();
+  const assetId = await saved.getAttribute("data-asset-id");
+  await expect(page).toHaveURL(new RegExp(`/web/library\\?asset=${assetId}$`));
+  await checkShare(saved, assetId);
+  await page.reload();
+  await expect(saved).toBeFocused();
+});
+
+test("the signed-in workspace separates search, library and official stickers", async ({
+  page,
+}) => {
+  await page.goto("/web/library");
+  await page.getByRole("radio", { name: "Register" }).check();
+  await page.getByLabel("Username").fill("navigation-" + crypto.randomUUID());
+  await page.getByLabel("Password").fill("fixture-password");
+  await page
+    .getByRole("button", { name: "Create account", exact: true })
+    .click();
+
+  const navigation = page.getByRole("navigation", { name: "Workspace" });
+  const searchLink = navigation.getByRole("link", {
+    name: "Search",
+    exact: true,
+  });
+  const libraryLink = navigation.getByRole("link", { name: "My Library" });
+  const stickerLink = navigation.getByRole("link", {
+    name: "Official Stickers",
+  });
+  await expect(page).toHaveURL(/\/web\/library$/);
+  await expect(libraryLink).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("heading", { name: "My Library" })).toBeVisible();
+  await expect(page.locator("#file-input")).toBeHidden();
+
+  await searchLink.click();
+  await expect(searchLink).toHaveAttribute("aria-current", "page");
+  await expect(
+    page.getByRole("heading", { name: "Search GIFs" }),
+  ).toBeVisible();
+  await expect(page.locator("#private-library")).toBeHidden();
+  await expect(page.locator("#file-input")).toBeEnabled();
+  const crop = await page.request.get("/__test__/crop");
+  await page.locator("#file-input").setInputFiles({
+    name: "sidebar-test.png",
+    mimeType: "image/png",
+    buffer: await crop.body(),
+  });
+  await expect(page.locator("#file-name")).toHaveText("sidebar-test.png");
+
+  await libraryLink.click();
+  await expect(page.locator("#private-library")).toBeVisible();
+  await expect(page.locator("#search-view")).toBeHidden();
+  await page.goBack();
+  await expect(page.locator("#file-name")).toHaveText("sidebar-test.png");
+
+  await stickerLink.click();
+  await expect(page).toHaveURL(/\/web\/stickers$/);
+  await expect(stickerLink).toHaveAttribute("aria-current", "page");
+  await expect(
+    page.getByRole("heading", { name: "Sticker pack directory" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Try a sample" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Sticker pack found" }),
+  ).toBeVisible();
+
+  await page.setViewportSize({ width: 320, height: 760 });
+  await expect(navigation).toBeInViewport();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await searchLink.click();
+  await expect(page.locator("#file-name")).toHaveText("sidebar-test.png");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+
+  await libraryLink.click();
+  await page.reload();
+  await expect(libraryLink).toHaveAttribute("aria-current", "page");
+  await expect(page.locator("#private-library")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+});
+
+test("the full-screen theme opens the workbench and is reachable from its logo", async ({
+  page,
+}) => {
+  await page.goto("/web/");
+  const home = page.getByRole("heading", { name: /LOST YOUR MEME\s*\?/ });
+  const enter = page.getByRole("link", { name: "Enter workspace" });
+  await expect(home).toBeVisible();
+  await enter.click();
+  await expect(page).toHaveURL(/\/web\/search$/);
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+
+  await page.getByRole("radio", { name: "Register" }).check();
+  await page.getByLabel("Username").fill("home-" + crypto.randomUUID());
+  await page.getByLabel("Password").fill("fixture-password");
+  await page
+    .getByRole("button", { name: "Create account", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Search GIFs" }),
+  ).toBeVisible();
+
+  const crop = await page.request.get("/__test__/crop");
+  await page.locator("#file-input").setInputFiles({
+    name: "kept-after-home.png",
+    mimeType: "image/png",
+    buffer: await crop.body(),
+  });
+  await expect(page.locator("#file-name")).toHaveText("kept-after-home.png");
+
+  const sidebar = page.getByRole("navigation", { name: "Workspace" });
+  const homeLogo = page
+    .locator(".workspace-sidebar")
+    .getByRole("link", { name: "MemeRetrieve home" });
+  await sidebar.getByRole("link", { name: "My Library" }).click();
+  await homeLogo.click();
+  await expect(page).toHaveURL(/\/web\/$/);
+  await expect(home).toBeVisible();
+  await enter.click();
+  await expect(page.locator("#file-name")).toHaveText("kept-after-home.png");
+
+  await sidebar.getByRole("link", { name: "Official Stickers" }).click();
+  await expect(page).toHaveURL(/\/web\/stickers$/);
+  await homeLogo.click();
+  await expect(home).toBeVisible();
+  await page.goto("/web/#workspace");
+  await expect(page).toHaveURL(/\/web\/search#workspace$/);
+  await expect(page.locator("#file-name")).toHaveText("kept-after-home.png");
 });

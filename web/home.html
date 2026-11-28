@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f3e9" />
+    <meta
+      name="description"
+      content="Lost the meme? Drop a screenshot, find matching GIFs, and bring the reaction back."
+    />
+    <title>MemeRetrieve — Lost the meme. Found the vibe.</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%23cbf45e'/%3E%3Cellipse cx='14' cy='18' rx='5' ry='8' fill='%231b1b20'/%3E%3Cellipse cx='27' cy='18' rx='5' ry='8' fill='%231b1b20'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/web/styles.css" />
+    <link rel="stylesheet" href="/web/home.css" />
+    <script type="module" src="/web/home.js"></script>
+  </head>
+  <body class="home-page">
+    <header class="topbar home-header">
+      <a class="brand" href="/web/" aria-label="MemeRetrieve home">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i></span>
+        <span
+          >Meme<span class="brand-light">Retrieve</span
+          ><small>Internet Lost & Found</small></span
+        >
+      </a>
+      <button
+        id="motion-toggle"
+        class="quiet small"
+        type="button"
+        aria-pressed="true"
+      >
+        Motion: on
+      </button>
+    </header>
+    <main class="home-stage">
+      <section class="intro" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">
+            <span class="tiny-star" aria-hidden="true">✳</span> SERIOUS SEARCH.
+            UNSERIOUS CONTENT.
+          </p>
+          <h1 id="hero-title">
+            <span class="hero-first-line">LOST YOUR</span>
+            <span class="meme-word">MEME<span class="question">?</span></span>
+          </h1>
+          <p class="intro-copy">
+            You have the screenshot.<br />We have a very particular set of
+            <s>skills</s> GIFs.
+          </p>
+          <div class="hero-actions">
+            <a class="hero-cta" href="/web/search">
+              Enter workspace <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </div>
+        <div class="hero-art" id="hero-art">
+          <span class="floating-star star-one" aria-hidden="true">✳</span>
+          <div class="sticker screenshot-sticker" aria-hidden="true">
+            <span class="sticker-eyebrow">LAST SEEN</span>
+            <div class="pixel-face">(·_·)</div>
+            <span>in your camera roll</span>
+            <div class="tape"></div>
+          </div>
+          <div class="mascot-window">
+            <div class="window-bar">
+              <span><i></i><i></i><i></i></span><span>vibe_recovery.exe</span
+              ><span aria-hidden="true">↗</span>
+            </div>
+            <div class="mascot-screen">
+              <span class="screen-tag">MISSING: ONE (1) BRAIN CELL</span>
+              <button
+                id="mascot"
+                class="mascot"
+                aria-label="Poke the mascot"
+                aria-describedby="mascot-caption"
+              >
+                <svg
+                  viewBox="0 0 300 250"
+                  role="img"
+                  aria-label="A goofy purple creature with big eyes and a pink tongue"
+                >
+                  <path
+                    class="blob-shadow"
+                    d="M57 204C15 165 43 128 31 96 18 49 65 15 108 33 142-2 182 14 201 36 253 13 283 50 264 93 299 123 282 165 257 180 277 226 221 251 188 227 139 258 92 245 80 221Z"
+                  />
+                  <path
+                    class="blob-body"
+                    d="M50 194C8 155 36 118 24 86 11 39 58 5 101 23 135-12 175 4 194 26 246 3 276 40 257 83 292 113 275 155 250 170 270 216 214 241 181 217 132 248 85 235 73 211Z"
+                  />
+                  <g class="mascot-eyes">
+                    <ellipse cx="109" cy="97" rx="36" ry="46" />
+                    <ellipse cx="181" cy="91" rx="36" ry="46" />
+                    <g class="pupils">
+                      <ellipse cx="120" cy="104" rx="12" ry="21" />
+                      <ellipse cx="192" cy="98" rx="12" ry="21" />
+                      <circle cx="124" cy="96" r="4" />
+                      <circle cx="196" cy="90" r="4" />
+                    </g>
+                  </g>
+                  <path
+                    d="M105 157Q154 183 205 147Q207 198 162 202Q120 204 105 157Z"
+                    fill="#202024"
+                    stroke="#202024"
+                    stroke-width="4"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M149 179Q170 166 188 178L194 211Q182 238 161 224Z"
+                    fill="#ff91c8"
+                    stroke="#202024"
+                    stroke-width="4"
+                  />
+                  <path
+                    d="M169 182L176 208"
+                    fill="none"
+                    stroke="#202024"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M58 137L74 141M219 127L233 121"
+                    stroke="#202024"
+                    stroke-width="5"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </button>
+              <p id="mascot-caption" class="mascot-caption" aria-live="polite">
+                head empty. GIF folder full.
+              </p>
+            </div>
+            <div class="window-footer">
+              <span class="pixel-dot"></span> certified little weirdo
+              <span>click to boop ↑</span>
+            </div>
+          </div>
+          <div class="sticker round-sticker" aria-hidden="true">
+            <span>SMALL FILE.</span><b>BIG<br />MOOD.</b
+            ><span>↖ VERY IMPORTANT</span>
+          </div>
+          <span class="floating-star star-two" aria-hidden="true">✦</span>
+          <span class="scribble" aria-hidden="true">the suspect ↑</span>
+        </div>
+      </section>
+    </main>
+    <div class="ticker" aria-hidden="true">
+      <div class="ticker-track">
+        <span
+          >LOST THE MEME. FOUND THE VIBE. <b>✳</b> SCREENSHOT IN. CHAOS OUT.
+          <b>✳</b> PUT THAT REACTION BACK. <b>✳</b> </span
+        ><span
+          >LOST THE MEME. FOUND THE VIBE. <b>✳</b> SCREENSHOT IN. CHAOS OUT.
+          <b>✳</b> PUT THAT REACTION BACK. <b>✳</b>
+        </span>
+      </div>
+    </div>
+  </body>
+</html>

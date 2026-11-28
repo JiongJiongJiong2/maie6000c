@@ -121,6 +121,7 @@ def test_saved_indexes_validate_media_and_join_fixed_ranking(tmp_path, monkeypat
     (tmp_path / "saved.gif").write_bytes(data)
     asset = SimpleNamespace(
         id=str(uuid4()), gif_path="saved.gif", sha256=sha256(data), frame_count=10,
+        media_format="GIF",
         index_status="running", index_version=None,
     )
     attempts = []

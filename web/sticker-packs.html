@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="same-origin" />
+    <meta
+      name="description"
+      content="Find pickup links and candidate sources from a sticker screenshot."
+    />
+    <title>Sticker Source Finder · MemeRetrieve</title>
+    <link rel="stylesheet" href="/web/sticker-packs.css" />
+    <link rel="stylesheet" href="/web/workspace.css" />
+    <script type="module" src="/web/sticker-packs.js"></script>
+  </head>
+  <body data-variant="finder">
+    <header class="masthead shell">
+      <a
+        class="wordmark"
+        href="/stickers/"
+        aria-label="MemeRetrieve sticker finder"
+      >
+        <span class="brand-icon" aria-hidden="true"><i></i><i></i></span>
+        MemeRetrieve<span class="wordmark-end"> / Stickers</span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="#packs">Browse packs</a>
+        <a class="library-link" href="/web/library"
+          >My GIF library <span aria-hidden="true">↗</span></a
+        >
+      </nav>
+    </header>
+
+    <main class="shell">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">Sticker source finder</p>
+          <h1 id="hero-title">
+            Find where your<br class="desktop-break" />
+            sticker came from<span>.</span>
+          </h1>
+          <p class="hero-lead">
+            Upload one sticker screenshot. We look for its source on the public
+            web for verified pickup links, related packs, and collections.
+          </p>
+          <p class="directory-lead" hidden>
+            Explore stickers by series, meet their creators, and get the full
+            pack from the publisher.
+          </p>
+        </div>
+        <form
+          class="finder"
+          id="finder"
+          aria-label="Find a sticker source by image"
+        >
+          <label class="drop-zone" id="drop-zone" for="screenshot">
+            <input
+              id="screenshot"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+            />
+            <span class="upload-icon" aria-hidden="true">↑</span>
+            <img id="screenshot-preview" alt="" hidden />
+            <strong id="file-label">Choose or drop a screenshot</strong>
+            <small>Crop to one sticker · PNG, JPG, WebP · 5 MB max</small>
+          </label>
+          <div class="finder-actions">
+            <button type="submit" class="button primary" id="submit" disabled>
+              Find pickup links <span aria-hidden="true">→</span>
+            </button>
+            <button type="button" class="text-button" id="sample" hidden>
+              Try a sample
+            </button>
+          </div>
+          <p class="search-disclosure">
+            Public lookup may send a resized image to the image recognition
+            provider.
+          </p>
+          <p id="search-status" class="search-status" role="status" hidden></p>
+        </form>
+      </section>
+
+      <section
+        id="match-panel"
+        class="section"
+        aria-labelledby="match-title"
+        hidden
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow" id="match-kicker">Screenshot search</p>
+            <h2 id="match-title" tabindex="-1"></h2>
+            <p id="match-description" hidden></p>
+          </div>
+        </div>
+        <div id="match-list" class="pack-grid"></div>
+      </section>
+
+      <section class="section" id="packs" aria-labelledby="directory-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Browse by series</p>
+            <h2 id="directory-title">Sticker pack directory</h2>
+          </div>
+          <p id="demo-note" class="demo-note" hidden>
+            MemeRetrieve demo collection
+          </p>
+        </div>
+        <p id="directory-status" role="status">Loading packs…</p>
+        <div id="directory" class="pack-grid"></div>
+      </section>
+    </main>
+
+    <footer class="shell footer">
+      <span>MemeRetrieve</span>
+      <a href="#hero-title">Back to top ↑</a>
+    </footer>
+
+    <dialog
+      id="pack-dialog"
+      class="pack-dialog"
+      aria-labelledby="pack-dialog-title"
+    >
+      <div class="dialog-top">
+        <h2 id="pack-dialog-title"></h2>
+        <form method="dialog">
+          <button class="button secondary" type="submit">Close</button>
+        </form>
+      </div>
+      <div id="dialog-content"></div>
+    </dialog>
+  </body>
+</html>

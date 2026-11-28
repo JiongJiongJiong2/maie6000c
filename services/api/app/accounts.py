@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from starlette.concurrency import run_in_threadpool
 
+from services.api.app.web import WORKSPACE_PATHS
 from services.common.accounts import (
     accounts,
     digest,
@@ -54,6 +55,7 @@ def identify(raw):
 
 async def select_account(request: Request, call_next):
     path = request.url.path
+    workspace_page = path.rstrip("/") in WORKSPACE_PATHS
     if not get_settings().account_login_enabled:
         if path.startswith("/auth/"):
             return JSONResponse({"detail": "Accounts are disabled."}, status_code=404)
@@ -64,15 +66,19 @@ async def select_account(request: Request, call_next):
             "sec-fetch-site"
         ) == "cross-site":
             return JSONResponse({"detail": "Open this action in your library."}, status_code=403)
-    if path.startswith("/auth/") or path in {"/health/live", "/health/ready", "/metrics", "/"}:
+    if path.startswith("/auth/") or path in {
+        "/health/live", "/health/ready", "/metrics", "/", "/web",
+    }:
         return await call_next(request)
-    if path.startswith("/web/") and path != "/web/":
+    if path == "/stickers" or path.startswith("/stickers/"):
+        return await call_next(request)  # This namespace serves the public pack catalog.
+    if path.startswith("/web/") and not workspace_page:
         return await call_next(
             request
         )  # Only explicitly shipped static assets or the sign-in page.
     account = await run_in_threadpool(identify, request.cookies.get(COOKIE))
     request.state.account = account
-    if account is None and path not in {"/web", "/web/"}:
+    if account is None and not workspace_page:
         return JSONResponse({"detail": "Sign in to open your library."}, status_code=401)
     expected = request.headers.get("x-library-account")
     if expected and (not account or expected != account.username):

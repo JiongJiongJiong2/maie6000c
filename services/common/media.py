@@ -7,7 +7,7 @@ from pathlib import Path
 from PIL import Image, ImageOps
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .storage import MediaError, sha256
+from .storage import MediaError, sha256, validate_image
 
 FORMATS = {
     "PNG": ("image/png", "png"),
@@ -84,6 +84,16 @@ def inspect_media(data: bytes) -> MediaMetadata:
         Image.DecompressionBombWarning,
     ) as exc:
         raise MediaError("Media cannot be decoded within limits") from exc
+
+
+def saved_frame_count(data: bytes, expected_format: str) -> int:
+    # Legacy GIF uploads may exceed the online provider's byte budget.
+    if expected_format == "GIF" and len(data) > MAX_BYTES:
+        return validate_image(data, animated_gif=True)
+    metadata = inspect_media(data)
+    if metadata.format != expected_format:
+        raise MediaError("Image format differs from its catalog entry")
+    return metadata.frame_count
 
 
 def representative_frames(data: bytes, count=4, max_side=768, preserve_timeline=False):

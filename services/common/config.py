@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     device_token: str = ""
     private_library_enabled: bool = False
     enable_demo_library: bool = False
+    sticker_pack_root: Path | None = None
+    sticker_pack_experiment: bool = False
+    sticker_lookup_url: str = ""
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, gt=0)
     max_candidate_bytes: int = Field(default=25 * 1024 * 1024, gt=0)
     media_retention_days: int = Field(default=7, ge=1)

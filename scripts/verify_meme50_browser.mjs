@@ -98,7 +98,7 @@ try {
   const input = await fs.readFile(path.resolve(options["--image"]));
   evidence.input_sha256 = sha(input);
   evidence.description = options["--description"] || "";
-  await page.goto((options["--base-url"] || "http://127.0.0.1:8000") + "/web/");
+  await page.goto((options["--base-url"] || "http://127.0.0.1:8000") + "/web/search");
   await applyToken();
   await page
     .locator("#file-input")

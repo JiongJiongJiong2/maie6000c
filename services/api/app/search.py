@@ -19,6 +19,7 @@ from services.common.saved_publish import lock_saved_digest
 from services.common.search_models import (
     Candidate,
     CandidateSave,
+    ReferenceAsset,
     ReviewDecision,
     SavedAsset,
     SearchJob,
@@ -36,6 +37,7 @@ from services.common.search_schemas import (
     SearchRead,
     WebSearchCreate,
 )
+from services.common.media import FORMATS, saved_frame_count
 from services.common.storage import (
     MediaError,
     atomic_write,
@@ -299,9 +301,10 @@ def candidates_for_job(db: Session, job_id: str) -> list[CandidateRead]:
     return results
 
 
-def read_verified_gif(
+def read_verified_media(
     relative_path: str,
     *,
+    expected_format: str,
     expected_sha256: str | None,
     expected_frame_count: int,
 ) -> bytes:
@@ -309,41 +312,43 @@ def read_verified_gif(
     with path.open("rb") as source:
         data = source.read(get_settings().max_candidate_bytes + 1)
     if len(data) > get_settings().max_candidate_bytes:
-        raise MediaError("GIF exceeds the configured size limit")
+        raise MediaError("Image exceeds the configured size limit")
     if expected_sha256 is not None and sha256(data) != expected_sha256:
-        raise MediaError("GIF checksum does not match")
-    frames = validate_image(data, animated_gif=True)
+        raise MediaError("Image checksum does not match")
+    frames = saved_frame_count(data, expected_format)
     if frames != expected_frame_count:
-        raise MediaError("GIF frame count does not match")
+        raise MediaError("Image frame count does not match")
     return data
 
 
 def verify_saved_asset_media(asset: SavedAsset) -> bytes:
     try:
-        return read_verified_gif(
+        return read_verified_media(
             asset.gif_path,
+            expected_format=asset.media_format,
             expected_sha256=asset.sha256,
             expected_frame_count=asset.frame_count,
         )
     except FileNotFoundError as exc:
         logger.error("saved_asset_media_missing", extra={"asset_id": asset.id})
-        raise fail(503, "saved_asset_unavailable", "Saved GIF is missing from storage") from exc
+        raise fail(503, "saved_asset_unavailable", "Saved image is missing from storage") from exc
     except OSError as exc:
         logger.exception("saved_asset_media_read_failed", extra={"asset_id": asset.id})
-        raise fail(503, "saved_asset_unavailable", "Saved GIF could not be read") from exc
+        raise fail(503, "saved_asset_unavailable", "Saved image could not be read") from exc
     except MediaError as exc:
         logger.error(
             "saved_asset_media_invalid",
             extra={"asset_id": asset.id, "reason": str(exc)},
         )
-        raise fail(503, "saved_asset_corrupted", "Saved GIF failed integrity validation") from exc
+        raise fail(503, "saved_asset_corrupted", "Saved image failed integrity validation") from exc
 
 
-def publish_saved_gif(
+def publish_saved_media(
     db: Session,
     data: bytes,
     *,
     frame_count: int,
+    media_format: str,
     title: str,
     provider: str,
     source_url: str = "",
@@ -356,12 +361,12 @@ def publish_saved_gif(
         verify_saved_asset_media(asset)
         return asset, False
 
-    relative = f"saved/{digest}.gif"
+    relative = f"saved/{digest}.{FORMATS[media_format][1]}"
     try:
         atomic_write(get_settings().media_root, relative, data)
     except OSError as exc:
         logger.exception("saved_asset_storage_failed")
-        raise fail(503, "storage_unavailable", "GIF could not be saved") from exc
+        raise fail(503, "storage_unavailable", "Image could not be saved") from exc
     asset = SavedAsset(
         id=str(uuid4()),
         sha256=digest,
@@ -370,6 +375,7 @@ def publish_saved_gif(
         source_url=source_url,
         image_url=image_url,
         gif_path=relative,
+        media_format=media_format,
         frame_count=frame_count,
         index_status="pending",
     )
@@ -534,7 +540,7 @@ def read_media(candidate_id: UUID, db: Database) -> Response:
         asset = db.get(SavedAsset, candidate.saved_asset_id)
         if asset is None:
             logger.error("candidate_saved_asset_missing", extra={"candidate_id": candidate.id})
-            raise fail(503, "saved_asset_unavailable", "Saved GIF is unavailable")
+            raise fail(503, "saved_asset_unavailable", "Saved image is unavailable")
         data = verify_saved_asset_media(asset)
     else:
         expiry = as_utc(candidate.cache_expires_at)
@@ -556,9 +562,9 @@ def read_media(candidate_id: UUID, db: Database) -> Response:
                 "candidate_media_invalid",
                 extra={"candidate_id": candidate.id, "reason": str(exc)},
             )
-            raise fail(503, "media_corrupted", "Candidate GIF failed integrity validation") from exc
-    from services.common.media import FORMATS
-
+            raise fail(
+                503, "media_corrupted", "Candidate image failed integrity validation"
+            ) from exc
     suffix = FORMATS[candidate.media_format][1]
     return Response(
         content=data,
@@ -659,10 +665,6 @@ def save_candidate(
     )
     if candidate is None:
         raise fail(404, "candidate_not_found", "Candidate not found")
-    if candidate.media_format != "GIF" or candidate.frame_count < 2:
-        raise fail(
-            409, "static_save_unavailable", "Only preview/download is available for this media"
-        )
     existing_save = db.scalar(
         select(CandidateSave).where(CandidateSave.client_save_key == payload.client_save_key)
     )
@@ -674,8 +676,8 @@ def save_candidate(
             raise RuntimeError("Persisted candidate save has no saved asset")
         return saved_asset_read(asset)
     job = db.get(SearchJob, candidate.job_id)
-    if job is None or job.job_kind != "web" or job.status != "completed":
-        raise fail(409, "candidate_not_savable", "Only completed web candidates can be saved")
+    if job is None or job.status != "completed":
+        raise fail(409, "candidate_not_savable", "Only completed candidates can be saved")
     accepted_review = db.scalar(
         select(ReviewDecision).where(
             ReviewDecision.job_id == job.id,
@@ -695,8 +697,9 @@ def save_candidate(
         if expiry <= utcnow():
             raise fail(410, "media_expired", "Candidate media has expired and cannot be saved")
         try:
-            data = read_verified_gif(
+            data = read_verified_media(
                 candidate.local_cache_path,
+                expected_format=candidate.media_format,
                 expected_sha256=candidate.media_sha256,
                 expected_frame_count=candidate.frame_count,
             )
@@ -711,13 +714,23 @@ def save_candidate(
                 "candidate_save_validation_failed",
                 extra={"candidate_id": candidate.id},
             )
-            raise fail(503, "media_corrupted", "Candidate GIF failed integrity validation") from exc
-        asset, _ = publish_saved_gif(
+            raise fail(
+                503, "media_corrupted", "Candidate image failed integrity validation"
+            ) from exc
+        reference = (
+            db.get(ReferenceAsset, candidate.reference_asset_id)
+            if candidate.reference_asset_id
+            else None
+        )
+        asset, _ = publish_saved_media(
             db,
             data,
             frame_count=candidate.frame_count,
-            title=f"{candidate.provider or 'Recovered'} GIF",
-            provider=candidate.provider or "unknown",
+            media_format=candidate.media_format,
+            title=reference.title
+            if reference
+            else f"{candidate.provider or 'Recovered'} {candidate.media_format}",
+            provider=candidate.provider or ("reference" if reference else "unknown"),
             source_url=candidate.source_url or "",
             image_url=candidate.image_url or "",
         )
@@ -797,12 +810,13 @@ def read_saved_asset_media(asset_id: UUID, db: Database) -> Response:
     if asset is None:
         raise fail(404, "saved_asset_not_found", "Saved asset not found")
     data = verify_saved_asset_media(asset)
+    mime, suffix = FORMATS[asset.media_format]
     return Response(
         content=data,
-        media_type="image/gif",
+        media_type=mime,
         headers={
             **MEDIA_RESPONSE_HEADERS,
-            "Content-Disposition": f'inline; filename="{asset.id}.gif"',
+            "Content-Disposition": f'inline; filename="{asset.id}.{suffix}"',
         },
     )
 

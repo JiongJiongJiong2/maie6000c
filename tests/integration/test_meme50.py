@@ -1,6 +1,7 @@
 import io
 from datetime import timedelta
 from uuid import uuid4
+from zipfile import ZipFile
 
 import pytest
 from PIL import Image
@@ -84,6 +85,79 @@ def test_missing_image_and_replay_conflict(client):
         ).status_code
         == 409
     )
+
+
+@pytest.mark.parametrize(
+    "fmt,animated",
+    [
+        ("PNG", False),
+        ("JPEG", False),
+        ("WEBP", False),
+        ("GIF", False),
+        ("GIF", True),
+        ("WEBP", True),
+        ("PNG", True),
+    ],
+)
+def test_save_original_from_final_results(client, db_session, monkeypatch, fmt, animated):
+    job = db_session.get(SearchJob, upload(client).json()["job_id"])
+    job.status, job.stage, job.result_kind = "completed", "completed", "candidates"
+    job.started_at = job.finished_at = utcnow()
+    original = media(fmt, animated)
+    m = inspect_media(original)
+    cache = f"candidates/{job.id}/result.{m.suffix}"
+    path = atomic_write(get_settings().media_root, cache, original)
+    candidate = Candidate(
+        job_id=job.id,
+        rank=1,
+        similarity_score=0.8,
+        source_url="https://example.org/meme",
+        local_cache_path=cache,
+        media_sha256=m.sha256,
+        frame_count=m.frame_count,
+        media_format=m.format,
+        mime_type=m.mime_type,
+        media_kind=m.media_kind,
+        cache_expires_at=utcnow() + timedelta(days=1),
+    )
+    db_session.add(candidate)
+    db_session.commit()
+    review = client.post(
+        f"/search-jobs/{job.id}/reviews",
+        json={
+            "decision": "accept",
+            "candidate_id": candidate.id,
+            "client_review_key": str(uuid4()),
+        },
+    )
+    assert review.is_success, review.text
+    save_url = f"/candidates/{candidate.id}/save"
+    key = {"client_save_key": str(uuid4())}
+    saved = client.post(save_url, json=key)
+    assert saved.status_code == 202, saved.text
+    asset_id = saved.json()["asset_id"]
+    assert client.post(save_url, json=key).json()["asset_id"] == asset_id
+    assert (
+        client.post(save_url, json={"client_save_key": str(uuid4())}).json()["asset_id"] == asset_id
+    )
+    path.unlink()  # The durable original must survive candidate cache cleanup.
+    assert client.get(f"/candidates/{candidate.id}/preview").is_success
+    monkeypatch.setenv("PRIVATE_LIBRARY_ENABLED", "true")
+    monkeypatch.setenv("DEVICE_TOKEN", "test-library")
+    get_settings.cache_clear()
+    headers = {"Authorization": "Bearer test-library"}
+    assert client.get(f"/library/assets/{asset_id}").status_code == 401
+    card = client.get(f"/library/assets/{asset_id}", headers=headers).json()
+    assert card["frame_count"] == m.frame_count and card["media_format"] == fmt
+    content = client.get(card["media_url"], headers=headers)
+    assert content.content == original and content.headers["content-type"] == m.mime_type
+    assert content.headers["content-disposition"].endswith(f'.{m.suffix}"')
+    result = client.get("/library/assets", headers=headers).json()
+    assert [a["asset_id"] for a in result["assets"]] == [asset_id]
+    archive = client.post("/library/exports", json={"asset_ids": [asset_id]}, headers=headers)
+    assert archive.is_success, archive.text if not archive.is_success else ""
+    with ZipFile(io.BytesIO(archive.content)) as backup:
+        assert backup.read(f"assets/{m.sha256}.{m.suffix}") == original
 
 
 def test_fifty_stable_results_filters_and_integrity(client, db_session):
