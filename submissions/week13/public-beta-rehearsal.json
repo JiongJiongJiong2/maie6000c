@@ -1,0 +1,84 @@
+{
+  "date": "2026-11-28 Asia/Shanghai",
+  "scope": "Invite-only loopback rehearsal, engineering fixture derived from a licensed GIF",
+  "implementation_commit": "31f9f5dd3b507d39bc80204ccfafb522fd7fc9b1",
+  "fixture": {
+    "title": "Rotating earth (large)",
+    "creator": "Marvel",
+    "license": "CC BY-SA 3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Rotating_earth_(large).gif",
+    "sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378"
+  },
+  "host_port": "127.0.0.1:58095",
+  "preflight_http": {
+    "sign_in": 200,
+    "ready": 200,
+    "anonymous_private_asset": 401
+  },
+  "worker": {
+    "account_login": true,
+    "private_library": true,
+    "online_search": false,
+    "configured_backend": "pgvector",
+    "vision_credentials_present": false,
+    "deepseek_credentials_present": false,
+    "networks": [
+      "internal default",
+      "internal media_egress"
+    ]
+  },
+  "reference_index": {
+    "gifs": 12,
+    "frames": 96,
+    "pgvector_mirrored": true
+  },
+  "restart": "API and worker force-recreated, retaining DB and media volumes. The API image was refreshed with final UI copy and offline AI-control visibility. A new Chrome process signed in for the second query.",
+  "before": {
+    "phase": "before",
+    "time": "2026-11-28T04:58:03.036Z",
+    "origin": "http://127.0.0.1:58095",
+    "chrome": "158.0.8127.37",
+    "anonymousLibrary": 401,
+    "invalidInvite": 403,
+    "invitedRegistration": 201,
+    "onlineDisabled": true,
+    "indexStatus": "ready",
+    "frameCount": 44,
+    "queryFrame": 13,
+    "queryPngSha256": "c0e16e07b3262d32c3870282ee63a7a3470b967925b4132375599e459126f927",
+    "requestId": "627527da-aad7-4204-900e-a0cc7b5606cc",
+    "rank": "#1",
+    "assetId": "8cbf8638-1173-48a7-8db2-6a3b6eadbd9f",
+    "downloadByteIdentical": true,
+    "bytes": 1001718,
+    "sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "continueOnlineHidden": true,
+    "offOriginBrowserRequests": 0
+  },
+  "after": {
+    "phase": "after",
+    "time": "2026-11-28T04:59:24.946Z",
+    "origin": "http://127.0.0.1:58095",
+    "chrome": "158.0.8127.37",
+    "anonymousLibrary": 401,
+    "loginStatus": 200,
+    "onlineDisabled": true,
+    "indexStatus": "ready",
+    "frameCount": 44,
+    "queryFrame": 29,
+    "queryPngSha256": "226463d76db9e8f318b737c3a289a64ba9c52ecbdb408f4b6034a63488fa02c7",
+    "requestId": "752b48d1-f9ac-4355-aedd-41b055b63b9f",
+    "rank": "#1",
+    "assetId": "8cbf8638-1173-48a7-8db2-6a3b6eadbd9f",
+    "downloadByteIdentical": true,
+    "bytes": 1001718,
+    "sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "continueOnlineHidden": true,
+    "offOriginBrowserRequests": 0
+  },
+  "remaining": [
+    "external HTTPS reachability",
+    "real participant retrieval quality",
+    "commercial conversion and repeat use"
+  ]
+}
