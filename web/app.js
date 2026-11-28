@@ -120,6 +120,23 @@ function renderInput() {
   $("file-size").textContent = session?.file
     ? `${(session.file.size / 1024).toFixed(0)} KiB`
     : "";
+  const credit = $("demo-credit");
+  const example = session?.example;
+  credit.hidden = !example;
+  credit.textContent = example
+    ? [example.title, example.permission_note].filter(Boolean).join(" · ")
+    : "";
+  if (
+    example?.source_reference &&
+    /^https?:\/\//i.test(example.source_reference)
+  ) {
+    const link = document.createElement("a");
+    link.textContent = "View source";
+    link.href = example.source_reference;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    credit.append(" · ", link);
+  }
 }
 
 // Jobs from the worker and previously saved searches can carry either message.
@@ -459,7 +476,7 @@ async function loadMedia(candidate, container, retry) {
   }
 }
 
-async function selectFile(file) {
+async function selectFile(file, example = null) {
   if (!file || busy || !initialized) return;
   busy = true;
   render();
@@ -490,7 +507,8 @@ async function selectFile(file) {
       );
     const next = {
       file,
-      searchProfile: searchProfile(),
+      searchProfile: example ? "legacy" : searchProfile(),
+      example,
       description: $("description").value,
       filter: "all",
       pageHistory: [],
@@ -829,6 +847,7 @@ async function reset(keepFile = false) {
             originalFile: session.originalFile,
             cropRect: session.cropRect,
             searchProfile: searchProfile(),
+            example: session.example,
             description: $("description").value,
             submissionKey: newKey(),
             submissionStarted: false,
@@ -1074,7 +1093,7 @@ async function loadDemoLibrary() {
     if (!Array.isArray(examples) || !examples.length) return;
     const container = $("demo-examples");
     container.replaceChildren();
-    for (const example of examples.slice(0, 24)) {
+    for (const example of examples) {
       const button = makeButton(example.title, "demo-example", async () => {
         if (busy || !initialized) return;
         button.disabled = true;
@@ -1086,6 +1105,7 @@ async function loadDemoLibrary() {
           if (epoch !== selectedEpoch) return;
           await selectFile(
             new File([blob], `${example.title}.png`, { type: blob.type }),
+            example,
           );
         } catch (error) {
           notice(error.message);

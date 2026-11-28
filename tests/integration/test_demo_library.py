@@ -1,4 +1,5 @@
 import io
+import json
 from uuid import uuid4
 
 from PIL import Image
@@ -46,9 +47,87 @@ def test_example_is_an_actual_frame_without_exposing_storage_paths(client, db_se
     db_session.add(asset)
     db_session.commit()
     example = client.get("/demo-library").json()["examples"][0]
-    assert set(example) == {"id", "title", "screenshot_url"}
+    assert example == {
+        "id": asset.id,
+        "title": "Example",
+        "screenshot_url": f"/demo-library/{asset.id}/screenshot",
+        "source_reference": None,
+        "permission_note": None,
+    }
     image = client.get(example["screenshot_url"])
     assert image.status_code == 200 and image.headers["content-type"] == "image/png"
     with Image.open(io.BytesIO(image.content)) as decoded:
         assert decoded.getpixel((0, 0)) == (255, 0, 0)
     assert client.get(f"/demo-library/{uuid4()}/screenshot").status_code == 404
+
+
+def test_picker_uses_current_manifest_and_registered_originals(client, db_session, monkeypatch):
+    monkeypatch.setenv("ENABLE_DEMO_LIBRARY", "true")
+    get_settings.cache_clear()
+    root = get_settings().reference_root
+    prepare_storage()
+    entries = []
+    records = []
+    for index, (title, path) in enumerate(
+        [
+            ("Old Noto", "old.gif"),
+            ("Z cat", "eval-examples/cat.gif"),
+            ("A dragon", "eval-examples/dragon.gif"),
+            ("Removed", "retired.gif"),
+            ("Missing", "missing.gif"),
+            ("Other version", "version.gif"),
+        ]
+    ):
+        stream = io.BytesIO()
+        Image.new("RGB", (16, 16), (index, 30, 50)).save(
+            stream,
+            format="GIF",
+            save_all=True,
+            append_images=[Image.new("RGB", (16, 16), "blue")],
+            duration=100,
+        )
+        data = stream.getvalue()
+        asset = ReferenceAsset(
+            id=str(uuid4()),
+            title=title,
+            sha256=sha256(data),
+            gif_path=path,
+            frame_count=2,
+            source_reference="https://example.org/animation",
+            permission_note="Original credited for course demonstration.",
+            corpus_version="old" if title == "Other version" else "current",
+        )
+        if title == "Z cat":
+            asset.permission_note = r"Local copy at C:\Users\test\private.gif"
+        db_session.add(asset)
+        if title != "Missing":
+            atomic_write(root, path, data)
+        if title != "Removed":
+            entries.append(
+                {
+                    "reference_asset_id": asset.id,
+                    "title": title,
+                    "sha256": asset.sha256,
+                    "gif_path": path,
+                    "source_reference": asset.source_reference,
+                    "permission_note": asset.permission_note,
+                }
+            )
+        records.append(asset)
+    db_session.commit()
+    (root / "manifest.json").write_text(
+        json.dumps({"corpus_version": "current", "assets": entries})
+    )
+    result = client.get("/demo-library")
+    examples = result.json()["examples"]
+    assert [row["title"] for row in examples] == ["A dragon", "Z cat", "Old Noto"]
+    assert examples[0]["source_reference"] == "https://example.org/animation"
+    assert examples[0]["permission_note"] == "Original credited for course demonstration."
+    assert examples[1]["permission_note"] is None
+    assert "private.gif" not in result.text and "eval-examples/" not in result.text
+    for row in examples:
+        assert client.get(row["screenshot_url"]).headers["content-type"] == "image/png"
+    for asset in records[3:]:
+        assert client.get(f"/demo-library/{asset.id}/screenshot").status_code == 404
+    (root / records[0].gif_path).write_bytes((root / records[1].gif_path).read_bytes())
+    assert client.get(examples[-1]["screenshot_url"]).status_code == 404
