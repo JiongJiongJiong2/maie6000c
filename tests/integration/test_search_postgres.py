@@ -715,3 +715,72 @@ def test_pgvector_exact_frames_rollback_and_workspace_isolation(postgres_backend
             ]
     finally:
         scoped_engine.dispose()
+
+
+def test_pgvector_reference_manifest_shared_read_and_atomic_replace(postgres_backend, monkeypatch):
+    from services.common.accounts import provision_workspace
+    from services.common.config import use_workspace
+    from services.common.reference_assets import Manifest
+    from services.retrieval import vector_store
+
+    engine, factory, config = postgres_backend
+    with engine.connect() as conn:
+        if not conn.scalar(text("SELECT 1 FROM pg_available_extensions WHERE name = 'vector'")):
+            pytest.skip("PostgreSQL vector extension is not installed")
+    monkeypatch.setenv("VECTOR_BACKEND", "pgvector")
+    get_settings.cache_clear()
+    command.downgrade(config, "20261121_0008")
+    command.upgrade(config, "head")
+    command.check(config)
+
+    asset_id = str(uuid4())
+    manifest = Manifest.model_validate({
+        "corpus_version": "test-reference-v1",
+        "assets": [{
+            "reference_asset_id": asset_id,
+            "title": "Fixture",
+            "source_reference": "test",
+            "permission_note": "Generated in test",
+            "gif_path": "reference.gif",
+            "sha256": "a" * 64,
+        }],
+    })
+    workspace = "acct_9876543210fedcba9876543210fedcba"
+    with factory() as db:
+        db.add(ReferenceAsset(id=asset_id, frame_count=2, corpus_version=manifest.corpus_version,
+            **manifest.assets[0].model_dump(exclude={"reference_asset_id"})))
+        db.flush()
+        provision_workspace(db, workspace)
+        db.commit()
+    scoped_url = engine.url.update_query_dict({"options": f"-csearch_path={workspace}"})
+    scoped_engine = create_engine(scoped_url)
+    scoped_factory = make_session_factory(scoped_engine)
+    monkeypatch.setattr(vector_store, "get_session_factory", lambda: factory)
+    query = [1.0] + [0.0] * 511
+    orthogonal = [0.0, 1.0] + [0.0] * 510
+    digest = "b" * 64
+    matches = [{"reference_asset_id": asset_id, "score": 1.0}]
+    frames = [0, 1]
+    ids = [asset_id, asset_id]
+    try:
+        assert vector_store.rank_reference_vectors(query, 3, 0.82, manifest, digest) is None
+        assert vector_store.mirror_reference_vectors(
+            manifest, digest, ids, frames, [orthogonal, query]
+        )
+        assert vector_store.rank_reference_vectors(query, 3, 0.82, manifest, digest) == matches
+        assert vector_store.rank_reference_vectors(query, 3, 0.82, manifest, "c" * 64) is None
+        assert not vector_store.mirror_reference_vectors(
+            manifest, "d" * 64, ids, frames, [orthogonal, [0.0] * 512]
+        )
+        assert vector_store.rank_reference_vectors(query, 3, 0.82, manifest, digest) == matches
+        monkeypatch.setattr(vector_store, "get_session_factory", lambda: scoped_factory)
+        with use_workspace(workspace):
+            assert vector_store.rank_reference_vectors(query, 3, 0.82, manifest, digest) == matches
+            assert not vector_store.mirror_reference_vectors(
+                manifest, digest, ids, frames, [query, query]
+            )
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM public.reference_frame_vectors WHERE frame_no = 0"))
+        assert vector_store.rank_reference_vectors(query, 3, 0.82, manifest, digest) is None
+    finally:
+        scoped_engine.dispose()

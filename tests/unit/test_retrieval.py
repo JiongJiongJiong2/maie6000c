@@ -247,11 +247,12 @@ def test_mixed_backend_ranking_switches_or_rechecks_full_local_index(
         return [("best", np.array([[0.98, 0.0]]))]
 
     monkeypatch.setattr(saved_index, "ready_vectors", npz_saved_frames)
-    result, backend = retrieval.local_matches(
+    result, backend, reference_backend = retrieval.local_matches(
         np.array([[0.9, 0.0], [0.8, 0.0]]), ["fixed", "lower"], np.array([1.0, 0.0]), 2, 0.8
     )
     assert [row["reference_asset_id"] for row in result] == ["best", "fixed"]
     assert backend == expected_backend
+    assert reference_backend == "npz_fallback"
     assert bool(calls) == (backend == "npz_fallback")
 
 

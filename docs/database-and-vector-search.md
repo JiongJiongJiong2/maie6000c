@@ -1,6 +1,6 @@
 # MemeRetrieve 数据库与向量检索设计
 
-基线为 `8ab70e8`。正式发布使用 PostgreSQL 16 保存任务、账户和收藏状态，共享媒体卷保存原文件，检索 worker 用固定 CLIP 和版本化 NPZ 做本地向量检索。离线搜图、收藏后建索引及再次命中已经有实测记录。正式网页确认收藏后生成 8×512 的索引，重启后本地第 1 名命中同一资产。[正式网页回执](evidence/gif-acquisition/hkgai-web-offline-20261128.json)这个规模可以直接发布。pgvector 作为可选的后续优化，只在测量表明本地向量存储或召回需要演进时引入。 [真实 DeepSeek 与离线复用](evidence/gif-acquisition/deepseek-offline-reuse-20261127.json) · [项目验收顺序](final-closeout-plan.md)
+PostgreSQL 16 保存账户、任务、收藏和索引状态，共享媒体卷保存原始 GIF。固定 CLIP 产生 512 维图像帧向量。产品 Docker 配置使用 pgvector 执行精确匹配，现有 NPZ 文件同时充当可验证的持久备份与检索回退。原件、账户和 API 标识沿用原格式。[部署与升级](product-deployment.md)
 
 ## 已实现的关系数据
 
@@ -62,22 +62,20 @@ CLIP 模型为 `openai/clip-vit-base-patch32`，修订 `37000f5cdccec47a3f6f8314
 
 每次比较都核对租户隔离、索引完整、备份还原和磁盘成本。单账户媒体目录、每账户迁移和单 worker 顺序轮询有各自的扩容边界。向量索引对队列调度和关系表访问没有直接收益。
 
-## 可选 pgvector 方案
+## PostgreSQL 图像帧与动画检索
 
-只把私有库的衍生帧向量放进 PostgreSQL，参考语料初期仍用固定 NPZ。每个 workspace 自有两张表。已有 `saved_assets` 和索引状态是兼容接口，检索只使用同一工作空间中已授权、版本完整的资产。
+每个索引条目是一张图像帧的 512 维 CLIP 向量。动画 GIF 取最多八张代表帧，离线搜索把用户的新截图编码为查询向量，对每个 GIF 取最高帧分，再按素材返回 Top-3。用户上传的截图使用现有任务输入保留期，检索向量在请求内计算。私人库的收藏与导入接收原始动画 GIF。
 
-| 拟新增实体 | 键与内容 |
+| 存储 | 范围与约束 |
 | --- | --- |
-| `saved_vector_versions` | 主键 `(asset_id, generation)`。`asset_id` 外键指向本 schema 的 `saved_assets.id`，资产删除级联清理衍生数据。保存原件 SHA、现有 NPZ index_version、预期帧数、构建状态和更新时间。generation 绑定模型修订、预处理、抽帧规则、维度和距离。 |
-| `saved_frame_vectors` | 主键 `(asset_id, generation, frame_no)`，组合外键引用版本行并级联清理。向量类型 `vector(512)`。写入前校验帧号、维度、有限值和归一化。按 `(generation, asset_id)` 设 B-tree 支持版本限定与资产聚合。 |
+| 公共参考图像帧 | 镜像固定语料的图像帧。参考语料版本、清单 SHA 和模型修订共同约束当前可读的向量。由部署者构建参考索引后更新。 |
+| `saved_vector_versions` | 当前工作空间的资产 ID 和索引版本作为主键，版本行保存原件 SHA 与预期帧数；删除资产时级联清除衍生数据。 |
+| `saved_frame_vectors` | 当前工作空间的资产 ID、索引版本和帧序号作为主键，向量类型为 `vector(512)`。整组帧和版本一起提交。 |
 
-先实现精确余弦 `1 - cosine_distance`，按资产取最高分、应用原阈值与稳定排序，再与参考库精确结果合并。后续如引入 HNSW，使用 `vector_cosine_ops`，按工作空间与活跃代隔离索引。ANN 取加宽的帧候选再按素材聚合及精排，不能将前三帧当成三个独立 GIF。过滤和候选重复会降低 ANN 的素材召回，需测量之后才确定候选宽度及回退策略。 [pgvector 精确与近似检索](https://github.com/pgvector/pgvector#indexing) · [pgvector 多租户行为](https://github.com/pgvector/pgvector#multitenancy)
+PostgreSQL 用准确的余弦距离计算帧分、按资产取最高分。扩展不可用、向量不完整、版本不符或数值临界可能影响顺序时，查询回退到经过校验的 NPZ。原件读取继续校验 SHA，参考和私人收藏的 NPZ 文件及文件格式都保持兼容。规模增长后可用前述基准判断是否需要 HNSW。[pgvector 精确与近似检索](https://github.com/pgvector/pgvector#indexing)
 
 ## 升级、回退和验证
 
-1. **发布现有实现。** 用 PostgreSQL 16 从空库和既有库演练 `alembic upgrade head`。当前主线 head 为 `20261121_0008`。升级器先迁移 `public`，再逐个迁移已登记的 PostgreSQL schema。逐 schema 检查迁移版本、预先冻结的一组资产 ID、原件 SHA、待处理任务和引用数，验证原库 owner 绑定及开新户。保留 SQLite 的现有回归路径。 [迁移入口](../alembic/env.py) · [账户迁移](../alembic/versions/20261121_0008_library_accounts.py)
-2. **先备份和复原演练。** 暂停写入和 worker，在同一业务时间点备份完整 PostgreSQL 库及媒体卷，包括账户目录。另存可复现的参考清单、模型修订和索引状态。保留旧应用版本和运行配置。用新库和新媒体根恢复后核对原件 SHA、会话隔离、任务状态、向量索引就绪与下载。用户导出的 ZIP 是素材搬运格式，完整部署恢复要保留数据库、账户及任务关系。 [PostgreSQL 16 逻辑备份](https://www.postgresql.org/docs/16/backup-dump.html)
-3. **仅在验证环境中初始化扩展。** 由运维确认 PostgreSQL 16 扩展二进制和固定版本已经安装，再按数据库启用 `vector`。把扩展装到受控 schema，SQL 显式限定扩展类型、运算符和业务表，避免把 `public` 加回账号连接的搜索路径。可选向量表走显式、幂等的 schema 升级及版本登记，覆盖已有账户与新开户，避免可选环境缺扩展时占用正常 Alembic 版本。普通 `postgres:16-alpine`、SQLite 和历史备份仍能按 NPZ 运行。 [pgvector 安装与版本检查](https://github.com/pgvector/pgvector#getting-started)
-4. **双写和回填。** 保持原 NPZ 权威链路。按 workspace 以 `asset_id` 游标分批取 ready 资产，读取已验证、模型兼容的 NPZ 或从原件重算。写入事务锁定资产，复查原件 SHA 与索引版本，整组 upsert 后才把对应代标 ready。以主键防止并发回填重复；新增收藏生成 NPZ 后尝试双写，数据库向量失败只记录重试状态。派生索引可重建，回填不改 API 资产 ID、原件路径、回执或人工字段。
-5. **影子查询再按账户启用。** 用同一次查询向量比较 NPZ 与 pgvector 的素材 ID、排序和延时，记录有原因的阈值差异。先单一试点账户，再逐步启用。扩展不可用、有效代不完整、查询错误或出现异常结果数时，整次回退 NPZ。回退开关切换读取路径，暂停双写和回填即可，现有关系和原件保留。
-6. **运行核验。** `/health/ready` 检查数据库连接。还要启动同一媒体根的 worker，用正式网页复演库内、库外续搜、确认收藏、索引 ready、重启断网、另一帧 Top-3 命中和下载 SHA。用两个账号验证互不可见及同 SHA 独立导入，并复测 10 MiB 上传界线、备份往返、旧回执与中断恢复。记录每步的提交 SHA、迁移版本、账户隔离、输入及下载 SHA 和实际状态。故障演练包括版本不符、NPZ 损坏、索引中断和 pgvector 关闭。
+升级前暂停写入，同一时间点备份整个 PostgreSQL 和媒体卷。既有 Compose 的 PostgreSQL 数据用逻辑备份导入独立的 pgvector 卷，保留迁移前账户和原文件路径。数据库迁移对 PostgreSQL 的已注册 workspace 逐个执行，无扩展的部署继续以 NPZ 运行。
+
+部署者启用扩展后运行 provision，再用保存的旧 NPZ 回填各私人 workspace。回填校验原字节和索引版本，保持资产 ID、原件路径和收藏状态。运行参考索引命令同步固定语料的帧向量。配置 `VECTOR_BACKEND=npz` 并重启 worker 可立即切回文件索引，媒体和关系数据继续由相同卷提供。[运行命令与备份步骤](product-deployment.md)
