@@ -23,7 +23,7 @@ from services.retrieval.public_fetch import FetchError, valid_url
 from .captions import caption_overlap, caption_phrases, generic_subject, words
 from .meme_deepseek import DeepSeekWeb
 from .meme_fetch import FetchClient
-from .meme_types import Ledger, MemeSettings, PipelineError, VisualAnalysis
+from .meme_types import Ledger, MediaSource, MemeSettings, PipelineError, VisualAnalysis
 from .page_media import PageImages
 from .visual_analysis import analyze_image
 
@@ -42,18 +42,35 @@ WHATSAPP_PACK = re.compile(r"/stickerpack/([a-zA-Z0-9_-]+)/?")
 SIGSTICK_PACK = re.compile(r"/pack/([a-zA-Z0-9]{8,32})(?:-[^/]+)?/?")
 STICKERLY_PACK = re.compile(r"/s/[a-zA-Z0-9_-]{4,}/?")
 GIPHY_STICKER = re.compile(r"/stickers/[^/]+-([a-zA-Z0-9]{8,})/?")
+GIPHY_COLLECTION = re.compile(r"/(?:explore/[\w-]+-stickers|[\w.-]+/stickers)/?")
+GIPHY_CDN = re.compile(r"media\d*\.giphy\.com")
+KAKAO_PRODUCT = re.compile(r"/t/[\w-]+/?")
+WEIBO_ANNOUNCEMENT = re.compile(r"/(?:news/)?detail/\d+(?:\.html)?/?")
 ISSUER_DOMAINS = ("whatsapp.com", "signal.org", "telegram.org", "wechat.com", "line.me")
-STICKER_WORDS = re.compile(r"sticker|貼圖|贴图|表情(?:包|专辑|專輯)|スタンプ|스티커", re.I)
+STICKER_WORDS = re.compile(r"sticker|貼圖|贴图|表情(?:包|专辑|專輯)|动图|スタンプ|스티커", re.I)
+COLLECTION_WORDS = re.compile(
+    r"(?:贴图|貼圖|表情包?|动图|gif).{0,12}(?:合集|大全|全集|套装)|stickers? (?:pack|collection)",
+    re.I,
+)
 PICKUP_WORDS = re.compile(
     r"download|install|add to (?:whatsapp|wechat|signal|telegram)|get (?:the|these) stickers"
     r"|下載|下载|領取|领取|加入貼圖|获取方式|獲取方式|微信(?:内|中)?搜索|微信搜尋"
-    r"|ダウンロード|다운로드",
+    r"|(?:正式)?上[架线線]|领取方式|(?:直接|长按)保存|ダウンロード|다운로드",
     re.I,
 )
 ART_STYLES = re.compile(
     r"\b(?:8[ -]bit|16[ -]bit|pixel(?:ated| art)|crochet|plush(?:ie)?|watercolou?r|"
     r"line art|stop[ -]motion|claymation|paper cutout|3d)\b",
     re.I,
+)
+VISUAL_CUES = (
+    re.compile(r"\bwhite\b|白色|小白狗", re.I),
+    re.compile(
+        r"\b(?:doodle|line[ -]?(?:draw|art)|outline|sketch|hand[ -]?draw)|简笔画|线条|手绘", re.I
+    ),
+    re.compile(r"\b(?:dog|puppy|bear|animal|pet)\b|小狗|小熊|萌宠|马尔济斯", re.I),
+    re.compile(r"\bdanc|跳舞|蹦迪|蹦跳", re.I),
+    re.compile(r"\bmusi|音[符乐]", re.I),
 )
 
 
@@ -83,6 +100,10 @@ def listing(url: str) -> str:
         return "WhatsApp sticker link"
     if host == "sticker.weixin.qq.com" and path.endswith("/emoticonview") and parsed.query:
         return "WeChat sticker listing"
+    if host == "e.kakao.com" and KAKAO_PRODUCT.fullmatch(path):
+        return "Kakao Emoticon Shop"
+    if host in {"giphy.com", "www.giphy.com"} and GIPHY_STICKER.fullmatch(path):
+        return "GIPHY sticker"
     return ""
 
 
@@ -110,10 +131,20 @@ def community_listing(url: str) -> str:
         return "SigStick"
     if host in {"sticker.ly", "www.sticker.ly"} and STICKERLY_PACK.fullmatch(path):
         return "Sticker.ly"
-    if host in {"giphy.com", "www.giphy.com"} and GIPHY_STICKER.fullmatch(path):
-        return "GIPHY sticker"
+    if host in {"giphy.com", "www.giphy.com"} and GIPHY_COLLECTION.fullmatch(path):
+        return "GIPHY collection"
     if host == "mp.weixin.qq.com" and (path.startswith("/s/") or path == "/s"):
         return "WeChat article"
+    if host in {"www.sina.cn", "m.weibo.cn"} and WEIBO_ANNOUNCEMENT.fullmatch(path):
+        return "Weibo post"
+    if (
+        host in {"www.duitang.com", "m-2.duitang.com"}
+        and path.rstrip("/") == "/album"
+        and parsed.query
+    ):
+        return "Duitang sticker collection"
+    if host == "memecub.com" and re.fullmatch(r"/(?:[a-z-]+/)?meme/[^/]+/?", path):
+        return "MemeCub"
     return ""
 
 
@@ -131,6 +162,12 @@ def page_key(url: str) -> tuple[str, str]:
         item := GIPHY_STICKER.fullmatch(parsed.path)
     ):
         return ("giphy.com", item[1])
+    if (
+        parsed.hostname in {"www.duitang.com", "m-2.duitang.com"}
+        and parsed.path.rstrip("/") == "/album"
+    ):
+        ids = parse_qs(parsed.query).get("id", [])
+        return ("duitang.com", ids[0] if ids else parsed.query)
     if parsed.hostname in {"sticker.weixin.qq.com", "mp.weixin.qq.com"} and parsed.query:
         ids = parse_qs(parsed.query)
         key = "&".join(
@@ -149,14 +186,18 @@ def issuer_host(url: str) -> bool:
     )
 
 
-def search_queries(analysis: VisualAnalysis) -> list[str]:
-    entities = [
+def sticker_names(analysis: VisualAnalysis, minimum=0.72) -> list[str]:
+    return [
         item.name
         for item in analysis.entity_hypotheses
-        if item.confidence >= 0.45
+        if item.confidence >= minimum
         and item.status not in {"unknown", "conflicting"}
         and not generic_subject(item.name)
     ]
+
+
+def search_queries(analysis: VisualAnalysis) -> list[str]:
+    entities = sticker_names(analysis)
     visual = next(
         (query.text for query in analysis.queries if query.angle == "visual_description"),
         " ".join(analysis.visual_keywords[:5]),
@@ -173,24 +214,76 @@ def search_queries(analysis: VisualAnalysis) -> list[str]:
     style = ART_STYLES.search(visual + " " + " ".join(analysis.visual_keywords))
     detail = style[0] if style and style[0].casefold() not in normalized.casefold() else ""
     body = " ".join(part for part in (normalized, detail, more) if part)
-    alternate = next((entity for entity in entities if re.search(r"[㐀-鿿]", entity)), name)
+    alternate = next((entity for entity in entities if re.search(r"[㐀-鿿]", entity)), "")
     chinese = (alternate or normalized).strip()[:65]
+    local_visual = next(
+        (
+            q.text
+            for q in analysis.queries
+            if q.language.startswith("zh")
+            and q.angle
+            in {
+                "appearance",
+                "visual_description",
+            }
+        ),
+        "",
+    )
+    if not entities:
+        visual_text = " ".join((visual, *analysis.visual_keywords, *analysis.action_tags))
+        if VISUAL_CUES[2].search(visual_text) and VISUAL_CUES[1].search(visual_text):
+            white = "白色" if re.search(r"\bwhite\b", visual_text, re.I) else ""
+            dance = "跳舞" if re.search(r"\bdanc", visual_text, re.I) else ""
+            notes = "音符" if re.search(r"\bmusi", visual_text, re.I) else ""
+            nearby = f"{white}线条小狗 {dance} {notes} 表情包 动图"
+            local_collection = f"{white}线条小狗 表情包 动图 合集"
+        else:
+            nearby = f"{(local_visual or chinese)[:70]} {more[:20]} 微信表情包"
+            local_collection = f"{(local_visual or chinese)[:75]} 表情包 微信"
+        return clean_queries(
+            [
+                nearby,
+                local_collection,
+                f"{body[:84]} animated messaging sticker",
+            ]
+        )
     options = [
         f"{body[:82]} sticker pack download share",
-        f"{body[:80]} stickers GIPHY",
-        f"{chinese} {more[:22]} 表情包 微信 QQ 下载",
+        f"{body[:80]} stickers site:giphy.com/stickers",
+        f"{chinese} {more[:22]} 微信表情包 上架 领取",
+        f"{chinese} 微信表情包 上架 site:sina.cn",
         f"{normalized[:76]} WhatsApp Telegram stickers 貼圖",
         f"{body[:78]} stickers site:store.line.me",
     ]
-    language = (
-        "スタンプ ダウンロード"
-        if re.search(r"[ぁ-ヿ]", visible_text)
-        else (
-            "이모티콘 다운로드" if re.search(r"[가-힣]", visible_text) else "sticker source share"
-        )
+    if re.search(r"[ぁ-ヿ]", visible_text) or re.search(r"[가-힣]", visible_text + chinese):
+        options[4] = f"{body[:70]} 이모티콘 スタンプ site:e.kakao.com"
+    return clean_queries(options)
+
+
+def clean_queries(queries):
+    return list(dict.fromkeys(" ".join(query.split())[:128] for query in queries if query.strip()))
+
+
+def giphy_gallery_url(analysis):
+    name = next(
+        (
+            name
+            for name in sticker_names(analysis)
+            if re.fullmatch(r"[A-Za-z][A-Za-z0-9 .'-]{1,48}", name)
+        ),
+        "",
     )
-    options.append(f"{(visual or body)[:84]} {language}")
-    return list(dict.fromkeys(" ".join(option.split())[:128] for option in options))
+    if not name:
+        # A named object can have an indexed gallery even when the picture has no character.
+        label = " ".join((*analysis.visual_keywords, *analysis.observations))
+        object_name = re.search(
+            r"\b(?:saturn|astronaut|space shuttle|space station|airplane|rocket)\b", label, re.I
+        )
+        name = object_name[0] if object_name else ""
+    if name:
+        slug = "-".join(words(name))
+        return f"https://giphy.com/explore/{slug}-stickers"
+    return None
 
 
 class StickerPage(PageImages):
@@ -260,12 +353,39 @@ class WebPage:
     publisher_pickup: bool = False
     has_pickup: bool = False
     publisher_stickers: bool = False
+    embedded: list[WebPage] = field(default_factory=list)
 
 
 def fetch_public(fetcher, url, kind, max_bytes):
     # Share the egress service with the regular image search worker.
     with fetch_slots:
         return fetcher.get(url, kind, max_bytes)
+
+
+def giphy_gallery_items(page, base):
+    """Pair each indexed sticker link with its own thumbnail from the rendered gallery."""
+    thumbnails = {}
+    for _, raw in page.clues:
+        if not (url := https_url(raw, base)) or not GIPHY_CDN.fullmatch(
+            urlsplit(url).hostname or ""
+        ):
+            continue
+        parts = urlsplit(url).path.split("/")
+        if len(parts) >= 4 and parts[1] == "media":
+            label = page.image_labels.get(raw, "")
+            key = parts[-2]
+            if key not in thumbnails or label and not thumbnails[key][1]:
+                thumbnails[key] = (url, label)
+    items = {}
+    for raw in page.links:
+        url = https_url(raw, base)
+        if not url or listing(url) != "GIPHY sticker":
+            continue
+        key = page_key(url)[1]
+        if key in thumbnails and key not in items:
+            preview, title = thumbnails[key]
+            items[key] = WebPage(url, title or "GIPHY sticker", "GIPHY sticker", "", [preview])
+    return list(items.values())[:20]
 
 
 def read_page(fetcher, url: str, title: str = "") -> WebPage | None:
@@ -298,18 +418,28 @@ def read_page(fetcher, url: str, title: str = "") -> WebPage | None:
     elif community == "SigStick":
         pack = SIGSTICK_PACK.fullmatch(urlsplit(final_url).path)
         image_refs = [href for _, href in page.clues if f"/{pack[1]}/" in href]
-    elif community == "GIPHY sticker":
+    elif channel == "GIPHY sticker":
         item = GIPHY_STICKER.fullmatch(urlsplit(final_url).path)
-        image_refs = [href for _, href in page.clues if f"/{item[1]}/" in href]
+        image_refs = [
+            href
+            for _, href in page.clues
+            if f"/{item[1]}/" in href and GIPHY_CDN.fullmatch(urlsplit(href).hostname or "")
+        ]
+    elif channel == "Kakao Emoticon Shop":
+        image_refs = [
+            href
+            for rank, href in page.clues
+            if rank == 1 and urlsplit(href).hostname == "item.kakaocdn.net"
+        ]
     else:
         image_refs = [href for _, href in sorted(page.clues, key=lambda clue: clue[0])]
     images = list(dict.fromkeys(url for href in image_refs if (url := https_url(href, final_url))))
     text = " ".join(page.text)
     sticker_page = bool(STICKER_WORDS.search(page.title + " " + text))
-    has_pickup = sticker_page and bool(PICKUP_WORDS.search(text))
+    has_pickup = sticker_page and bool(PICKUP_WORDS.search(page.title + " " + text))
     verified_issuer = issuer_host(final_url) and sticker_page
     links = []
-    if not channel and not pack_id:
+    if not channel and not pack_id and community != "GIPHY collection":
         links = list(
             dict.fromkeys(
                 target
@@ -330,17 +460,12 @@ def read_page(fetcher, url: str, title: str = "") -> WebPage | None:
         verified_issuer and has_pickup,
         has_pickup,
         verified_issuer,
+        giphy_gallery_items(page, final_url) if community == "GIPHY collection" else [],
     )
 
 
 def text_leads(candidates, pages, analysis, excluded):
-    names = [
-        " ".join(words(normalize("NFKC", entity.name)))
-        for entity in analysis.entity_hypotheses
-        if entity.confidence >= 0.72
-        and entity.status not in {"unknown", "conflicting"}
-        and not generic_subject(entity.name)
-    ]
+    names = [" ".join(words(normalize("NFKC", name))) for name in sticker_names(analysis)]
     names = [
         name
         for name in names
@@ -364,6 +489,10 @@ def text_leads(candidates, pages, analysis, excluded):
         )
     ]
     captions = caption_phrases(analysis.ocr_text)
+    description = " ".join(
+        (*analysis.observations, *analysis.visual_keywords, *analysis.action_tags)
+    )
+    cues = [pattern for pattern in VISUAL_CUES if pattern.search(description)]
     observed = {page_key(page.url): page for page in pages}
     scored = []
     for key, (url, hit) in candidates.items():
@@ -375,11 +504,18 @@ def text_leads(candidates, pages, analysis, excluded):
         )
         snippet = " ".join(words(normalize("NFKC", hit.snippet)))
         channel = listing(url) or community_listing(url)
-        release = bool(page and page.has_pickup) or (
-            STICKER_WORDS.search(hit.title + " " + hit.snippet)
-            and PICKUP_WORDS.search(hit.title + " " + hit.snippet)
+        search_text = hit.title + " " + hit.snippet
+        release = bool(page and page.has_pickup) or bool(
+            STICKER_WORDS.search(search_text) and PICKUP_WORDS.search(search_text)
         )
-        if (not channel and not release) or (channel == "WeChat article" and not release):
+        collection = channel in {
+            "GIPHY collection",
+            "Duitang sticker collection",
+            "Kakao Emoticon Shop",
+        } or bool(COLLECTION_WORDS.search(hit.title))
+        if (not channel or channel in {"WeChat article", "Weibo post"}) and not (
+            release or collection
+        ):
             continue
 
         def contains(text, phrase):
@@ -387,9 +523,20 @@ def text_leads(candidates, pages, analysis, excluded):
                 return phrase in text
             return f" {phrase} " in f" {text} "
 
-        score = sum(3 if contains(label, name) else int(contains(snippet, name)) for name in names)
+        score = max(
+            (3 if contains(label, name) else int(contains(snippet, name)) for name in names),
+            default=0,
+        )
+        visual_cues = sum(bool(cue.search(search_text[:650])) for cue in cues)
+        visual_description = visual_cues >= 4 and bool(channel or collection)
+        if visual_description:
+            score = max(score, visual_cues - 1)
         score += 4 * int(caption_overlap(captions, label) == 1.0)
         score += 2 * int(caption_overlap(captions, snippet) == 1.0)
+        if score and release and channel in {"Weibo post", "WeChat article"}:
+            score += 2
+        if score and collection:
+            score += 2
         if score < 2 or not (hit.title.strip() or page):
             continue
         if channel:
@@ -398,10 +545,15 @@ def text_leads(candidates, pages, analysis, excluded):
             (
                 score,
                 StickerSource(
-                    title=(page.title if page else hit.title.strip())[:250],
+                    title=(hit.title.strip() or page.title)[:250],
                     url=url,
-                    channel=channel or "Pickup instructions",
-                    match_basis="text",
+                    channel=channel
+                    or ("Sticker collection" if collection else "Pickup instructions"),
+                    match_basis="series"
+                    if visual_description
+                    or collection
+                    or channel in {"WhatSticker", "SigStick", "Sticker.ly"}
+                    else "text",
                 ),
             )
         )
@@ -417,7 +569,7 @@ def visual_distance(fetcher, image_url: str, features) -> float:
             count = getattr(image, "n_frames", 1)
             if count * image.width * image.height > 50_000_000:
                 return 1.0
-            indexes = {round(i * (count - 1) / 5) for i in range(6)}
+            indexes = {round(i * (count - 1) / 15) for i in range(16)}
             scores = []
             for index in sorted(indexes):
                 image.seek(index)
@@ -427,6 +579,22 @@ def visual_distance(fetcher, image_url: str, features) -> float:
             return min(scores, default=1.0)
     except (PipelineError, MediaError, OSError, ValueError, EOFError, Image.DecompressionBombError):
         return 1.0
+
+
+def refinement_queries(analysis, shop_terms):
+    names = sticker_names(analysis)
+    if not names:
+        return []
+    primary = names[0][:64]
+    chinese = next((name[:40] for name in names if re.search(r"[㐀-鿿]", name)), primary)
+    english = next((name[:46] for name in names if re.match(r"[A-Za-z]", name)), primary)
+    return clean_queries(
+        [
+            f"{chinese} {english} 微信表情包 上架 site:sina.cn",
+            f"{chinese} {english} 表情包 动图 合集",
+            f"{shop_terms or english} site:e.kakao.com",
+        ]
+    )
 
 
 def find_public_sticker(data: bytes, settings=None, *, analyzer=None, web=None, fetcher=None):
@@ -449,7 +617,9 @@ def find_public_sticker(data: bytes, settings=None, *, analyzer=None, web=None, 
     if not features:
         return WebStickerSearch(state="no_match")
     for hint in (
-        "Identify the sticker character and creator, and read original-language text.",
+        "Identify any recognizable messaging-sticker character and creator. Give separate common "
+        "Chinese and English aliases when known. Include a short Simplified Chinese description "
+        "among the visual_description queries. Read visible original-language text.",
         "Identify the character in this sticker.",
     ):
         try:
@@ -481,6 +651,18 @@ def find_public_sticker(data: bytes, settings=None, *, analyzer=None, web=None, 
         found = list(pool.map(search_query, queries))
         if all(batch is None for batch in found):
             return WebStickerSearch(state="unavailable")
+        if not sticker_names(analysis) and (refine := getattr(web, "sticker_identities", None)):
+            examples = [hit for batch in found for hit in (batch or [])[:4]]
+            try:
+                aliases, shop_terms = refine(analysis, examples)
+            except PipelineError as exc:
+                logger.info("sticker_identity_refinement_failed", extra={"code": exc.code})
+            else:
+                analysis = analysis.model_copy(update={"entity_hypotheses": aliases})
+                followups = [
+                    q for q in refinement_queries(analysis, shop_terms) if q not in queries
+                ]
+                found.extend(pool.map(search_query, followups[: 6 - len(queries)]))
         candidates = {}
         for row in zip_longest(*(batch or [] for batch in found)):
             for hit in row:
@@ -499,7 +681,17 @@ def find_public_sticker(data: bytes, settings=None, *, analyzer=None, web=None, 
             [pair for row in zip_longest(*group.values()) for pair in row if pair]
             for group in groups
         ]
-        initial = [pair for row in zip_longest(*queues) for pair in row if pair][: PAGE_LIMIT - 4]
+        initial = [pair for row in zip_longest(*queues) for pair in row if pair]
+        priority = [
+            (str(source.url), source.title)
+            for source in text_leads(candidates, [], analysis, set())[:3]
+        ]
+        if gallery := giphy_gallery_url(analysis):
+            priority.insert(0, (gallery, "GIPHY sticker collection"))
+        ordered = {}
+        for url, title in priority + initial:
+            ordered.setdefault(page_key(url), (url, title))
+        initial = list(ordered.values())[: PAGE_LIMIT - 4]
         pages = [page for page in pool.map(lambda pair: read_page(fetcher, *pair), initial) if page]
         discovered = {page_key(target): target for page in pages for target in page.links}
         proof = {
@@ -514,7 +706,23 @@ def find_public_sticker(data: bytes, settings=None, *, analyzer=None, web=None, 
         followed = [
             page for page in pool.map(lambda pair: read_page(fetcher, pair[1]), follow[:4]) if page
         ]
+        galleries = [page for page in pages if page.embedded]
         pages = followed + pages
+        known = {page_key(page.url) for page in pages}
+        for page in galleries:
+            if page_key(page.url) not in candidates:
+                candidates[page_key(page.url)] = (
+                    page.url,
+                    MediaSource(
+                        source_url=page.url,
+                        provider="giphy_web",
+                        title=page.title,
+                    ),
+                )
+            for item in page.embedded:
+                if page_key(item.url) not in known:
+                    pages.append(item)
+                    known.add(page_key(item.url))
         pages.sort(
             key=lambda page: (
                 0
@@ -527,6 +735,17 @@ def find_public_sticker(data: bytes, settings=None, *, analyzer=None, web=None, 
         confirmed, leads = match_pages(pool, fetcher, pages, proof, features, ledger)
         excluded = {page_key(str(source.url)) for source in (*confirmed, *leads)}
         leads.extend(text_leads(candidates, pages, analysis, excluded))
+        excluded.update(page_key(str(source.url)) for source in leads)
+        for page in galleries:
+            if page.url == gallery and page_key(page.url) not in excluded:
+                leads.append(
+                    StickerSource(
+                        title=page.title,
+                        url=page.url,
+                        channel="GIPHY collection",
+                        match_basis="series",
+                    )
+                )
     if confirmed:
         state = "matched"
     elif leads:
@@ -553,7 +772,12 @@ def match_pages(pool, fetcher, pages, proof, features, ledger):
             break
         distances = pool.map(lambda pair: visual_distance(fetcher, pair[1], features), group)
         for (page, _), distance in zip(group, distances, strict=True):
-            if distance > VISUAL_DISTANCE:
+            cutoff = (
+                0.105
+                if page.channel in {"GIPHY sticker", "Kakao Emoticon Shop"}
+                else VISUAL_DISTANCE
+            )
+            if distance > cutoff:
                 continue
             key = page_key(page.url)
             publisher_evidence = proof.get(key)

@@ -159,9 +159,11 @@ function renderSource(source, verified) {
       node(
         "p",
         "source-evidence",
-        source.match_basis === "text"
-          ? "Name or text match · artwork unverified"
-          : "Artwork match · pickup unverified",
+        {
+          text: "Name or text match · artwork unverified",
+          series: "Related pack or collection · exact sticker unverified",
+          artwork: "Artwork match · pickup unverified",
+        }[source.match_basis || "artwork"],
       ),
     );
   }
@@ -192,7 +194,7 @@ function showWebSources(result) {
       : verified
         ? "The published sticker artwork matches your screenshot."
         : candidates
-          ? "Compare these pages with your sticker. The pickup links are unverified."
+          ? "Compare these sticker packs, collections, and release pages with your screenshot."
           : "Try a tighter crop that includes the sticker and any text printed on it.";
   for (const [title, sources, confirmed] of [
     ["Verified links", result.links, true],

@@ -6,6 +6,7 @@ from services.search_agent.meme_types import (
     EntityHypothesis,
     MediaSource,
     PipelineError,
+    Query,
     VisualAnalysis,
 )
 from services.search_agent.sticker_lookup import find_public_sticker
@@ -79,7 +80,7 @@ def test_platform_pickup_requires_matching_published_art():
     assert result.state == "candidates"
     assert not result.links and str(result.leads[0].url) == REPOST
     assert any("site:store.line.me" in query for query in web.queries)
-    assert any("微信 QQ" in query for query in web.queries)
+    assert any("微信表情包" in query for query in web.queries)
 
     fetcher.files[LINE_PREVIEW] = screenshot
     result = find_public_sticker(screenshot, analyzer=recognize, web=web, fetcher=fetcher)
@@ -130,7 +131,7 @@ def test_unavailable_previews_leave_only_relevant_text_candidates():
     assert result.state == "candidates"
     assert not result.links
     assert [(str(source.url), source.match_basis) for source in result.leads] == [
-        (community, "text"),
+        (community, "series"),
         (article, "text"),
     ]
 
@@ -153,3 +154,91 @@ def test_mainland_publisher_instructions_with_matching_art_are_verified():
     assert result.state == "matched"
     assert str(result.links[0].url) == publisher
     assert result.links[0].match_basis == "artwork"
+
+
+def test_giphy_gallery_links_matching_art_to_the_individual_sticker():
+    screenshot = artwork("#f8f8f8", "#123261")
+    gallery = "https://giphy.com/explore/pattern-mascot-stickers"
+    sticker = "https://giphy.com/stickers/pattern-dance-abc123XYZ"
+    preview = "https://media0.giphy.com/media/cdn-ref/abc123XYZ/200.gif"
+    unrelated = "https://giphy.com/stickers/unrelated-Media9876"
+    web = Search([])
+    fetcher = Fetch(
+        {
+            gallery: (
+                "<title>Pattern Mascot Stickers - GIPHY</title>"
+                f'<a href="{unrelated}">Other sticker</a>'
+                f'<a href="{sticker}"><img src="{preview}" alt="Pattern Mascot dance"></a>'
+            ).encode(),
+            preview: screenshot,
+        }
+    )
+    result = find_public_sticker(screenshot, analyzer=recognize, web=web, fetcher=fetcher)
+    assert result.state == "matched"
+    assert [str(source.url) for source in result.links] == [sticker]
+    assert str(result.leads[0].url) == gallery
+    assert result.leads[0].match_basis == "artwork"
+
+
+def test_uncertain_identity_can_find_a_related_pack_and_wechat_announcement():
+    screenshot = artwork("#f8f8f8", "#123261")
+    collection = "https://www.duitang.com/album/?id=48123"
+    release = "https://www.sina.cn/news/detail/5234567890123456.html"
+
+    class SearchWithRefinement(Search):
+        def sticker_identities(self, analysis, hits):
+            assert hits
+            return [EntityHypothesis(name="画线小动物", confidence=0.88)], ""
+
+    def ambiguous(*_):
+        return VisualAnalysis(
+            visual_keywords=["white bear, doodle, dancing"],
+            queries=[Query(text="白色小熊跳舞", language="zh", angle="visual_description")],
+        ), []
+
+    web = SearchWithRefinement(
+        [
+            (collection, "画线小动物 动图表情包合集"),
+            (release, "画线小动物 微信表情包正式上架"),
+        ]
+    )
+    result = find_public_sticker(screenshot, analyzer=ambiguous, web=web, fetcher=Fetch({}))
+    assert result.state == "candidates"
+    assert not result.links
+    assert {source.channel: source.match_basis for source in result.leads} == {
+        "Duitang sticker collection": "series",
+        "Weibo post": "text",
+    }
+    assert any("画线小动物" in query and "site:sina.cn" in query for query in web.queries)
+
+
+def test_regional_collection_can_match_visual_details_without_a_character_name():
+    screenshot = artwork("#f8f8f8", "#123261")
+    relevant = "https://www.duitang.com/album/?id=48123"
+    unrelated = "https://www.duitang.com/album/?id=12345"
+
+    class SearchByAppearance(Search):
+        def search(self, query, limit):
+            if "合集" not in query:
+                return []
+            return [
+                MediaSource(
+                    source_url=relevant,
+                    provider="test",
+                    title="手绘小狗表情包合集",
+                    snippet="白色小狗跳舞，周围有音符",
+                ),
+                MediaSource(source_url=unrelated, provider="test", title="打工小狗表情包合集"),
+            ]
+
+    def unknown(*_):
+        return VisualAnalysis(visual_keywords=["white bear, doodle, dancing, musical notes"]), []
+
+    result = find_public_sticker(
+        screenshot, analyzer=unknown, web=SearchByAppearance([]), fetcher=Fetch({})
+    )
+    assert result.state == "candidates"
+    assert not result.links
+    assert [(str(source.url), source.match_basis) for source in result.leads] == [
+        (relevant, "series")
+    ]

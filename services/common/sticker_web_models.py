@@ -14,7 +14,7 @@ class StickerSource(BaseModel):
     channel: str = Field(default="", max_length=80)
     publisher: str = Field(default="", max_length=150)
     evidence_url: HttpUrl | None = None
-    match_basis: Literal["artwork", "text"] = "artwork"
+    match_basis: Literal["artwork", "text", "series"] = "artwork"
 
     @field_validator("url", "evidence_url")
     @classmethod

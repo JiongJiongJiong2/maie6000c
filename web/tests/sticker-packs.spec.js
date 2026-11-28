@@ -76,6 +76,12 @@ test("a catalog miss shows a verified link and a clearly labeled candidate", asy
               channel: "Sticker.ly",
               match_basis: "text",
             },
+            {
+              title: "Hello Kitty community collection",
+              url: "https://www.duitang.com/album/?id=48123",
+              channel: "Duitang sticker collection",
+              match_basis: "series",
+            },
           ],
         },
       },
@@ -104,6 +110,17 @@ test("a catalog miss shows a verified link and a clearly labeled candidate", asy
     result.getByText("Name or text match · artwork unverified"),
   ).toBeVisible();
   await expect(
-    result.getByRole("link", { name: "Open candidate page" }),
+    result
+      .getByRole("article")
+      .filter({
+        has: page.getByRole("heading", {
+          name: "Hello Kitty stickers",
+          exact: true,
+        }),
+      })
+      .getByRole("link", { name: "Open candidate page" }),
   ).toHaveAttribute("href", "https://sticker.ly/s/ABCD12");
+  await expect(
+    result.getByText("Related pack or collection · exact sticker unverified"),
+  ).toBeVisible();
 });
