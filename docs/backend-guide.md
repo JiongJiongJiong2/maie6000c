@@ -139,7 +139,9 @@ inference/file operations outside the claim transaction. Candidates and final
 state commit together. Retrieval has a 120-second default subprocess timeout.
 Each candidate must match its catalog checksum, be a fully decoded multi-frame
 GIF, and fit 25 MiB, 20 megapixels per frame, 1000 frames, and 100 megapixels
-total decoding work. At most three are stored.
+total decoding work. The worker enforces the byte limit during the read for
+both web candidates and saved GIFs used in local retrieval, even if a file
+grows after it is created. At most three are stored.
 Scores are finite ranking signals, not probabilities.
 PostgreSQL also rejects non-finite similarity scores, invalid job state/timestamp
 combinations, and terminal times earlier than their start times. The request /
@@ -149,7 +151,7 @@ so no redundant single-column indexes are created.
 Startup recovery changes abandoned `running` jobs to `failed` /
 `worker_interrupted`; it never silently reruns them. A user retry creates a new
 attempt and retains the old failure. Cleanup preserves active inputs and
-metadata, removes expired transport files, and returns `410 media_expired` for
+metadata, removes expired transport files and candidate previews, and returns `410 media_expired` for
 expired candidates. Re-submit with a **new submission key** after media expiry.
 
 ## Corpus import
