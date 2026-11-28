@@ -70,9 +70,7 @@ function key(body) {
   return body.match(/name="client_submission_key"\r\n\r\n([^\r]+)/)?.[1];
 }
 
-test("mobile Discord sticker action shows its destination and supports a retry", async ({
-  page,
-}) => {
+async function serveStickerTestPage(page, attributes) {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/web/**", (route) => {
     const path = new URL(route.request().url()).pathname;
@@ -80,10 +78,7 @@ test("mobile Discord sticker action shows its destination and supports a retry",
       const body = readFileSync(
         new URL("../index.html", import.meta.url),
         "utf8",
-      ).replace(
-        '<html lang="en">',
-        '<html lang="en" data-discord-stickers="true" data-discord-guild-name="Test Server">',
-      );
+      ).replace('<html lang="en">', `<html lang="en" ${attributes}>`);
       return route.fulfill({ contentType: "text/html", body });
     }
     const asset = /^\/web\/([a-z0-9-]+\.(js|css))$/.exec(path);
@@ -93,6 +88,15 @@ test("mobile Discord sticker action shows its destination and supports a retry",
       body: readFileSync(new URL(`../${asset[1]}`, import.meta.url)),
     });
   });
+}
+
+test("mobile Discord sticker action shows its destination and supports a retry", async ({
+  page,
+}) => {
+  await serveStickerTestPage(
+    page,
+    'data-discord-stickers="true" data-discord-guild-name="Test Server"',
+  );
   let requests = 0;
   await page.route(
     `**/sticker-integrations/candidates/${candidateId}/discord`,
@@ -152,6 +156,43 @@ test("mobile Discord sticker action shows its destination and supports a retry",
     page.getByRole("button", { name: "Already in Discord" }),
   ).toBeDisabled();
   expect(requests).toBe(3);
+});
+
+test("mobile Signal sticker action creates a pack only after the user taps", async ({
+  page,
+}) => {
+  await serveStickerTestPage(page, 'data-signal-stickers="true"');
+  const pack = `https://signal.art/addstickers/#pack_id=${"a".repeat(32)}&pack_key=${"b".repeat(64)}`;
+  let requests = 0;
+  await page.route(
+    `**/sticker-integrations/candidates/${candidateId}/signal`,
+    (route) => {
+      expect(route.request().method()).toBe("POST");
+      requests++;
+      return route.fulfill({
+        json: { url: requests === 1 ? "https://example.com" : pack },
+      });
+    },
+  );
+  await fixtures(page);
+  await upload(page);
+  const add = page.getByRole("button", { name: "Add Sticker to Signal" });
+  await expect(add).toBeHidden();
+  await page.getByRole("button", { name: "This is the one" }).click();
+  await expect(add).toBeVisible();
+  expect(requests).toBe(0);
+
+  await add.click();
+  const link = page.getByRole("link", { name: "Open Signal to install" });
+  await expect(link).toBeHidden();
+  await page
+    .getByRole("button", { name: "Retry creating Signal sticker" })
+    .click();
+  await expect(link).toHaveAttribute("href", pack);
+  await expect(
+    page.getByRole("button", { name: "Signal sticker ready" }),
+  ).toBeDisabled();
+  expect(requests).toBe(2);
 });
 
 test("the desktop Telegram QR flow offers phone sign-in when two-step verification is required", async ({

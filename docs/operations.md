@@ -67,6 +67,32 @@ Discord accepts animated stickers up to 512 KiB, five seconds and 320 × 320 pix
 MemeRetrieve resizes or trims the copy uploaded to Discord and keeps the original GIF in the
 library. [Discord sticker API](https://docs.discord.com/developers/resources/sticker#create-guild-sticker)
 
+## Create Signal sticker packs on demand
+
+1. On an animated GIF result or a card in **My GIF Library**, tap **Add Sticker to Signal**. On a
+   local search result, tap **This is the one** first. MemeRetrieve creates a pack with that one
+   animated sticker on the first request. Later requests for the same GIF reuse the pack link.
+2. Tap **Open Signal to install**, then confirm **Install** in Signal. Open the chat sticker picker
+   to send it. Long-press the sticker in Signal to add it to personal **Favorites**.
+   [Signal sticker guide](https://support.signal.org/hc/en-us/articles/360031836512-Stickers)
+
+To enable a pilot, install a current [signal-cli release](https://github.com/AsamK/signal-cli/releases)
+and its required runtime where the API runs. Link a dedicated test Signal account once using
+`signal-cli --data-dir /path/to/signal-cli-account link -n MemeRetrieve`. Set
+`SIGNAL_CLI_EXECUTABLE` to the executable or command on the API’s PATH, `SIGNAL_CLI_DATA_DIR` to the
+data directory containing the linked account, and `SIGNAL_STICKER_ACCOUNTS` to a JSON list of enabled
+MemeRetrieve usernames. Use a data directory with one Signal account. For Compose, the API container
+needs that executable, its runtime dependencies, and the linked account directory mounted with
+read/write access for the API user. Restart the API after configuring it.
+
+Run one API process per publishing account so upload requests are serialized. Persist the API’s
+`MEDIA_ROOT` so the same source GIF can reuse the cached pack link after a restart. The API prepares
+a 512 × 512 APNG within 300 KB and three seconds, then calls `uploadStickerPack`. signal-cli is a
+third-party client. If an upload times out before returning a link, Signal may already have received
+it. Use material you have permission to distribute. Anyone with a pack link can open it, and Signal
+does not support editing or deleting an uploaded pack.
+[signal-cli command reference](https://github.com/AsamK/signal-cli/blob/master/man/signal-cli.1.adoc#uploadstickerpack)
+
 ## Local verification
 
 The W07 supported local profile runs host Python API and worker processes with Docker PostgreSQL. Follow [the local demo guide](local-demo.md), including PowerShell commands, preparation, and verification. Python 3.11 and Docker Desktop are required; Node.js is needed for browser tests. Model weights, corpus, and index must be prepared before startup. The base application Docker image lacks the optional retrieval dependencies and is not the verified inference deployment.

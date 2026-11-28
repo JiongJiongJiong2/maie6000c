@@ -1,4 +1,7 @@
-import { mountDiscordStickers } from "./sticker-integrations.js";
+import {
+  mountDiscordStickers,
+  mountSignalStickers,
+} from "./sticker-integrations.js";
 
 const statusLabels = {
   waiting: "Waiting",
@@ -460,6 +463,12 @@ export function mountLibrary(api, newKey) {
     actions.className = "library-card-actions";
     actions.append(download, details);
     mountDiscordStickers(
+      api,
+      actions,
+      () => asset.media_url,
+      page.controller.signal,
+    );
+    mountSignalStickers(
       api,
       actions,
       () => asset.media_url,

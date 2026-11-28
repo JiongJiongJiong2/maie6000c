@@ -842,24 +842,24 @@ footer {
 .secondary:hover:not(:disabled) {
   background: #eee5ff;
 }
-.discord-sticker-actions {
+.sticker-export-actions {
   display: grid;
   gap: 6px;
   clear: both;
   min-width: 0;
 }
-.discord-sticker-actions > button {
+.sticker-export-actions > button {
   min-height: 44px;
 }
-.discord-sticker-actions > p {
+.sticker-export-actions > p {
   margin: 0;
   font-size: 12px;
   overflow-wrap: anywhere;
 }
-.discord-sticker-actions > p:empty {
+.sticker-export-actions > p:empty {
   display: none;
 }
-.discord-sticker-link {
+.sticker-export-link {
   display: inline-flex;
   align-items: center;
   justify-self: start;
@@ -2408,7 +2408,7 @@ html[data-motion="off"] .progress-track > span {
   box-shadow: none;
   font-size: 14px;
 }
-.meme50-grid .candidate-body a:not(.discord-sticker-link) {
+.meme50-grid .candidate-body a:not(.sticker-export-link) {
   width: fit-content;
   padding: 3px 0;
   color: #604373;

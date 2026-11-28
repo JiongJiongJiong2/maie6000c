@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     discord_sticker_guild_id: str = Field(default="", pattern=r"^(|[0-9]{17,20})$")
     discord_sticker_guild_name: str = Field(default="", max_length=100)
     discord_sticker_accounts: set[str] = Field(default_factory=set)
+    signal_cli_executable: str = ""
+    signal_cli_data_dir: str = ""
+    signal_sticker_accounts: set[str] = Field(default_factory=set)
     private_library_enabled: bool = False
     enable_demo_library: bool = False
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, gt=0)

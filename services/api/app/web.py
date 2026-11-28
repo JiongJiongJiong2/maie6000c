@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 
-from services.api.app.sticker_integrations import can_add_discord_sticker
+from services.api.app.sticker_integrations import can_add_discord_sticker, can_create_signal_pack
 from services.common.config import get_settings
 
 router = APIRouter(include_in_schema=False)
@@ -27,6 +27,8 @@ def web_index(request: Request):
         attributes.append('data-discord-stickers="true"')
         if guild_name := settings.discord_sticker_guild_name.strip():
             attributes.append(f'data-discord-guild-name="{escape(guild_name)}"')
+    if can_create_signal_pack(request):
+        attributes.append('data-signal-stickers="true"')
     if len(attributes) > 1:
         html = (WEB_ROOT / "index.html").read_text(encoding="utf-8")
         html = html.replace('<html lang="en">', f'<html {" ".join(attributes)}>', 1)

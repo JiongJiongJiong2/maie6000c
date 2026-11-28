@@ -1,7 +1,13 @@
-"""Add verified project GIFs to Discord as animated server stickers."""
+"""Export verified GIFs to Discord stickers and Signal sticker packs."""
 
+import json
+import logging
+import re
+import subprocess
 from hashlib import sha256
 from io import BytesIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from threading import Lock
 from typing import Literal
 from uuid import UUID
@@ -11,14 +17,22 @@ from fastapi import APIRouter, Depends, Request
 from PIL import Image, ImageOps, ImageSequence
 
 from services.api.app.search import Database, authorize, fail, read_media, verify_saved_asset_media
-from services.common.config import get_settings
+from services.common.config import base_settings, get_settings
 from services.common.search_models import Candidate, SavedAsset
+from services.common.storage import atomic_write
 
 router = APIRouter(prefix="/sticker-integrations", dependencies=[Depends(authorize)])
 MediaKind = Literal["candidates", "saved-assets"]
 STICKER_SIZE = 320
 STICKER_BYTES = 512 * 1024
+SIGNAL_STICKER_SIZE = 512
+SIGNAL_STICKER_BYTES = 300_000
+SIGNAL_PACK_URL = re.compile(
+    r"https://signal\.art/addstickers/#pack_id=[a-f0-9]{32}&pack_key=[a-f0-9]{64}"
+)
 discord_lock = Lock()
+signal_lock = Lock()
+logger = logging.getLogger(__name__)
 
 
 def can_add_discord_sticker(request: Request) -> bool:
@@ -29,6 +43,17 @@ def can_add_discord_sticker(request: Request) -> bool:
         and settings.discord_bot_token.get_secret_value()
         and account
         and account.username in settings.discord_sticker_accounts
+    )
+
+
+def can_create_signal_pack(request: Request) -> bool:
+    settings = get_settings()
+    account = getattr(request.state, "account", None)
+    return bool(
+        settings.signal_cli_executable
+        and settings.signal_cli_data_dir
+        and account
+        and account.username in settings.signal_sticker_accounts
     )
 
 
@@ -48,6 +73,26 @@ def gif_bytes(gif: Candidate | SavedAsset, db: Database) -> bytes:
     return read_media(UUID(gif.id), db).body
 
 
+def clipped_delays(delays: list[int], remaining: int) -> list[int]:
+    durations = []
+    for index, delay in enumerate(delays):
+        if remaining < 20:
+            break
+        # Keep room for a second frame even when the first is unusually long.
+        limit = remaining - 20 if index == 0 else remaining
+        duration = min(max(20, delay or 100), limit)
+        durations.append(duration)
+        remaining -= duration
+    return durations
+
+
+def center_frame(frame: Image.Image, max_side: int, canvas_side: int) -> Image.Image:
+    image = ImageOps.contain(frame.convert("RGBA"), (max_side, max_side))
+    canvas = Image.new("RGBA", (canvas_side, canvas_side))
+    canvas.paste(image, ((canvas_side - image.width) // 2, (canvas_side - image.height) // 2))
+    return canvas
+
+
 def encode_discord_sticker(data: bytes) -> bytes:
     """Fit up to the first five seconds of the animation to Discord's canvas."""
     with Image.open(BytesIO(data)) as source:
@@ -60,25 +105,12 @@ def encode_discord_sticker(data: bytes) -> bytes:
             and sum(delays) <= 5000
         ):
             return data
-        durations = []
-        remaining = 5000
-        for index, delay in enumerate(delays):
-            if remaining < 20:
-                break
-            # Keep room for a second frame even when the first is unusually long.
-            limit = remaining - 20 if index == 0 else remaining
-            duration = min(max(20, delay or 100), limit)
-            durations.append(duration)
-            remaining -= duration
+        durations = clipped_delays(delays, 5000)
         for side, colors in ((STICKER_SIZE, 255), (256, 127), (192, 95), (144, 63), (112, 47)):
             frames = []
             for index in range(len(durations)):
                 source.seek(index)
-                image = ImageOps.contain(source.convert("RGBA"), (side, side))
-                canvas = Image.new("RGBA", (STICKER_SIZE, STICKER_SIZE))
-                canvas.paste(
-                    image, ((STICKER_SIZE - image.width) // 2, (STICKER_SIZE - image.height) // 2)
-                )
+                canvas = center_frame(source, side, STICKER_SIZE)
                 # Reserve a palette entry for transparency on every frame.
                 indexed = canvas.convert("RGB").quantize(colors=colors)
                 indexed.paste(255, mask=canvas.getchannel("A").point(lambda a: 255 * (a < 128)))
@@ -175,3 +207,124 @@ def add_discord_sticker(kind: MediaKind, gif_id: UUID, request: Request, db: Dat
         "guild_id": settings.discord_sticker_guild_id,
         "already_added": already_added,
     }
+
+
+def encode_signal_sticker(data: bytes) -> tuple[bytes, bytes]:
+    """Return a 512×512 APNG and a still PNG cover within Signal's size limit."""
+    with Image.open(BytesIO(data)) as source:
+        delays = [frame.info.get("duration", 0) for frame in ImageSequence.Iterator(source)]
+        durations = clipped_delays(delays, 3000)
+        for side in (512, 320, 224, 160, 112, 80, 56):
+            frames = []
+            for index in range(len(durations)):
+                source.seek(index)
+                frames.append(center_frame(source, side, SIGNAL_STICKER_SIZE))
+            output = BytesIO()
+            frames[0].save(
+                output,
+                format="PNG",
+                save_all=True,
+                append_images=frames[1:],
+                duration=durations,
+                loop=0,
+                disposal=1,
+                blend=0,
+            )
+            if output.tell() > SIGNAL_STICKER_BYTES:
+                continue
+            with Image.open(output) as sticker:
+                if not sticker.is_animated:
+                    continue
+            cover = BytesIO()
+            frames[0].save(cover, format="PNG")
+            if cover.tell() <= SIGNAL_STICKER_BYTES:
+                return output.getvalue(), cover.getvalue()
+    raise fail(422, "signal_sticker_too_large", "This GIF could not fit Signal’s sticker limits.")
+
+
+def upload_signal_pack(manifest: Path) -> str:
+    settings = get_settings()
+    try:
+        result = subprocess.run(
+            [
+                settings.signal_cli_executable,
+                "--data-dir",
+                str(settings.signal_cli_data_dir),
+                "--output",
+                "json",
+                "uploadStickerPack",
+                str(manifest),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            encoding="utf-8",
+            errors="replace",
+            timeout=45,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise fail(
+            504, "signal_upload_timeout", "Signal did not confirm the pack in time."
+        ) from error
+    except OSError as error:
+        raise fail(503, "signal_unavailable", "The Signal publisher is unavailable.") from error
+    if result.returncode:
+        logger.warning("Signal pack upload failed with exit code %s", result.returncode)
+        raise fail(502, "signal_upload_failed", "Signal could not create the sticker pack.")
+    try:
+        payload = json.loads(result.stdout)
+        url = payload.get("url") if isinstance(payload, dict) else None
+    except ValueError:
+        url = None
+    if not isinstance(url, str) or not SIGNAL_PACK_URL.fullmatch(url):
+        raise fail(502, "signal_unconfirmed", "Signal did not return a valid sticker pack link.")
+    return url
+
+
+@router.post("/{kind}/{gif_id}/signal")
+def create_signal_pack(kind: MediaKind, gif_id: UUID, request: Request, db: Database) -> dict:
+    if not can_create_signal_pack(request):
+        raise fail(403, "signal_packs_disabled", "Signal sticker export is unavailable.")
+    data = gif_bytes(gif_record(kind, gif_id, db), db)
+    digest = sha256(data).hexdigest()
+    root = base_settings().media_root / "signal-packs"
+    filename = f"{digest}.txt"
+    try:
+        with signal_lock:
+            try:
+                url = (root / filename).read_text(encoding="ascii")
+            except FileNotFoundError:
+                pass
+            else:
+                if not SIGNAL_PACK_URL.fullmatch(url):
+                    raise OSError("Invalid stored Signal pack link")
+                return {"url": url, "already_created": True}
+
+            root.mkdir(parents=True, exist_ok=True)
+            sticker, cover = encode_signal_sticker(data)
+            with TemporaryDirectory(prefix="pack-", dir=root) as temporary:
+                directory = Path(temporary)
+                (directory / "sticker.apng").write_bytes(sticker)
+                (directory / "cover.png").write_bytes(cover)
+                manifest = directory / "manifest.json"
+                manifest.write_text(
+                    json.dumps(
+                        {
+                            "title": f"MemeRetrieve {digest[:8]}",
+                            "author": "MemeRetrieve",
+                            "cover": {"file": "cover.png", "contentType": "image/png"},
+                            "stickers": [
+                                {"file": "sticker.apng", "contentType": "image/apng", "emoji": "😄"}
+                            ],
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                url = upload_signal_pack(manifest)
+                atomic_write(root, filename, url.encode("ascii"))
+    except (OSError, UnicodeError) as error:
+        logger.warning("Signal pack cache could not be accessed: %s", type(error).__name__)
+        raise fail(
+            503, "signal_storage_unavailable", "Signal sticker storage is unavailable."
+        ) from error
+    return {"url": url, "already_created": False}

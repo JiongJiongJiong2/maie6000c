@@ -90,6 +90,10 @@ The [documentation index](docs/README.md) identifies which pages are bilingual, 
 
 Telegram and Discord imports are optional. After setup, a user can add an animation to their Telegram GIF picker or add a sticker to the configured Discord server. The Discord copy may be resized or trimmed. The library retains the original GIF. [Telegram setup](docs/operations.md#enable-telegram-gif-collection) · [Discord setup](docs/operations.md#add-gifs-to-discord-stickers)
 
+Signal 按需制包为可选功能。配置发布账号后，点击 **Add Sticker to Signal** 可生成单张动图贴纸包，用户在 Signal 中确认安装。[Signal 配置和使用](docs/operations.md#create-signal-sticker-packs-on-demand)
+
+**Add Sticker to Signal** creates an installable pack for the selected GIF on demand when a Signal publishing account is configured. [Signal setup and use](docs/operations.md#create-signal-sticker-packs-on-demand)
+
 ## 本地运行 | Run locally
 
 产品安装、参考素材准备、模型下载、供应商配置和 Windows/Docker 启动步骤见[产品部署指南](docs/product-deployment.md)。先运行仅本地检索不需要配置在线供应商；联网搜索需要各部署者自行配置有权使用的凭据。
