@@ -25,7 +25,7 @@ function render() {
     : "flower";
   $("account-intro").textContent =
     register && setup
-      ? "Create an account for the GIF collection already on this Mac."
+      ? "Create an account for the GIF collection on this installation."
       : register
         ? "Choose a username and password for your new library."
         : "Open your personal collection.";

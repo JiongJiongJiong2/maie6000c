@@ -1,0 +1,22 @@
+services:
+  db:
+    image: pgvector/pgvector:0.8.7-pg16
+    # Keep the old Compose database volume available for a logical migration.
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
+
+  api:
+    environment:
+      ACCOUNT_LOGIN_ENABLED: ${ACCOUNT_LOGIN_ENABLED:-true}
+      PRIVATE_LIBRARY_ENABLED: ${PRIVATE_LIBRARY_ENABLED:-true}
+      ENABLE_DEMO_LIBRARY: ${ENABLE_DEMO_LIBRARY:-true}
+      VECTOR_BACKEND: ${VECTOR_BACKEND:-pgvector}
+
+  worker:
+    environment:
+      ACCOUNT_LOGIN_ENABLED: ${ACCOUNT_LOGIN_ENABLED:-true}
+      PRIVATE_LIBRARY_ENABLED: ${PRIVATE_LIBRARY_ENABLED:-true}
+      VECTOR_BACKEND: ${VECTOR_BACKEND:-pgvector}
+
+volumes:
+  pgvector_data:

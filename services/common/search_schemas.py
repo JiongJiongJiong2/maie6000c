@@ -230,6 +230,8 @@ class RetrievalResult(BaseModel):
     matches: list[RetrievalMatch] = Field(max_length=3)
     model_version: str = Field(min_length=1, max_length=100)
     corpus_version: str = Field(min_length=1, max_length=100)
+    vector_backend: Literal["npz", "pgvector", "npz_fallback"] | None = None
+    reference_vector_backend: Literal["npz", "pgvector", "npz_fallback"] | None = None
 
     @model_validator(mode="after")
     def validate_ranking(self) -> RetrievalResult:

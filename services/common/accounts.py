@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from sqlalchemy import Column, ForeignKey, Integer, MetaData, String, Table, select, text
 
-from services.common.config import use_workspace, validated_workspace
+from services.common.config import get_settings, use_workspace, validated_workspace
 from services.common.db import Base, get_engine, get_session_factory
 
 registry = MetaData()
@@ -72,6 +72,10 @@ def provision_workspace(db, name):
                 "CREATE TABLE alembic_version (version_num VARCHAR(32) PRIMARY KEY)"
             )
             conn.exec_driver_sql("INSERT INTO alembic_version SELECT * FROM public.alembic_version")
+            if get_settings().vector_backend == "pgvector":
+                from services.retrieval.vector_store import provision_vector_tables
+
+                provision_vector_tables(conn)
             conn.exec_driver_sql("SET LOCAL search_path TO public")
         else:
             # SQLite is used by the local browser and integration test harnesses.

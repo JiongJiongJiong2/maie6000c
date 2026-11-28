@@ -9,6 +9,7 @@ from sqlalchemy import engine_from_config, inspect, pool, text
 from services.common.accounts import registry
 from services.common.config import get_settings, validated_workspace
 from services.common.db import Base
+from services.retrieval.vector_store import VECTOR_TABLES
 
 # Register all ORM tables before Alembic reads the metadata.
 import_module("services.common.models")
@@ -37,6 +38,10 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def include_name(name, type_, parent_names):
+    return type_ != "table" or name not in VECTOR_TABLES
+
+
 def run_migrations_online() -> None:
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
@@ -49,6 +54,7 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=[target_metadata, registry] if root else target_metadata,
             compare_type=True,
+            include_name=include_name,
         )
         with context.begin_transaction():
             context.run_migrations()

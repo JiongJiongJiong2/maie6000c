@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import io
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -19,6 +20,7 @@ from services.retrieval.encoder import MODEL_VERSION, encode_image, encode_image
 
 FRAMES_PER_GIF = 8
 INDEX_FORMAT = 1
+logger = logging.getLogger(__name__)
 
 
 def corpus():
@@ -66,6 +68,13 @@ def build_index() -> dict:
             metadata=json.dumps(metadata),
         )
         atomic_write(path.parent, path.name, output.getvalue())
+    if get_settings().vector_backend == "pgvector":
+        from services.retrieval.vector_store import mirror_reference_vectors
+
+        mirrored = mirror_reference_vectors(manifest, digest, ids, frame_numbers, embeddings)
+        if not mirrored:
+            logger.warning("reference_vector_mirror_unavailable")
+        metadata["pgvector_mirrored"] = mirrored
     return metadata
 
 
@@ -79,6 +88,49 @@ def rank_assets(embeddings, asset_ids, query, top_k: int, minimum: float) -> lis
         for asset_id, score in sorted(best.items(), key=lambda item: (-item[1], item[0]))[:top_k]
         if score >= minimum
     ]
+
+
+def local_matches(embeddings, ids, query, top_k, minimum, *, reference_catalog=None):
+    if get_settings().vector_backend == "pgvector":
+        from services.retrieval.vector_store import rank_reference_vectors, rank_saved_vectors
+
+        saved = rank_saved_vectors(query, top_k, minimum)
+        if saved is not None:
+            reference = (
+                rank_reference_vectors(query, top_k, minimum, *reference_catalog)
+                if reference_catalog is not None
+                else None
+            )
+            reference_backend = "pgvector"
+            if reference is None:
+                reference = rank_assets(embeddings, ids, query, top_k, minimum)
+                reference_backend = "npz_fallback"
+            # Keep the original ordering if numeric rounding could change the
+            # ranking across backends, or the two catalogs contain the same ID.
+            overlap = {item["reference_asset_id"] for item in saved}.intersection(ids)
+            close_scores = any(
+                abs(left["score"] - right["score"]) <= 0.0002
+                for left in reference
+                for right in saved
+            )
+            if not overlap and not close_scores:
+                matches = sorted(
+                    reference + saved,
+                    key=lambda item: (-item["score"], item["reference_asset_id"]),
+                )[:top_k]
+                return matches, "pgvector", reference_backend
+        backend = "npz_fallback"
+    else:
+        backend = "npz"
+
+    from services.retrieval.saved_index import ready_vectors
+
+    batches = [embeddings]
+    asset_ids = list(ids)
+    for asset_id, vectors in ready_vectors():
+        batches.append(vectors)
+        asset_ids.extend([asset_id] * len(vectors))
+    return rank_assets(np.concatenate(batches), asset_ids, query, top_k, minimum), backend, backend
 
 
 def search(image_path: Path, top_k: int = 3) -> dict:
@@ -106,18 +158,15 @@ def search(image_path: Path, top_k: int = 3) -> dict:
             raise ValueError("The GIF index does not match the corpus")
         with Image.open(image_path) as image:
             query = encode_image(image)
-    from services.retrieval.saved_index import ready_vectors
-
-    batches = [embeddings]
-    asset_ids = list(ids)
-    for asset_id, vectors in ready_vectors():
-        batches.append(vectors)
-        asset_ids.extend([asset_id] * len(vectors))
-    matches = rank_assets(np.concatenate(batches), asset_ids, query, top_k, minimum)
+    matches, backend, reference_backend = local_matches(
+        embeddings, ids, query, top_k, minimum, reference_catalog=(manifest, digest)
+    )
     return {
         "matches": matches,
         "model_version": MODEL_VERSION,
         "corpus_version": manifest.corpus_version,
+        "vector_backend": backend,
+        "reference_vector_backend": reference_backend,
     }
 
 

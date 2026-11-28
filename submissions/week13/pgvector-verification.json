@@ -1,0 +1,167 @@
+{
+  "date": "2026-11-28 Asia/Shanghai",
+  "previous_published_release": "dd444f545fa01fb74030351d51ea07e035dbef57",
+  "old_data_migrated_revisions": [
+    "20261121_0008",
+    "20261128_0009",
+    "20261128_0010"
+  ],
+  "old_database_restore": {
+    "image": "pgvector/pgvector:0.8.2-pg16",
+    "image_digest": "pgvector/pgvector@sha256:00ba258a66dac104fd5171074a0084462a64a1369d8513f3d0a634e2f24d15bc",
+    "server_version": "16.14 (Debian 16.14-1.pgdg12+1)",
+    "logical_restore_equal": true,
+    "preserved_saved_assets": [
+      {
+        "workspace": "acct_4da9ef66818143bcb2b9091547aaa9aa",
+        "asset_id": "e31733b4-7815-413e-abbb-5f80bdc040f7",
+        "sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+        "gif_path": "saved/b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378.gif",
+        "frame_count": 44,
+        "index_status": "ready",
+        "index_version": "451a9ea43ce006944bdd3663a5f694513107098747f70dcfb8ac07e34f8dd13b"
+      }
+    ],
+    "media_preserved_and_old_source_unmodified": true
+  },
+  "old_asset_backfill": {
+    "workspace": "acct_4da9ef66818143bcb2b9091547aaa9aa",
+    "ready": 1,
+    "mirrored": 1,
+    "unusable": 0,
+    "unavailable": 0
+  },
+  "old_asset_pgvector_and_incomplete_mirror_fallback": {
+    "extension": "0.8.2",
+    "preserved": {
+      "workspace": "acct_4da9ef66818143bcb2b9091547aaa9aa",
+      "asset_id": "e31733b4-7815-413e-abbb-5f80bdc040f7",
+      "sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+      "gif_path": "saved/b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378.gif",
+      "frame_count": 44,
+      "index_status": "ready",
+      "index_version": "451a9ea43ce006944bdd3663a5f694513107098747f70dcfb8ac07e34f8dd13b"
+    },
+    "vector_frames": [
+      [
+        0,
+        512
+      ],
+      [
+        6,
+        512
+      ],
+      [
+        12,
+        512
+      ],
+      [
+        18,
+        512
+      ],
+      [
+        24,
+        512
+      ],
+      [
+        30,
+        512
+      ],
+      [
+        36,
+        512
+      ],
+      [
+        43,
+        512
+      ]
+    ],
+    "pgvector_rank": {
+      "reference_asset_id": "e31733b4-7815-413e-abbb-5f80bdc040f7",
+      "score": 0.9848130336292843
+    },
+    "npz_fallback_rank": {
+      "reference_asset_id": "e31733b4-7815-413e-abbb-5f80bdc040f7",
+      "score": 0.9848131272427878
+    },
+    "derivative_frame_restored": true,
+    "filesystem_sha_verified": true
+  },
+  "browser_private_library": {
+    "extension": "0.8.2",
+    "asset_id": "3fa00d2f-3c04-4791-949b-4f170a652181",
+    "job_id": "84800156-5068-4e43-be10-eaf9ef1ef0cb",
+    "workspace": "acct_e52ee40dcaab4e19a80d5d4fc57c1cbb",
+    "other_workspace": "acct_40e43854505444f290a47323a944c7bb",
+    "original_sha256": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "frame_count": 44,
+    "vectors": [
+      [
+        0,
+        512
+      ],
+      [
+        6,
+        512
+      ],
+      [
+        12,
+        512
+      ],
+      [
+        18,
+        512
+      ],
+      [
+        24,
+        512
+      ],
+      [
+        30,
+        512
+      ],
+      [
+        36,
+        512
+      ],
+      [
+        43,
+        512
+      ]
+    ],
+    "browser_download_sha": "b0acdc9a01f91f6123dbff38d4bee59d0d6e4b26071b5c83937b242b6b202378",
+    "logout_media_status": 401,
+    "other_account_asset_and_media_status": 404,
+    "cross_account_isolation": true,
+    "backend": "pgvector",
+    "offline_rank": 1,
+    "browser_external_request_count": 0,
+    "method": "Imported first GIF through My GIF Library, then used a different screenshot after restarting the API/worker and relogging in via new Chrome. No supplier network.",
+    "new_account_registered": true,
+    "original_and_download_byte_identical": true,
+    "no_web_jobs": true
+  },
+  "reference_public_catalog": {
+    "revision": "20261128_0010",
+    "corpus": "noto-reactions-v1",
+    "manifest_sha256": "6c894b4b57a5e97089103ce844ea39bf85ead7e9a4086cc60782718d2dfcb2ed",
+    "model": "clip-vit-base-patch32@37000f5cdccec47a3f6f83142bff131370757470",
+    "npz_sha256": "2d9b498e85d7db628e2752254120853c785e04114f836c4f9a65d85a6d1af38b",
+    "counts": {
+      "assets": 12,
+      "frames": 96
+    },
+    "dimension": 512,
+    "mirror": true,
+    "npz_unchanged": true,
+    "job": "77ba6c27-4629-453c-8284-ba4b58c55bb4",
+    "logged_reference_backend": "pgvector",
+    "rank": 1,
+    "noto_original_and_download_byte_identical": true,
+    "original_sha256": "021a790d5e4f989cbf59cdf83180de6cd80de4dc3cca7666a3bb33a81da97342",
+    "no_match_job": "f0868ba9-efb6-4271-af1f-3510d64adfd5",
+    "no_match_candidate_count": 0,
+    "external_browser_requests": 0
+  },
+  "scope": "The restored Windows PostgreSQL archive was loaded into the isolated pgvector Docker service. The actual Chrome and host API/worker checks used that database. The source samples are original Earth (Marvel, CC BY-SA 3.0) and Noto 1f92f (Google, CC BY 4.0)."
+}

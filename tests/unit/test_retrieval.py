@@ -88,7 +88,9 @@ def test_saved_indexes_validate_media_and_join_fixed_ranking(tmp_path, monkeypat
 
     monkeypatch.setattr(
         saved_index, "get_settings",
-        lambda: SimpleNamespace(media_root=tmp_path, max_candidate_bytes=100_000),
+        lambda: SimpleNamespace(
+            media_root=tmp_path, max_candidate_bytes=100_000, vector_backend="npz"
+        ),
     )
     images = [Image.new("RGB", (16, 16), (i * 20, 0, 0)) for i in range(10)]
     gif = io.BytesIO()
@@ -135,6 +137,29 @@ def test_saved_indexes_validate_media_and_join_fixed_ranking(tmp_path, monkeypat
     assert attempts == [[0, 20, 40, 60, 100, 120, 140, 180]]
     index_file = tmp_path / saved_index.index_location(asset, version)
     previous_index = index_file.read_bytes()
+    with monkeypatch.context() as patch:
+        from services.retrieval import vector_store
+
+        mirrors = []
+
+        def unavailable(*args):
+            mirrors.append(args)
+            return False
+
+        patch.setattr(
+            saved_index,
+            "get_settings",
+            lambda: SimpleNamespace(
+                media_root=tmp_path, max_candidate_bytes=100_000, vector_backend="pgvector"
+            ),
+        )
+        patch.setattr(vector_store, "store_asset_vectors", unavailable)
+        assert saved_index.index_saved_asset(asset.id) == version
+        assert len(mirrors) == 1
+        assert mirrors[0][0:2] == (asset, version)
+        assert mirrors[0][2].tolist() == [0, 1, 2, 3, 5, 6, 7, 9]
+        assert mirrors[0][3].shape == (8, 512)
+        assert len(attempts) == 1 and index_file.read_bytes() == previous_index
     with monkeypatch.context() as patch:
         load_vectors = saved_index.load_vectors
 
@@ -192,3 +217,75 @@ def test_saved_indexes_validate_media_and_join_fixed_ranking(tmp_path, monkeypat
     asset.index_version = version
     (tmp_path / saved_index.index_location(asset, version)).write_bytes(b"invalid npz")
     assert best() == fixed_id
+
+
+
+@pytest.mark.parametrize(
+    ("stored", "expected_backend"),
+    [
+        ([{"reference_asset_id": "best", "score": 0.98}], "pgvector"),
+        (None, "npz_fallback"),
+        ([{"reference_asset_id": "fixed", "score": 0.98}], "npz_fallback"),
+        ([{"reference_asset_id": "best", "score": 0.90000001}], "npz_fallback"),
+    ],
+)
+def test_mixed_backend_ranking_switches_or_rechecks_full_local_index(
+    monkeypatch, stored, expected_backend
+):
+    from types import SimpleNamespace
+
+    from services.retrieval import saved_index, vector_store
+
+    monkeypatch.setattr(
+        retrieval, "get_settings", lambda: SimpleNamespace(vector_backend="pgvector")
+    )
+    monkeypatch.setattr(vector_store, "rank_saved_vectors", lambda *args: stored)
+    calls = []
+
+    def npz_saved_frames():
+        calls.append(True)
+        return [("best", np.array([[0.98, 0.0]]))]
+
+    monkeypatch.setattr(saved_index, "ready_vectors", npz_saved_frames)
+    result, backend, reference_backend = retrieval.local_matches(
+        np.array([[0.9, 0.0], [0.8, 0.0]]), ["fixed", "lower"], np.array([1.0, 0.0]), 2, 0.8
+    )
+    assert [row["reference_asset_id"] for row in result] == ["best", "fixed"]
+    assert backend == expected_backend
+    assert reference_backend == "npz_fallback"
+    assert bool(calls) == (backend == "npz_fallback")
+
+
+def test_backfill_only_mirrors_ready_valid_npz_and_never_marks_it_ready(monkeypatch):
+    from types import SimpleNamespace
+
+    from services.retrieval import saved_index, vector_store
+
+    valid = SimpleNamespace(id="valid", index_version="trusted", frame_count=2)
+    corrupt = SimpleNamespace(id="corrupt", index_version="stale", frame_count=2)
+    embeddings = np.ones((2, 512), dtype=np.float32)
+    mirrored = []
+
+    def load(asset, version):
+        if asset is corrupt:
+            raise ValueError("Invalid version")
+        assert version == valid.index_version
+        return embeddings
+
+    monkeypatch.setattr(
+        saved_index, "get_settings", lambda: SimpleNamespace(vector_backend="pgvector")
+    )
+    monkeypatch.setattr(saved_index, "ready_assets", lambda: [valid, corrupt])
+    monkeypatch.setattr(saved_index, "load_vectors", load)
+    monkeypatch.setattr(saved_index, "read_saved_gif", lambda asset: b"known bytes")
+
+    def mirror(asset, version, frames, vectors):
+        mirrored.append((asset.id, version, frames.tolist(), vectors is embeddings))
+        return True
+
+    monkeypatch.setattr(vector_store, "store_asset_vectors", mirror)
+    assert saved_index.backfill_saved_vectors() == {
+        "ready": 2, "mirrored": 1, "unusable": 1, "unavailable": 0
+    }
+    assert mirrored == [("valid", "trusted", [0, 1], True)]
+    assert valid.index_version == "trusted" and corrupt.index_version == "stale"

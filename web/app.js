@@ -1,6 +1,11 @@
 import { mountLibrary } from "./library.js";
 import { mountGifShare } from "./share.js";
-import { memeStatus, renderMemeResults, disposeMemeResults } from "./meme50.js";
+import {
+  memeStatus,
+  renderMemeResults,
+  disposeMemeResults,
+  renderSearchActivity,
+} from "./meme50.js";
 import { Api, combineSignals, validAccepted, validStatus } from "./api.js";
 import {
   loadFavorite,
@@ -275,6 +280,7 @@ function renderOnline() {
     .filter(Boolean)
     .join(" · ");
   $("analysis-details").hidden = !$("meme-analysis").textContent;
+  renderSearchActivity($("search-activity"), result);
   if (!state?.accepted) return;
   const stages = {
     preprocessing: "Preparing image",
