@@ -1,0 +1,12 @@
+<View>
+  <Header value="GIF 原版匹配" />
+  <HyperText name="pair" value="$preview" inline="true" selectionEnabled="false" />
+  <Header value="请选择一项。确认为同一版本用 exact，相近但不同版本用 variant，无关用 wrong，证据不足用 unsure，候选无法播放用 broken。" />
+  <Choices name="gif_match" toName="pair" choice="single-radio" required="true">
+    <Choice value="exact" hint="确认是同一版本" />
+    <Choice value="variant" hint="同一场景或梗，但字幕、剪辑或版本不同" />
+    <Choice value="wrong" hint="和目标不匹配" />
+    <Choice value="unsure" hint="证据不足，无法确认" />
+    <Choice value="broken" hint="候选无法加载或播放" />
+  </Choices>
+</View>

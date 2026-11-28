@@ -1,0 +1,386 @@
+{
+  "assets": [
+    {
+      "id": "hakimi-01",
+      "category": "哈基米（猫梗专题）",
+      "family_id": "哈基米",
+      "title": "Rigby actually",
+      "source": "https://raw.githubusercontent.com/y-g-jiang/y-g-jiang.github.io/090e0d4245da02b7ac526bfaaa8b14492a453ff2/maobiaoqing/Rigby%20actually.gif",
+      "source_page": "https://y-g-jiang.github.io/hakimi.html",
+      "license": "Published for viewing/copying in the collector's Cat Memes page; individual rights and reuse licence unverified. Local course evaluation only.",
+      "bytes": 244786,
+      "git_blob_sha1": "8f5ca04aa9ed8ba5d315f868bc8fdb3be3122291",
+      "gif_path": "originals/hakimi-01.gif",
+      "sha256": "b5bac44e6865fc54b9169cbbe9e47c345795be7d54a3c9270ea569b219919bfb",
+      "frame_count": 20,
+      "size": [
+        112,
+        200
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "hakimi-06",
+      "category": "哈基米（猫梗专题）",
+      "family_id": "哈基米",
+      "title": "中猫 电话",
+      "source": "https://raw.githubusercontent.com/y-g-jiang/y-g-jiang.github.io/090e0d4245da02b7ac526bfaaa8b14492a453ff2/maobiaoqing/%E4%B8%AD%E7%8C%AB%20%E7%94%B5%E8%AF%9D.gif",
+      "source_page": "https://y-g-jiang.github.io/hakimi.html",
+      "license": "Published for viewing/copying in the collector's Cat Memes page; individual rights and reuse licence unverified. Local course evaluation only.",
+      "bytes": 372827,
+      "git_blob_sha1": "e4ea181332601e79d199ec6fe48c2f9ee5ddf30d",
+      "gif_path": "originals/hakimi-06.gif",
+      "sha256": "e2a811a4c6c4dce9155788ed9a36de25db982dd96ecfffd63f76737aa2c7b530",
+      "frame_count": 16,
+      "size": [
+        308,
+        320
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "hakimi-07",
+      "category": "哈基米（猫梗专题）",
+      "family_id": "哈基米",
+      "title": "大猫 已睡",
+      "source": "https://raw.githubusercontent.com/y-g-jiang/y-g-jiang.github.io/090e0d4245da02b7ac526bfaaa8b14492a453ff2/maobiaoqing/%E5%A4%A7%E7%8C%AB%20%E5%B7%B2%E7%9D%A1.gif",
+      "source_page": "https://y-g-jiang.github.io/hakimi.html",
+      "license": "Published for viewing/copying in the collector's Cat Memes page; individual rights and reuse licence unverified. Local course evaluation only.",
+      "bytes": 776078,
+      "git_blob_sha1": "6a2d3a610c721b145937e7ff33de3be866f109d7",
+      "gif_path": "originals/hakimi-07.gif",
+      "sha256": "a3afebc9b0590413afe4b45baa4583d66001819db8821c6dadb0bb2a2e31db5f",
+      "frame_count": 18,
+      "size": [
+        280,
+        280
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "hakimi-09",
+      "category": "哈基米（猫梗专题）",
+      "family_id": "哈基米",
+      "title": "奶牛 宕机",
+      "source": "https://raw.githubusercontent.com/y-g-jiang/y-g-jiang.github.io/090e0d4245da02b7ac526bfaaa8b14492a453ff2/maobiaoqing/%E5%A5%B6%E7%89%9B%20%E5%AE%95%E6%9C%BA.gif",
+      "source_page": "https://y-g-jiang.github.io/hakimi.html",
+      "license": "Published for viewing/copying in the collector's Cat Memes page; individual rights and reuse licence unverified. Local course evaluation only.",
+      "bytes": 52166,
+      "git_blob_sha1": "8246d46883f7f84f3db8afd6bb48137de70b4285",
+      "gif_path": "originals/hakimi-09.gif",
+      "sha256": "7b585b2f4d481cbda0cefe4e3ddac539b1f45e9ff0285f1b3eb730ef740f7d31",
+      "frame_count": 24,
+      "size": [
+        140,
+        136
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "hakimi-10",
+      "category": "哈基米（猫梗专题）",
+      "family_id": "哈基米",
+      "title": "小猫 Bee",
+      "source": "https://raw.githubusercontent.com/y-g-jiang/y-g-jiang.github.io/090e0d4245da02b7ac526bfaaa8b14492a453ff2/maobiaoqing/%E5%B0%8F%E7%8C%AB%20Bee.gif",
+      "source_page": "https://y-g-jiang.github.io/hakimi.html",
+      "license": "Published for viewing/copying in the collector's Cat Memes page; individual rights and reuse licence unverified. Local course evaluation only.",
+      "bytes": 688578,
+      "git_blob_sha1": "073871b14579b0312285ebabf4558a762d15ea49",
+      "gif_path": "originals/hakimi-10.gif",
+      "sha256": "2f4a5cd53b4996953bc1483872b5966154ac30fef42f9fa94fab92b73221537c",
+      "frame_count": 80,
+      "size": [
+        240,
+        222
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "nailong-01",
+      "category": "抽象奶龙（社区二创专题）",
+      "family_id": "奶龙",
+      "title": "nailong-01",
+      "source": "https://raw.githubusercontent.com/GeorgeNaNN/nailong-memes/ec1b9df29b895e0b069353c89633b5e30c4ac815/gif/07CB725BFF5CF864A174C53876C7967A.gif",
+      "source_page": "https://github.com/GeorgeNaNN/nailong-memes",
+      "license": "Repository advertises MIT and local downloading. Individual fan-art/underlying IP rights unverified. Local course evaluation only.",
+      "bytes": 1149131,
+      "git_blob_sha1": "4aeb5a4156d1a8c051d78a47c25a4346a8121834",
+      "gif_path": "originals/nailong-01.gif",
+      "sha256": "37320dbbd5954bcb688750c4e24af4f8d04c2678b82e66f133e6b97d514e9c35",
+      "frame_count": 21,
+      "size": [
+        400,
+        400
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "nailong-02",
+      "category": "抽象奶龙（社区二创专题）",
+      "family_id": "奶龙",
+      "title": "nailong-02",
+      "source": "https://raw.githubusercontent.com/GeorgeNaNN/nailong-memes/ec1b9df29b895e0b069353c89633b5e30c4ac815/gif/0D561D103EA3A962120FB22C4C3A1E24.gif",
+      "source_page": "https://github.com/GeorgeNaNN/nailong-memes",
+      "license": "Repository advertises MIT and local downloading. Individual fan-art/underlying IP rights unverified. Local course evaluation only.",
+      "bytes": 457368,
+      "git_blob_sha1": "353b23d8dcacee3ec074b5b738239e5f0086290a",
+      "gif_path": "originals/nailong-02.gif",
+      "sha256": "186063ec1aebed13be1622a2bf00bb6f63620a1bd3f1ba041331736bafd77290",
+      "frame_count": 21,
+      "size": [
+        240,
+        240
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "nailong-03",
+      "category": "抽象奶龙（社区二创专题）",
+      "family_id": "奶龙",
+      "title": "nailong-03",
+      "source": "https://raw.githubusercontent.com/GeorgeNaNN/nailong-memes/ec1b9df29b895e0b069353c89633b5e30c4ac815/gif/18CC23D25AA058D006D8009EAA21F673.gif",
+      "source_page": "https://github.com/GeorgeNaNN/nailong-memes",
+      "license": "Repository advertises MIT and local downloading. Individual fan-art/underlying IP rights unverified. Local course evaluation only.",
+      "bytes": 1151041,
+      "git_blob_sha1": "be8cb869c0cd1dde878a02ab0dacab6775ea856d",
+      "gif_path": "originals/nailong-03.gif",
+      "sha256": "7039ed76c164f9167d7e735c28b9d7eccf37334e9a4dd9282ca5c22ff3144779",
+      "frame_count": 50,
+      "size": [
+        240,
+        240
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "nailong-04",
+      "category": "抽象奶龙（社区二创专题）",
+      "family_id": "奶龙",
+      "title": "nailong-04",
+      "source": "https://raw.githubusercontent.com/GeorgeNaNN/nailong-memes/ec1b9df29b895e0b069353c89633b5e30c4ac815/gif/269128D3F8269D4DD37A899B51172FF4.gif",
+      "source_page": "https://github.com/GeorgeNaNN/nailong-memes",
+      "license": "Repository advertises MIT and local downloading. Individual fan-art/underlying IP rights unverified. Local course evaluation only.",
+      "bytes": 868471,
+      "git_blob_sha1": "d72973cd7e3e34c50d2027b1687c61dfe5fc39aa",
+      "gif_path": "originals/nailong-04.gif",
+      "sha256": "c13f8635f17d53c301f34df8689c14c6c5313b054079fd2e3393b038677fc31f",
+      "frame_count": 65,
+      "size": [
+        240,
+        240
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "nailong-05",
+      "category": "抽象奶龙（社区二创专题）",
+      "family_id": "奶龙",
+      "title": "nailong-05",
+      "source": "https://raw.githubusercontent.com/GeorgeNaNN/nailong-memes/ec1b9df29b895e0b069353c89633b5e30c4ac815/gif/556B8F0032DD3559BA3CC82033C635BC.gif",
+      "source_page": "https://github.com/GeorgeNaNN/nailong-memes",
+      "license": "Repository advertises MIT and local downloading. Individual fan-art/underlying IP rights unverified. Local course evaluation only.",
+      "bytes": 939563,
+      "git_blob_sha1": "0246b36208a44a4a12f155e903d7ddb7ede00fad",
+      "gif_path": "originals/nailong-05.gif",
+      "sha256": "a86d672b3a7a709c6f4cbee07e1530d73627131bed1457f27ab0da22eb13ec62",
+      "frame_count": 85,
+      "size": [
+        426,
+        238
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "nailong-06",
+      "category": "抽象奶龙（社区二创专题）",
+      "family_id": "奶龙",
+      "title": "nailong-06",
+      "source": "https://raw.githubusercontent.com/GeorgeNaNN/nailong-memes/ec1b9df29b895e0b069353c89633b5e30c4ac815/gif/5AE5E51882D1B81F043948457759AEDE.gif",
+      "source_page": "https://github.com/GeorgeNaNN/nailong-memes",
+      "license": "Repository advertises MIT and local downloading. Individual fan-art/underlying IP rights unverified. Local course evaluation only.",
+      "bytes": 250404,
+      "git_blob_sha1": "495178f97b29e730a2279f0429a8702d36bbbb53",
+      "gif_path": "originals/nailong-06.gif",
+      "sha256": "2706eb12ddcdf471b0a4330c9e22b26bdc5504191f00df51d3252226839747de",
+      "frame_count": 20,
+      "size": [
+        128,
+        128
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "nailong-07",
+      "category": "抽象奶龙（社区二创专题）",
+      "family_id": "奶龙",
+      "title": "nailong-07",
+      "source": "https://raw.githubusercontent.com/GeorgeNaNN/nailong-memes/ec1b9df29b895e0b069353c89633b5e30c4ac815/gif/6C605FBCE52A93115E60D790494185C1.gif",
+      "source_page": "https://github.com/GeorgeNaNN/nailong-memes",
+      "license": "Repository advertises MIT and local downloading. Individual fan-art/underlying IP rights unverified. Local course evaluation only.",
+      "bytes": 1146016,
+      "git_blob_sha1": "e9d5301359aaa4e884d485ada5a5b25b08048960",
+      "gif_path": "originals/nailong-07.gif",
+      "sha256": "6205cc517f696ed49ec0d4b3d353d7d1ae21e1691566b36ea5130f7e16d7139c",
+      "frame_count": 85,
+      "size": [
+        240,
+        250
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "nailong-08",
+      "category": "抽象奶龙（社区二创专题）",
+      "family_id": "奶龙",
+      "title": "nailong-08",
+      "source": "https://raw.githubusercontent.com/GeorgeNaNN/nailong-memes/ec1b9df29b895e0b069353c89633b5e30c4ac815/gif/6F91055B6FFD248B37F53F514E4AEA84.gif",
+      "source_page": "https://github.com/GeorgeNaNN/nailong-memes",
+      "license": "Repository advertises MIT and local downloading. Individual fan-art/underlying IP rights unverified. Local course evaluation only.",
+      "bytes": 201279,
+      "git_blob_sha1": "a03e98a762f42703d2b895521318a94de4c2b7ab",
+      "gif_path": "originals/nailong-08.gif",
+      "sha256": "be7a30199bd3dbc5bcb1560032604a9f1ef3617a813dee0f80f48651317a13a8",
+      "frame_count": 22,
+      "size": [
+        240,
+        240
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "nailong-body-01",
+      "category": "奶龙本体（社区专题）",
+      "family_id": "奶龙",
+      "title": "奶龙本体专题第029号",
+      "source": "https://raw.githubusercontent.com/fisher-byte/NaiwaHub/7adc9b546d50d5b11d699c532eb9a7ff5b6c3d42/originals/nailong/gh-nailong-memes-dd21db42963c.gif",
+      "source_page": "https://naiwahub.com/zh/memes/gh-nailong-memes-dd21db42963c",
+      "license": "Community site offers local saving, third-party IP and individual rights unverified. Local course evaluation only.",
+      "bytes": 668117,
+      "git_blob_sha1": "35ebd848787f2b974c20ed071192b058633ef393",
+      "gif_path": "originals/nailong-body-01.gif",
+      "sha256": "dd21db42963c97f28ba36dcdc46fc176e861818efbf5a0555fd79b70af5f53ae",
+      "frame_count": 41,
+      "size": [
+        192,
+        216
+      ],
+      "format": "GIF",
+      "additional_source_page": "https://github.com/GeorgeNaNN/nailong-memes",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "nailong-10",
+      "category": "抽象奶龙（社区二创专题）",
+      "family_id": "奶龙",
+      "title": "nailong-10",
+      "source": "https://raw.githubusercontent.com/GeorgeNaNN/nailong-memes/ec1b9df29b895e0b069353c89633b5e30c4ac815/gif/8114153C1B2AE768A5433C2002E97DFF.gif",
+      "source_page": "https://github.com/GeorgeNaNN/nailong-memes",
+      "license": "Repository advertises MIT and local downloading. Individual fan-art/underlying IP rights unverified. Local course evaluation only.",
+      "bytes": 535704,
+      "git_blob_sha1": "9e57a2d655254ac21402c638597347c66f0466ce",
+      "gif_path": "originals/nailong-10.gif",
+      "sha256": "4304ea4e9ddb989b39758df5e24d9437b653e09a58f967d6b1985dda60d36b30",
+      "frame_count": 37,
+      "size": [
+        240,
+        242
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "nailong-11",
+      "category": "抽象奶龙（社区二创专题）",
+      "family_id": "奶龙",
+      "title": "nailong-11",
+      "source": "https://raw.githubusercontent.com/GeorgeNaNN/nailong-memes/ec1b9df29b895e0b069353c89633b5e30c4ac815/gif/8D56CE2C38FB35B79D6861F8193F4018.gif",
+      "source_page": "https://github.com/GeorgeNaNN/nailong-memes",
+      "license": "Repository advertises MIT and local downloading. Individual fan-art/underlying IP rights unverified. Local course evaluation only.",
+      "bytes": 259214,
+      "git_blob_sha1": "678fdffeb7cd6e9c562c12d07c3f4786321d4884",
+      "gif_path": "originals/nailong-11.gif",
+      "sha256": "09401aa47144726b8e84807ee9245e30a4da383b15316c48fce5b4d77b8fd87c",
+      "frame_count": 15,
+      "size": [
+        240,
+        242
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "nailong-12",
+      "category": "抽象奶龙（社区二创专题）",
+      "family_id": "奶龙",
+      "title": "nailong-12",
+      "source": "https://raw.githubusercontent.com/GeorgeNaNN/nailong-memes/ec1b9df29b895e0b069353c89633b5e30c4ac815/gif/960EC1FD80F52D1C234D1C7785128421.gif",
+      "source_page": "https://github.com/GeorgeNaNN/nailong-memes",
+      "license": "Repository advertises MIT and local downloading. Individual fan-art/underlying IP rights unverified. Local course evaluation only.",
+      "bytes": 640371,
+      "git_blob_sha1": "cc2c1594a10cb1156ed50b4af86f003f12760695",
+      "gif_path": "originals/nailong-12.gif",
+      "sha256": "d6f4ceb13a4215ba945d269845d048233ab826f9e8746552050c23f95390797f",
+      "frame_count": 16,
+      "size": [
+        300,
+        276
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "feidudu-01",
+      "category": "美团袋鼠（肥嘟嘟社区二创专题）",
+      "family_id": "美团袋鼠",
+      "title": "三只肥嘟嘟在路边摆动跳舞",
+      "source": "https://raw.githubusercontent.com/fisher-byte/NaiwaHub/7adc9b546d50d5b11d699c532eb9a7ff5b6c3d42/originals/feidudu/dot-feidudu-4d63755d09f6.gif",
+      "source_page": "https://naiwahub.com/zh/memes/dot-feidudu-4d63755d09f6",
+      "license": "Community site offers save-original; named creators and usage rights explicitly unverified by source. Terms: https://naiwahub.com/zh/terms . Local course evaluation only.",
+      "bytes": 7944388,
+      "git_blob_sha1": "6b117ffda8439ef6986bbedf339fbeb35563879b",
+      "gif_path": "originals/feidudu-01.gif",
+      "sha256": "4d63755d09f6fa7570305ce3e83363e2b43492034a9c9daefbd0f631e552e736",
+      "frame_count": 98,
+      "size": [
+        424,
+        437
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    },
+    {
+      "id": "feidudu-02",
+      "category": "美团袋鼠（肥嘟嘟社区二创专题）",
+      "family_id": "美团袋鼠",
+      "title": "肥嘟嘟袋鼠头企鹅在雪地摇摆",
+      "source": "https://raw.githubusercontent.com/fisher-byte/NaiwaHub/7adc9b546d50d5b11d699c532eb9a7ff5b6c3d42/originals/feidudu/dot-feidudu-b126c8f24fc4.gif",
+      "source_page": "https://naiwahub.com/zh/memes/dot-feidudu-b126c8f24fc4",
+      "license": "Community site offers save-original; named creators and usage rights explicitly unverified by source. Terms: https://naiwahub.com/zh/terms . Local course evaluation only.",
+      "bytes": 597164,
+      "git_blob_sha1": "245d94655743cf6a0e30038e525001c58e6b75a7",
+      "gif_path": "originals/feidudu-02.gif",
+      "sha256": "b126c8f24fc4858334447fe4d3ce3b979302436d9d515c152fab351d7ee6d35c",
+      "frame_count": 55,
+      "size": [
+        294,
+        335
+      ],
+      "format": "GIF",
+      "label_scope": "Community collection topic; not official brand or original work authentication."
+    }
+  ],
+  "scope": "Topic-targeted local evaluation. Inputs are community-hosted copies. Explicit topic tags identify a collection, not original authors or popularity."
+}
