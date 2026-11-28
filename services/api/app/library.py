@@ -29,7 +29,7 @@ from services.api.app.search import (
     Database,
     authorize,
     fail,
-    publish_saved_gif,
+    publish_saved_media,
     verify_saved_asset_media,
 )
 from services.common.config import get_settings
@@ -56,6 +56,8 @@ from services.common.library_models import (
 )
 from services.common.models import utcnow
 from services.common.search_models import SavedAsset
+from services.common.media import FORMATS, saved_frame_count
+from services.common.library_backup import valid_backup_path
 from services.common.storage import MediaError, sha256, validate_image
 from services.search_agent.meme_types import MemeSettings
 
@@ -179,8 +181,8 @@ def bound_backup(payload: Manifest) -> list[dict] | None:
         or len(assets) != len(payload.items)
         or set(assets) != {item.sha256 for item in payload.items}
         or any(
-            item.filename != f"{item.sha256}.gif"
-            or assets[item.sha256].path != f"assets/{item.sha256}.gif"
+            not valid_backup_path(item.sha256, assets[item.sha256].path)
+            or assets[item.sha256].path != f"assets/{item.filename}"
             or item.byte_size != assets[item.sha256].byte_size
             for item in payload.items
         )
@@ -309,15 +311,26 @@ def upload_item(
         return item_receipt(item)
 
     try:
-        if not item.filename.lower().endswith(".gif") or not data.rstrip(b"\0").endswith(b";"):
-            raise MediaError("Expected a complete GIF")
-        frames = validate_image(data, animated_gif=True)
+        media_format = "GIF"
+        if db.get(ImportBatch, str(batch_id)).purpose == "backup_restore":
+            suffix = item.filename.rsplit(".", 1)[-1].lower()
+            media_format = next((fmt for fmt, (_, ext) in FORMATS.items() if ext == suffix), "")
+            frames = saved_frame_count(data, media_format)
+        else:
+            if not item.filename.lower().endswith(".gif") or not data.rstrip(b"\0").endswith(b";"):
+                raise MediaError("Expected a complete GIF")
+            frames = validate_image(data, animated_gif=True)
     except MediaError:
         item.status = "rejected"
         item.error_code = "invalid_animated_gif"
     else:
-        asset, created = publish_saved_gif(
-            db, data, frame_count=frames, title=item.filename, provider="local_upload"
+        asset, created = publish_saved_media(
+            db,
+            data,
+            frame_count=frames,
+            media_format=media_format,
+            title=item.filename,
+            provider="local_upload",
         )
         try:
             db.flush()
@@ -340,6 +353,7 @@ def asset_card(
         "asset_id": asset.id,
         "title": (metadata.title if metadata else None) or asset.title,
         "frame_count": asset.frame_count,
+        "media_format": asset.media_format,
         "media_url": f"/saved-assets/{asset.id}/media",
         "index_status": asset.index_status,
         "annotation_status": metadata.annotation_status if metadata else "not_requested",
@@ -591,7 +605,7 @@ def export_originals(payload: ExportRequest, db: Database) -> StreamingResponse:
                 if written > MAX_BACKUP_BYTES:
                     raise fail(413, "backup_too_large", "Backup exceeds 256 MiB of original GIFs")
                 digest = asset.sha256
-                path = f"assets/{digest}.gif"
+                path = f"assets/{digest}.{FORMATS[asset.media_format][1]}"
                 # Invalid legacy source links must not prevent original bytes from being backed up.
                 source = {}
                 for field in ("source_url", "image_url"):
@@ -665,7 +679,11 @@ def restore_metadata(payload: RestoreRequest, db: Database) -> dict:
         except HTTPException as exc:
             result["error_code"] = exc.detail["code"]
             continue
-        if asset.frame_count != entry.frame_count or size != entry.byte_size:
+        if (
+            asset.frame_count != entry.frame_count
+            or size != entry.byte_size
+            or entry.path != f"assets/{asset.sha256}.{FORMATS[asset.media_format][1]}"
+        ):
             result["error_code"] = "backup_mismatch"
             continue
         metadata = metadata_for_edit(db, asset)

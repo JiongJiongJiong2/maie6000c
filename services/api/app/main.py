@@ -23,6 +23,8 @@ from services.api.app.demo import router as demo_router
 from services.api.app.library import activate_library, router as library_router
 from services.api.app.search import router as search_router
 from services.api.app.meme_search import router as meme_router
+from services.api.app.sticker_packs import router as sticker_router
+from services.api.app.sticker_packs import workspace_router as sticker_workspace_router
 from services.common.config import configure_logging, get_settings
 from services.common.db import get_db, get_session_factory
 from services.common.models import Case, CaseStatus, Job, JobStatus, JobType
@@ -54,6 +56,7 @@ app.middleware("http")(select_account)
 app.include_router(accounts_router)
 app.include_router(library_router)
 app.include_router(search_router)
+app.include_router(sticker_router)
 
 HTTP_REQUESTS = Counter(
     "api_http_requests_total",
@@ -216,6 +219,7 @@ def read_job(job_id: int, db: Session = Depends(get_db)) -> JobRead:
     return JobRead.model_validate(job)
 
 
+app.include_router(sticker_workspace_router)
 app.include_router(web_router)
 app.include_router(demo_router)
 

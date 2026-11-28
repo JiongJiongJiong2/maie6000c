@@ -1,3 +1,5 @@
+import { mountMediaShare } from "./share.js";
+
 const statusLabels = {
   waiting: "Waiting",
   imported: "Imported",
@@ -12,16 +14,23 @@ const element = (tag, text = "") => {
   return node;
 };
 
-export function mountLibrary(api, newKey) {
+export function mountLibrary(api, newKey, clearAssetRoute) {
   const storageKey = api.account
     ? "private-library-import:" + api.account
     : "private-library-import";
   const panel = document.querySelector("#private-library");
+  const view = document.querySelector("#library-view");
   const picker = panel.querySelector("#library-files");
   const backupPicker = panel.querySelector("#library-backup-manifest");
   const backupFeedback = panel.querySelector("[data-restore-results]");
   const filterForm = panel.querySelector("[data-filters]");
   let filters = new URLSearchParams();
+  const restoreDrawer = panel.querySelector(".library-restore");
+  restoreDrawer.addEventListener("toggle", () => {
+    picker.accept = restoreDrawer.open
+      ? "image/gif,image/png,image/jpeg,image/webp"
+      : "image/gif";
+  });
   const selection = new Set();
   const submit = panel.querySelector("[data-import]");
   const resume = panel.querySelector("[data-resume]");
@@ -50,6 +59,8 @@ export function mountLibrary(api, newKey) {
   const errors = new Map();
   const scanLabels = ["Subjects", "Actions", "Emotions", "Tone"];
   let submittedQuery = "";
+  let focusedAsset = null;
+  const showAll = panel.querySelector("[data-show-all]");
   let active = false;
   let batches = [];
   let states = [];
@@ -110,7 +121,7 @@ export function mountLibrary(api, newKey) {
 
   function scheduleAnalysis(delay = 2000) {
     if (
-      !panel.open ||
+      view.hidden ||
       document.hidden ||
       !pendingAnalysis.size ||
       analysisTimer !== undefined ||
@@ -175,7 +186,7 @@ export function mountLibrary(api, newKey) {
     less.hidden = pages.length < 2;
     const count = pages.reduce((total, page) => total + page.nodes.length, 0);
     visibleCount.textContent = count
-      ? `${count} ${count === 1 ? "GIF" : "GIFs"} shown`
+      ? `${count} ${count === 1 ? "image" : "images"} shown`
       : "";
   }
 
@@ -284,10 +295,10 @@ export function mountLibrary(api, newKey) {
             backup: {
               version: backup.version,
               profile: backup.profile,
-              assets: items.map(({ sha256, byte_size }) => ({
+              assets: items.map(({ sha256, byte_size, filename }) => ({
                 sha256,
                 byte_size,
-                path: `assets/${sha256}.gif`,
+                path: `assets/${filename}`,
               })),
             },
           }),
@@ -312,7 +323,7 @@ export function mountLibrary(api, newKey) {
   function previewMatches(parent, asset, page) {
     const button = element(
       "button",
-      `Review similar GIFs (${asset.possible_duplicates.length})`,
+      `Review similar images (${asset.possible_duplicates.length})`,
     );
     button.type = "button";
     button.addEventListener("click", async () => {
@@ -346,6 +357,8 @@ export function mountLibrary(api, newKey) {
   function card(asset, page) {
     const li = element("li");
     li.className = "library-card";
+    li.dataset.assetId = asset.asset_id;
+    li.tabIndex = -1;
     const preview = element("div");
     preview.className = "library-thumb";
     const select = element("input");
@@ -361,12 +374,13 @@ export function mountLibrary(api, newKey) {
     const pick = element("label");
     pick.className = "library-pick";
     pick.append(select);
-    const progress = element("span", "Loading GIF…");
-    const download = element("a", "Download GIF");
+    const format = asset.media_format || "GIF";
+    const progress = element("span", "Loading image…");
+    const download = element("a", `Download ${format}`);
     download.hidden = true;
-    download.download = `${asset.asset_id}.gif`;
+    download.download = `${asset.asset_id}.${format === "JPEG" ? "jpg" : format.toLowerCase()}`;
     async function loadPreview() {
-      progress.textContent = "Loading GIF…";
+      progress.textContent = "Loading image…";
       try {
         const url = await mediaUrl(asset.media_url, page);
         if (page.controller.signal.aborted) return;
@@ -431,7 +445,7 @@ export function mountLibrary(api, newKey) {
 
     function paintAnalysis(update) {
       Object.assign(asset, update);
-      state.textContent = `${asset.frame_count} frames · Index ${asset.index_status.replaceAll("_", " ")} · AI ${asset.annotation_status.replaceAll("_", " ")}`;
+      state.textContent = `${asset.frame_count} ${asset.frame_count === 1 ? "frame" : "frames"} · Index ${asset.index_status.replaceAll("_", " ")} · AI ${asset.annotation_status.replaceAll("_", " ")}`;
       caption.textContent = asset.caption_en || "";
       caption.hidden = !caption.textContent;
       tags.replaceChildren(
@@ -444,7 +458,7 @@ export function mountLibrary(api, newKey) {
       originalCaption.hidden = !!asset.caption_en || !asset.caption_zh;
       retry.hidden = asset.index_status !== "failed";
       failure.textContent = asset.annotation_error
-        ? `Analysis failed (${asset.annotation_error}). Select this GIF and choose Analyze selected GIFs to retry.`
+        ? `Analysis failed (${asset.annotation_error}). Select this image and choose Analyze selected images to retry.`
         : "";
       failure.hidden = !failure.textContent;
     }
@@ -456,7 +470,17 @@ export function mountLibrary(api, newKey) {
     }
     const actions = element("div");
     actions.className = "library-card-actions";
-    actions.append(download, details);
+    actions.append(download);
+    mountMediaShare({
+      api,
+      body: actions,
+      download,
+      id: asset.asset_id,
+      url: asset.media_url,
+      format,
+      signal: page.controller.signal,
+    });
+    actions.append(details);
     body.append(actions);
     li.append(preview, body);
     return li;
@@ -523,21 +547,31 @@ export function mountLibrary(api, newKey) {
   }
 
   async function loadAssets(append = false) {
-    if (!panel.open) return;
+    if (view.hidden) return;
     if (!append) dispose();
     const { signal } = media;
     const params = new URLSearchParams(filters);
     params.set("limit", "8");
     if (append && cursor) params.set("cursor", cursor);
     const path = params.size ? `?${params}` : "";
-    const result = submittedQuery
-      ? await api.request("/library/search", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: submittedQuery }),
-          signal,
-        })
-      : await api.request(`/library/assets${path}`, { signal });
+    showAll.hidden = !focusedAsset;
+    const result = focusedAsset
+      ? {
+          assets: [
+            await api.request(
+              `/library/assets/${encodeURIComponent(focusedAsset)}`,
+              { signal },
+            ),
+          ],
+        }
+      : submittedQuery
+        ? await api.request("/library/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: submittedQuery }),
+            signal,
+          })
+        : await api.request(`/library/assets${path}`, { signal });
     if (signal.aborted) return;
     const page = {
       controller: new AbortController(),
@@ -563,15 +597,19 @@ export function mountLibrary(api, newKey) {
     pages.push(page);
     page.nodes = result.assets.map((asset) => card(asset, page));
     assets.append(...page.nodes);
+    if (focusedAsset && page.nodes[0]) {
+      page.nodes[0].focus({ preventScroll: true });
+      page.nodes[0].scrollIntoView({ block: "center" });
+    }
     if (!append && !result.assets.length) {
       assets.append(
         element(
           "li",
           submittedQuery
-            ? "No matches. Try an action, character, tag or words from the GIF."
+            ? "No matches. Try an action, character, tag or words from the image."
             : filters.size
-              ? "No GIFs match these filters."
-              : "Your library is empty. Use Import GIFs to add your first GIF.",
+              ? "No images match these filters."
+              : "Your library is empty. Save a search result or import a GIF to get started.",
         ),
       );
     }
@@ -604,6 +642,10 @@ export function mountLibrary(api, newKey) {
       active = false;
       for (const button of [submit, resume, refresh, more, less, annotate])
         button.disabled = false;
+      if (reloadRequested) {
+        reloadRequested = false;
+        reload();
+      }
     }
   }
 
@@ -714,7 +756,9 @@ export function mountLibrary(api, newKey) {
         !manifest.assets.every(
           (asset) =>
             /^[0-9a-f]{64}$/.test(asset.sha256) &&
-            asset.path === `assets/${asset.sha256}.gif`,
+            ["gif", "jpg", "png", "webp"].some(
+              (ext) => asset.path === `assets/${asset.sha256}.${ext}`,
+            ),
         )
       )
         throw new Error("Unsupported backup manifest.");
@@ -723,8 +767,8 @@ export function mountLibrary(api, newKey) {
       const valid = [];
       const rows = new Map();
       for (const entry of manifest.assets) {
-        const picked = byName.get(`${entry.sha256}.gif`);
-        let status = "Original GIF missing";
+        const picked = byName.get(entry.path.slice("assets/".length));
+        let status = "Original image missing";
         if (picked) {
           status = "Size or checksum mismatch";
           if (
@@ -760,7 +804,7 @@ export function mountLibrary(api, newKey) {
             ["imported", "duplicate"].includes(item.status)
           ) {
             uploaded_sha256.push(item.sha256);
-            row.status = "GIF saved. Restoring metadata…";
+            row.status = "Image saved. Restoring metadata…";
           } else if (item.error_code === "file_too_large" || error?.tooLarge) {
             row.status = "Exceeds the destination file limit";
           } else if (item.status === "rejected") {
@@ -789,7 +833,7 @@ export function mountLibrary(api, newKey) {
   panel.querySelector("[data-export]").addEventListener("click", () =>
     run(async () => {
       if (!selection.size || selection.size > 60)
-        throw new Error("Select 1–60 GIFs.");
+        throw new Error("Select 1–60 images.");
       const blob = await api.request("/library/exports", {
         method: "POST",
         binary: true,
@@ -822,19 +866,20 @@ export function mountLibrary(api, newKey) {
         .filter(Boolean);
       run(async () => {
         if (!selection.size || selection.size > 60)
-          throw new Error("Select 1–60 GIFs.");
+          throw new Error("Select 1–60 images.");
         if (!tags.length || tags.length > 8) throw new Error("Enter 1–8 tags.");
         const result = await json("/library/assets/bulk-tags", "POST", {
           asset_ids: [...selection],
           tags,
         });
         await loadAssets();
-        report(`Tags updated for ${result.updated} GIFs.`);
+        report(`Tags updated for ${result.updated} images.`);
       });
     });
 
   filterForm.addEventListener("submit", (event) => {
     event.preventDefault();
+    clearFocusedAsset();
     filters = new URLSearchParams(
       [...new FormData(filterForm)].filter(([, value]) => value.trim()),
     );
@@ -842,12 +887,25 @@ export function mountLibrary(api, newKey) {
     query.value = "";
     run(() => loadAssets());
   });
-  const reload = () =>
-    run(async () => {
+  let reloadRequested = false;
+  function reload() {
+    if (view.hidden) return;
+    if (active) {
+      reloadRequested = true;
+      return;
+    }
+    return run(async () => {
       await loadAssets();
       await restore();
     });
+  }
+  function clearFocusedAsset() {
+    if (!focusedAsset) return;
+    focusedAsset = null;
+    clearAssetRoute();
+  }
   function search() {
+    clearFocusedAsset();
     submittedQuery = query.value.trim();
     loadAssets().catch((error) => {
       if (error.name !== "AbortError") report(error.message);
@@ -865,12 +923,12 @@ export function mountLibrary(api, newKey) {
     if (active || confirmation.open) return;
     const asset_ids = [...selection];
     if (!asset_ids.length || asset_ids.length > 20) {
-      report("Select 1–20 GIFs.");
+      report("Select 1–20 images.");
       return;
     }
     const version = connectionVersion;
     confirmation.querySelector("h2").textContent =
-      `Analyze ${asset_ids.length} selected ${asset_ids.length === 1 ? "GIF" : "GIFs"}?`;
+      `Analyze ${asset_ids.length} selected ${asset_ids.length === 1 ? "image" : "images"}?`;
     confirmation.returnValue = "cancel";
     confirmation.addEventListener(
       "close",
@@ -878,7 +936,7 @@ export function mountLibrary(api, newKey) {
         if (
           confirmation.returnValue === "analyze" &&
           version === connectionVersion &&
-          panel.open
+          !view.hidden
         ) {
           void run(() => submitAnalysis(asset_ids, version));
         }
@@ -889,7 +947,7 @@ export function mountLibrary(api, newKey) {
   });
 
   async function submitAnalysis(asset_ids, version) {
-    report("Submitting GIFs for analysis…");
+    report("Submitting images for analysis…");
     const result = await json("/library/annotations", "POST", {
       asset_ids,
       consent: true,
@@ -920,16 +978,6 @@ export function mountLibrary(api, newKey) {
     more.focus();
     assets.scrollIntoView({ block: "start", behavior: "instant" });
   });
-  panel.addEventListener("toggle", () => {
-    if (panel.open) {
-      reload();
-      scheduleAnalysis(0);
-    } else {
-      if (confirmation.open) confirmation.close("cancel");
-      pauseAnalysis();
-      dispose();
-    }
-  });
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) pauseAnalysis();
     else scheduleAnalysis(0);
@@ -939,7 +987,44 @@ export function mountLibrary(api, newKey) {
     pauseAnalysis();
     dispose();
   });
-  return () => {
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted && !view.hidden) {
+      reload();
+      scheduleAnalysis(0);
+    }
+  });
+  showAll.addEventListener("click", () => {
+    search();
+  });
+  function setView(visible, assetId = null) {
+    const wasHidden = view.hidden;
+    view.hidden = !visible;
+    if (!visible) {
+      if (wasHidden) return;
+      if (confirmation.open) confirmation.close("cancel");
+      pauseAnalysis();
+      dispose();
+      return;
+    }
+
+    const changedAsset = focusedAsset !== assetId;
+    if (changedAsset) {
+      focusedAsset = assetId;
+      if (assetId) {
+        query.value = submittedQuery = "";
+        filters = new URLSearchParams();
+        filterForm.reset();
+        openTool(null);
+      }
+    }
+    if (wasHidden || changedAsset) {
+      if (active) dispose();
+      reload();
+      scheduleAnalysis(0);
+    }
+  }
+  function resetConnection() {
+    focusedAsset = null;
     connectionVersion++;
     if (confirmation.open) confirmation.close("cancel");
     pauseAnalysis();
@@ -953,6 +1038,7 @@ export function mountLibrary(api, newKey) {
     states = [];
     selection.clear();
     updateSelection();
-    if (panel.open) reload();
-  };
+    if (!view.hidden) reload();
+  }
+  return { setView, resetConnection };
 }

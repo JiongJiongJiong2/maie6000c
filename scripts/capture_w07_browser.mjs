@@ -20,7 +20,7 @@ page.on("response", response => {
   }
 });
 try {
-  await page.goto("http://127.0.0.1:8000/web/", { waitUntil: "networkidle" });
+  await page.goto("http://127.0.0.1:8000/web/search", { waitUntil: "networkidle" });
   await page.locator("#file-input").waitFor({ state: "attached" });
   await page.screenshot({ path: path.join(out, "00-product-home.png") });
   await page.locator("#file-input").setInputFiles(path.join(root, "data/reference/examples/1f92f.png"));

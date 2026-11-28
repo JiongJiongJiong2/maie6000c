@@ -4,6 +4,10 @@ services:
     image: ${MEMERETRIEVE_API_IMAGE:?Set MEMERETRIEVE_API_IMAGE to the verified API image}
     build: !reset null
 
+  sticker-lookup:
+    image: ${MEMERETRIEVE_API_IMAGE:?Set MEMERETRIEVE_API_IMAGE to the verified API image}
+    build: !reset null
+
   worker:
     image: ${MEMERETRIEVE_WORKER_IMAGE:?Set MEMERETRIEVE_WORKER_IMAGE to the verified worker image}
     build: !reset null

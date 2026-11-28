@@ -1,3 +1,4 @@
+import { mountMediaShare } from "./share.js";
 import { ApiError, combineSignals, sameOriginPath } from "./api.js";
 let signature = "";
 const urls = new Set();
@@ -75,72 +76,6 @@ export async function memeStatus(api, accepted, state, signal, summary) {
     ? await api.request(`/search-jobs/${job.job_id}/previews`, { signal })
     : { items: [] };
   return { ...job, candidates: [], previewItems: previews.items };
-}
-
-export function renderSearchActivity(container, result) {
-  if (result?.search_profile !== "meme50-v2") {
-    container.hidden = true;
-    return;
-  }
-  const ledger = result.progress?.ledger;
-  const execution = result.execution;
-  const isCount = (value) => Number.isSafeInteger(value) && value >= 0;
-  const isQuery = (query) =>
-    typeof query?.text === "string" && !!query.text.trim();
-  const metrics = [
-    ["Search calls", ledger?.search_calls ?? execution?.search_calls],
-    ["Page requests", ledger?.page_attempts],
-    [
-      "Media fetch attempts",
-      ledger?.media_attempts ?? execution?.downloads_used,
-    ],
-  ].filter(([, value]) => isCount(value));
-  const searches = (Array.isArray(execution?.trace) ? execution.trace : [])
-    .filter(
-      (entry) => entry?.step === "keyword_web" && isQuery(entry.details?.query),
-    )
-    .map(({ details }) => ({
-      text: details.query.text,
-      sources: details.sources,
-    }));
-  const plan = Array.isArray(result.analysis?.queries)
-    ? result.analysis.queries
-    : [];
-  const queries = (searches.length ? searches : plan.filter(isQuery)).slice(
-    0,
-    6,
-  );
-  container.hidden = !metrics.length && !queries.length;
-
-  const metricList = container.querySelector("#search-metrics");
-  metricList.replaceChildren();
-  for (const [label, count] of metrics) {
-    const row = document.createElement("div");
-    const term = document.createElement("dt");
-    const value = document.createElement("dd");
-    term.textContent = label;
-    value.textContent = String(count);
-    row.append(term, value);
-    metricList.append(row);
-  }
-
-  container.querySelector("#search-query-activity").hidden = !queries.length;
-  container.querySelector("#search-query-title").textContent = searches.length
-    ? "Searches run"
-    : "Planned searches";
-  const queryList = container.querySelector("#search-query-list");
-  queryList.replaceChildren();
-  for (const query of queries) {
-    const listItem = document.createElement("li");
-    listItem.textContent = query.text.trim().slice(0, 128);
-    if (searches.length && isCount(query.sources)) {
-      const count = document.createElement("span");
-      count.textContent =
-        " · " + query.sources + (query.sources === 1 ? " source" : " sources");
-      listItem.append(count);
-    }
-    queryList.append(listItem);
-  }
 }
 
 function button(label, handler, name = "secondary") {
@@ -263,16 +198,16 @@ export function renderMemeResults(container, result, api, signal, callbacks) {
         }),
       );
       body.append(download);
-      if (item.media_format === "GIF" && item.frame_count > 1) {
-        callbacks.share(
-          body,
-          download,
-          item.candidate_id,
-          mediaUrl,
-          cardSignal,
-        );
-        callbacks.favorite(result.job_id, item, body, download, cardSignal);
-      }
+      mountMediaShare({
+        api,
+        body,
+        download,
+        id: item.candidate_id,
+        url: item.media_url,
+        format: item.media_format || "GIF",
+        signal: cardSignal,
+      });
+      callbacks.favorite(result.job_id, item, body, download, cardSignal);
       if (item.source_url) {
         const link = document.createElement("a");
         link.href = item.source_url;

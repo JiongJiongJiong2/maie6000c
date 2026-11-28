@@ -10,6 +10,10 @@ Start with the [product and Docker guide](docs/product-deployment.md) for accoun
 
 Use the [container release guide](docs/container-release.md) to deploy the versioned images built by GitHub Actions.
 
+Open `/stickers/` to recover an official sticker pack from a screenshot or
+browse the public demo collection. See the [sticker pack guide](docs/official-sticker-packs.md)
+to publish a brand catalog and measure acquisition actions.
+
 ## Earlier milestones and experiments
 
 An independent [meme search agent v1](docs/meme-agent-v1.md) now runs at `http://127.0.0.1:8010/studio/`: DeepSeek query planning, live template discovery, local caption editing, explicit confirmation, and persistent SQLite/CLIP collection reuse. Start it with `.venv/Scripts/python.exe scripts/run_meme_agent.py`. This experimental branch uses a minimal functional UI and a bounded template catalog; it does not provide unrestricted reverse image search or multi-user hosting. It is separate from the W07 stack below.

@@ -1,3 +1,5 @@
+import { announceAccountChange, workspacePaths } from "./workspace.js";
+
 const $ = (id) => document.getElementById(id);
 const setupKey = "memeretrieve-owner-setup";
 let setup = null;
@@ -63,11 +65,14 @@ $("account-form").addEventListener("submit", async (event) => {
           : "Check your username and password.",
       );
     sessionStorage.removeItem(setupKey);
-    localStorage.setItem(
-      "memeretrieve-account-change",
-      crypto.getRandomValues(new Uint32Array(2)).join("-"),
-    );
-    location.replace("/web/");
+    announceAccountChange();
+    const destination = [
+      workspacePaths.library,
+      workspacePaths.stickers,
+    ].includes(location.pathname)
+      ? location.pathname + location.search
+      : workspacePaths.search;
+    location.replace(destination);
   } catch (error) {
     $("account-error").textContent = error.message;
     $("account-error").hidden = false;

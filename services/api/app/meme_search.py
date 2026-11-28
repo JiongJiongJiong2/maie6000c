@@ -11,9 +11,22 @@ from sqlalchemy import select
 from services.common.config import get_settings
 from services.common.media import inspect_media, preview_bytes
 from services.common.models import as_utc, utcnow
-from services.common.search_models import Candidate, MemeCandidateDraft, SearchExecution, SearchJob
+from services.common.search_models import (
+    Candidate,
+    MemeCandidateDraft,
+    SavedAsset,
+    SearchExecution,
+    SearchJob,
+)
 from services.common.storage import MediaError, contained_path
-from .search import Database, MEDIA_RESPONSE_HEADERS, authorize, candidates_for_job, fail
+from .search import (
+    Database,
+    MEDIA_RESPONSE_HEADERS,
+    authorize,
+    candidates_for_job,
+    fail,
+    verify_saved_asset_media,
+)
 
 router = APIRouter(dependencies=[Depends(authorize)])
 
@@ -92,11 +105,21 @@ def candidate_preview(candidate_id: UUID, db: Database):
     if as_utc(row.cache_expires_at) <= utcnow() and not row.saved_asset_id:
         raise fail(410, "media_expired", "Preview expired")
     try:
-        if row.preview_path:
-            data = contained_path(get_settings().media_root, row.preview_path).read_bytes()
+        poster = (
+            contained_path(get_settings().media_root, row.preview_path)
+            if row.preview_path
+            else None
+        )
+        if poster and poster.is_file():
+            data = poster.read_bytes()
             meta = inspect_media(data)
             if meta.format != "PNG" or meta.frame_count != 1 or max(meta.width, meta.height) > 384:
                 raise MediaError("Invalid preview")
+        elif row.saved_asset_id:
+            asset = db.get(SavedAsset, row.saved_asset_id)
+            if asset is None:
+                raise MediaError("Saved image is unavailable")
+            data = preview_bytes(verify_saved_asset_media(asset))
         else:
             data = preview_bytes(verified_candidate_bytes(row))
     except (OSError, ValueError):

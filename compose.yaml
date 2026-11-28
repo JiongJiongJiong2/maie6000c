@@ -61,12 +61,17 @@ services:
       REFERENCE_ROOT: /data/reference
       MODEL_CACHE_ROOT: /data/models
       ENABLE_DEMO_LIBRARY: ${ENABLE_DEMO_LIBRARY:-false}
+      STICKER_PACK_ROOT: /data/sticker-packs
+      STICKER_PACK_EXPERIMENT: ${STICKER_PACK_EXPERIMENT:-false}
+      STICKER_LOOKUP_URL: http://sticker-lookup:8130
     ports:
       - "${API_BIND_HOST:-127.0.0.1}:${API_HOST_PORT:-8000}:8000"
     volumes:
       - task_media:/data/media
       - "${REFERENCE_HOST_PATH:-./data/reference}:/data/reference:ro"
       - model_cache:/data/models
+      - "${STICKER_PACK_HOST_PATH:-./sticker_packs/demo}:/data/sticker-packs:ro"
+    networks: [default, sticker_control]
     cap_drop:
       - ALL
     security_opt:
@@ -76,11 +81,42 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      sticker-lookup:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
       interval: 10s
       timeout: 5s
       retries: 10
+
+  sticker-lookup:
+    build: .
+    image: "${COMPOSE_PROJECT_NAME:-maie6000c}-api"
+    command: uvicorn services.search_agent.sticker_service:app --host 0.0.0.0 --port 8130
+    environment:
+      MEME50_PROVIDER_POLICY: ${MEME50_PROVIDER_POLICY:-hkust-deepseek-v1}
+      MEME50_VISION_PROVIDER: ${MEME50_VISION_PROVIDER:-hkust}
+      MEME50_HKUST_MODEL: ${MEME50_HKUST_MODEL:-gemini-2.5-flash-lite}
+      MEME50_HKUST_API_KEY: ${MEME50_HKUST_API_KEY:-${HKUST_API_KEY:-}}
+      MEME50_HKGAI_MODEL: ${MEME50_HKGAI_MODEL:-t2_hkgai-v3_fp8_1m_e10}
+      MEME50_HKGAI_API_KEY: ${MEME50_HKGAI_API_KEY:-${HKGAI_API_KEY:-}}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      MEME50_FETCH_URL: http://media-fetch:8120
+      MEME50_DNS_MODE: ${MEME50_DNS_MODE:-system}
+    networks: [sticker_control, media_egress]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging: *default-logging
+    restart: unless-stopped
+    depends_on:
+      media-fetch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8130/health/live')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   worker:
     build:
@@ -241,3 +277,5 @@ volumes:
 networks:
   media_egress:
     driver: bridge
+  sticker_control:
+    internal: true

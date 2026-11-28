@@ -232,6 +232,7 @@ class SavedAsset(Base):
     image_url: Mapped[str] = mapped_column(Text)
     provider: Mapped[str] = mapped_column(String(50))
     gif_path: Mapped[str] = mapped_column(Text)
+    media_format: Mapped[str] = mapped_column(String(10), default="GIF", server_default="GIF")
     frame_count: Mapped[int] = mapped_column(Integer)
     index_status: Mapped[str] = mapped_column(String(20), default="pending")
     index_version: Mapped[str | None] = mapped_column(String(100))
@@ -241,7 +242,10 @@ class SavedAsset(Base):
     indexed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
-        CheckConstraint("frame_count > 1", name="ck_saved_asset_animated"),
+        CheckConstraint("frame_count >= 1", name="ck_saved_asset_frames"),
+        CheckConstraint(
+            "media_format IN ('GIF', 'PNG', 'JPEG', 'WEBP')", name="ck_saved_asset_format"
+        ),
         CheckConstraint(
             "index_status IN ('pending', 'running', 'ready', 'failed')",
             name="ck_saved_asset_index_status",

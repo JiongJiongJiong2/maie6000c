@@ -14,7 +14,8 @@ from sqlalchemy import select
 from services.common.config import get_settings, use_workspace
 from services.common.db import get_session_factory
 from services.common.search_models import SavedAsset
-from services.common.storage import atomic_write, contained_path, sha256, validate_image
+from services.common.media import saved_frame_count
+from services.common.storage import atomic_write, contained_path, sha256
 from services.retrieval.encoder import MODEL_VERSION, encode_images
 from services.retrieval.engine import FRAMES_PER_GIF
 
@@ -90,7 +91,7 @@ def index_saved_asset(asset_id: str) -> str:
             raise ValueError("Only a claimed saved asset can be indexed")
         db.expunge(asset)
     data = read_saved_gif(asset)
-    if validate_image(data, animated_gif=True) != asset.frame_count:
+    if saved_frame_count(data, asset.media_format) != asset.frame_count:
         raise ValueError("Saved GIF frame count mismatch")
     metadata, version = identity(asset)
     frames = frame_numbers(asset.frame_count)
@@ -106,9 +107,7 @@ def index_saved_asset(asset_id: str) -> str:
         validate_vectors(vectors, len(frames))
         output = io.BytesIO()
         np.savez_compressed(output, metadata=metadata, frames=frames, embeddings=vectors)
-        atomic_write(
-            get_settings().media_root, index_location(asset, version), output.getvalue()
-        )
+        atomic_write(get_settings().media_root, index_location(asset, version), output.getvalue())
         vectors = load_vectors(asset, version)
     if get_settings().vector_backend == "pgvector":
         from services.retrieval.vector_store import store_asset_vectors

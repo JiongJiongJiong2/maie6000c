@@ -29,7 +29,7 @@ const candidates = Array.from({ length: 50 }, (_, i) => ({
 
 // Deliberately controlled responses: contract/UI checks, not live quality evidence.
 
-test("search activity shows the active stage, real counts and executed queries after reload", async ({
+test("the search status and results work without exposing search activity", async ({
   page,
 }) => {
   const planned = ["orange animal reaction gif", "<b>literal query text</b>"];
@@ -80,7 +80,7 @@ test("search activity shows the active stage, real counts and executed queries a
       },
     }),
   );
-  await page.goto("/web/");
+  await page.goto("/web/search");
   await page.locator("#file-input").setInputFiles({
     name: "activity.png",
     mimeType: "image/png",
@@ -91,26 +91,17 @@ test("search activity shows the active stage, real counts and executed queries a
     "Downloading and validating",
   );
   const activity = page.getByRole("region", { name: "Search activity" });
-  await expect(activity.locator("dt")).toHaveText([
-    "Search calls",
-    "Page requests",
-    "Media fetch attempts",
-  ]);
-  await expect(activity.locator("dd")).toHaveText(["2", "4", "3"]);
-  await expect(
-    activity.getByRole("heading", { name: "Planned searches" }),
-  ).toBeVisible();
-  await expect(activity.getByRole("listitem")).toHaveText(planned);
-  await expect(activity.locator("li b")).toHaveCount(0);
+  await expect(activity).toHaveCount(0);
   await page.reload();
-  await expect(activity.getByRole("listitem")).toHaveText(planned);
+  await expect(page.locator("#status-title")).toContainText(
+    "Downloading and validating",
+  );
   finished = true;
-  await expect(
-    activity.getByRole("heading", { name: "Searches run" }),
-  ).toBeVisible();
-  await expect(activity.getByRole("listitem")).toHaveText([
-    planned[0] + " · 12 sources",
-  ]);
+  await expect(page.locator("#status-title")).toHaveText(
+    "No related images found",
+  );
+  await expect(activity).toHaveCount(0);
+  await expect(page.getByText(planned[0], { exact: true })).toHaveCount(0);
 });
 
 test("empty text submits v2 once, pages fifty, filters, downloads and restores", async ({
@@ -196,7 +187,7 @@ test("empty text submits v2 once, pages fifty, filters, downloads and restores",
   await page.route("**/candidates/*/media", (r) =>
     r.fulfill({ contentType: "image/png", body: png }),
   );
-  await page.goto("/web/");
+  await page.goto("/web/search");
   await expect(page.locator("#search-mode label span")).toHaveText([
     "Online search",
     "Local only",
@@ -368,7 +359,7 @@ test("local human review stays unreviewed and exports bound identities only", as
 test("favorites replay both keys, recover index status after refresh, and switch to local", async ({
   page,
 }) => {
-  const candidate = candidates[1];
+  const candidate = candidates[0];
   const assetId = "40000000-0000-4000-8000-000000000001";
   const uploads = [];
   const reviews = [];
@@ -432,24 +423,43 @@ test("favorites replay both keys, recover index status after refresh, and switch
   await page.route(`**/saved-assets/${assetId}`, (route) =>
     route.fulfill({ json: asset() }),
   );
+  await page.route(`**/library/assets/${assetId}`, (route) =>
+    route.fulfill({
+      json: {
+        ...asset(),
+        title: "Saved result",
+        media_format: "PNG",
+        frame_count: 1,
+        annotation_status: "not_requested",
+        tags: [],
+      },
+    }),
+  );
   await page.route(`**/saved-assets/${assetId}/index-retry`, (route) => {
     indexStatus = "ready";
     return route.fulfill({ json: asset() });
   });
-  await page.goto("/web/");
+  await page.goto("/web/search");
   await page.locator("#file-input").setInputFiles({
     name: "screenshot.png",
     mimeType: "image/png",
     buffer: png,
   });
   await page.locator("#submit").click();
-  await page.getByRole("button", { name: /Confirm and save/ }).click();
+  await page.getByRole("button", { name: /Add to My Library/ }).click();
   await page.getByText(/Connection interrupted/).waitFor();
   await page.getByRole("button", { name: /Resume saving/ }).click();
   await page.getByText(/Connection interrupted/).waitFor();
   await page.reload();
   await page.getByRole("button", { name: /Resume saving/ }).click();
   await expect(page.getByText(/indexing queued/)).toBeVisible();
+  await page.getByRole("button", { name: "View in My Library" }).click();
+  const entry = page.locator(`#library-gallery [data-asset-id="${assetId}"]`);
+  await expect(entry).toBeFocused();
+  await expect(
+    entry.getByRole("heading", { name: "Saved result" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Search", exact: true }).click();
   expect(reviews).toHaveLength(2);
   expect(reviews[1]).toEqual(reviews[0]);
   expect(saves).toHaveLength(2);
@@ -464,7 +474,7 @@ test("favorites replay both keys, recover index status after refresh, and switch
   await page.getByRole("radio", { name: "Local only", exact: true }).check();
   await page.locator("#submit").click();
   await expect(
-    page.getByRole("button", { name: /Download GIF/ }),
+    page.getByRole("button", { name: /Download PNG/ }),
   ).toBeVisible();
   expect(uploads[1]).not.toContain('name="search_profile"');
   expect(uploads[1]).not.toContain('name="target_count"');
@@ -562,7 +572,7 @@ test("local results survive linked search acknowledgement loss, retry, and refre
       json: { revision: "retry", items: [candidate], total: 1, total_all: 1 },
     }),
   );
-  await page.goto("/web/");
+  await page.goto("/web/search");
   await page.getByRole("radio", { name: "Local only", exact: true }).check();
   await page.locator("#file-input").setInputFiles({
     name: "screenshot.png",
@@ -590,7 +600,7 @@ test("local results survive linked search acknowledgement loss, retry, and refre
   await page.locator("#meme-retry").click();
   await expect(page.locator("#web-candidates .candidate")).toHaveCount(1);
   await expect(page.locator("#web-candidates")).toContainText(
-    "Confirm and save",
+    "Add to My Library",
   );
   await page.reload();
   await expect(page.locator("#web-candidates .candidate")).toHaveCount(1);
@@ -598,7 +608,7 @@ test("local results survive linked search acknowledgement loss, retry, and refre
   await expect(page.locator("#review-id")).toHaveText("local-review");
   await page
     .locator("#web-candidates")
-    .getByRole("button", { name: /Share GIF/ })
+    .getByRole("button", { name: "Share", exact: true })
     .click();
   await page.getByRole("button", { name: /Open share menu/ }).click();
   await expect
@@ -691,14 +701,17 @@ test("online file sharing is lazy, preserves bytes, and invalidates on favorite"
     reads.push("saved");
     return r.fulfill({ contentType: "image/gif", body: gif });
   });
-  await page.goto("/web/");
+  await page.goto("/web/search");
   await page
     .locator("#file-input")
     .setInputFiles({ name: "test.png", mimeType: "image/png", buffer: png });
   await page.locator("#submit").click();
-  const prepare = page.getByRole("button", { name: /Share GIF/ });
+  const shareButtons = page.getByRole("button", { name: "Share", exact: true });
+  const prepare = page
+    .locator(`[data-candidate-id="${item.candidate_id}"]`)
+    .getByRole("button", { name: "Share", exact: true });
   const open = page.getByRole("button", { name: /Open share menu/ });
-  await expect(prepare).toHaveCount(1);
+  await expect(shareButtons).toHaveCount(4);
   expect(reads).toEqual([]);
   await prepare.click();
   await expect(prepare).toBeDisabled();
@@ -706,7 +719,7 @@ test("online file sharing is lazy, preserves bytes, and invalidates on favorite"
     page.getByRole("button", { name: /Download image/ }).nth(1),
   ).toBeEnabled();
   release();
-  await expect(page.getByText(/暂不支持分享/)).toBeVisible();
+  await expect(page.getByText(/browser can’t share/)).toBeVisible();
   await page.evaluate(() => {
     window.shareSupported = true;
   });
@@ -714,13 +727,16 @@ test("online file sharing is lazy, preserves bytes, and invalidates on favorite"
   await expect(open).toBeEnabled();
   expect(await page.evaluate(() => window.shareCalls)).toEqual([]);
   await open.click();
-  await expect(page.getByText(/分享未完成/)).toBeVisible();
+  await expect(page.getByText(/Sharing didn’t finish/)).toBeVisible();
   await page.evaluate(() => {
     window.rejectShare = "NotAllowedError";
   });
   await open.click();
-  await expect(page.getByText(/分享未完成/)).toBeVisible();
-  await page.getByRole("button", { name: /Confirm and save/ }).click();
+  await expect(page.getByText(/Sharing didn’t finish/)).toBeVisible();
+  await page
+    .locator(`[data-candidate-id="${item.candidate_id}"]`)
+    .getByRole("button", { name: "Add to My Library" })
+    .click();
   await expect(prepare).toBeVisible();
   await expect(open).toHaveCount(0);
   await prepare.click();
@@ -728,7 +744,7 @@ test("online file sharing is lazy, preserves bytes, and invalidates on favorite"
     window.rejectShare = "";
   });
   await open.click();
-  await expect(page.getByText(/已交给系统分享/)).toBeVisible();
+  await expect(page.getByText(/Opened in system sharing/)).toBeVisible();
   expect(reads).toEqual(["candidate", "candidate", "saved"]);
   const calls = await page.evaluate(() => window.shareCalls);
   expect(calls).toHaveLength(3);
@@ -740,4 +756,27 @@ test("online file sharing is lazy, preserves bytes, and invalidates on favorite"
       type: "image/gif",
       bytes: [...gif],
     });
+  const webp = readFileSync(
+    new URL("./fixtures/two-frames.webp", import.meta.url),
+  );
+  for (const [candidate, type, suffix, bytes] of [
+    [candidates[0], "image/png", "png", png],
+    [candidates[3], "image/webp", "webp", webp],
+  ]) {
+    await page.route(`**${candidate.media_url}`, (route) =>
+      route.fulfill({ contentType: type, body: bytes }),
+    );
+    const card = page.locator(
+      `[data-candidate-id="${candidate.candidate_id}"]`,
+    );
+    await card.getByRole("button", { name: "Share", exact: true }).click();
+    await card.getByRole("button", { name: "Open share menu" }).click();
+    await expect
+      .poll(() => page.evaluate(() => window.shareCalls.at(-1)))
+      .toMatchObject({
+        name: `meme-${candidate.candidate_id}.${suffix}`,
+        type,
+        bytes: [...bytes],
+      });
+  }
 });

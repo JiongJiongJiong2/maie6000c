@@ -1,10 +1,18 @@
 def test_client_and_assets_are_served_without_shadowing_api(client):
     page = client.get("/web/")
     assert page.status_code == 200
+    assert 'href="/web/search"' in page.text
+    assert 'src="/web/home.js"' in page.text
+    assert 'id="library-view"' not in page.text
+    page = client.get("/web/search")
+    assert page.status_code == 200
     assert "text/html" in page.headers["content-type"]
     assert "MemeRetrieve" in page.text
     assert 'src="./app.js"' in page.text
-    for asset in ("app.js", "api.js", "store.js", "meme50.js", "share.js", "styles.css"):
+    for asset in (
+        "app.js", "api.js", "store.js", "meme50.js", "share.js", "styles.css",
+        "home.css", "home.js", "motion.js",
+    ):
         response = client.get(f"/web/{asset}")
         assert response.status_code == 200
         assert response.headers["cache-control"] == "no-cache"

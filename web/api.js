@@ -1,3 +1,5 @@
+import { workspacePaths } from "./workspace.js";
+
 // Safari versions without AbortSignal.any still need shared cancellation.
 export function combineSignals(signals) {
   if (typeof AbortSignal.any === "function") return AbortSignal.any(signals);
@@ -60,7 +62,8 @@ export class Api {
         redirect: "error",
       });
       if (!response.ok) {
-        if (response.status === 401 && this.account) location.replace("/web/");
+        if (response.status === 401 && this.account)
+          location.replace(workspacePaths.search);
         const body = await response.json().catch(() => null);
         const detail = body?.detail ?? body?.error;
         const message = typeof detail === "string" ? detail : detail?.message;
@@ -68,7 +71,7 @@ export class Api {
           401: "Sign in to open your library.",
           404: "Endpoint or record not found. Check that the W07 backend is connected.",
           409: "The request conflicts with an earlier submission. Start a new search.",
-          410: "This GIF has expired. Start a new search.",
+          410: "This image has expired. Start a new search.",
           413: "The image exceeds the server limit. Choose a smaller image.",
           422: "Invalid image or request. Use a cropped PNG, JPG, or WebP screenshot.",
         };

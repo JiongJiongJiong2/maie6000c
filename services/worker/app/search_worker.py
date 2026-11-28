@@ -35,6 +35,7 @@ from services.common.search_models import (
     new_id,
 )
 from services.common.search_schemas import RetrievalResult, WebSearchResult
+from services.common.media import FORMATS, saved_frame_count
 from services.common.storage import (
     MediaError,
     atomic_write,
@@ -325,6 +326,7 @@ def process_search_job(job_id: str, retriever: Retriever = invoke_retrieval) -> 
                         "corpus_mismatch", "Retrieved asset is absent from the declared corpus"
                     )
                 if asset is not None:
+                    media_format = "GIF"
                     data, frames = read_gif(asset.gif_path)
                     expected_sha = asset.sha256
                     expected_frames = asset.frame_count
@@ -339,7 +341,8 @@ def process_search_job(job_id: str, retriever: Retriever = invoke_retrieval) -> 
                             "corpus_corrupted", "Saved GIF exceeds the configured size limit"
                         )
                     data = path.read_bytes()
-                    frames = validate_image(data, animated_gif=True)
+                    media_format = saved_asset.media_format
+                    frames = saved_frame_count(data, media_format)
                     expected_sha = saved_asset.sha256
                     expected_frames = saved_asset.frame_count
                     saved_asset_id = saved_asset.id
@@ -351,7 +354,7 @@ def process_search_job(job_id: str, retriever: Retriever = invoke_retrieval) -> 
                         "corpus_corrupted", "Corpus media does not match its catalog"
                     )
                 candidate_id = new_id()
-                relative = f"candidates/{job.id}/{candidate_id}.gif"
+                relative = f"candidates/{job.id}/{candidate_id}.{FORMATS[media_format][1]}"
                 written.append(atomic_write(settings.media_root, relative, data))
                 db.add(
                     Candidate(
@@ -362,6 +365,9 @@ def process_search_job(job_id: str, retriever: Retriever = invoke_retrieval) -> 
                         rank=rank,
                         similarity_score=match.score,
                         media_sha256=expected_sha,
+                        media_format=media_format,
+                        mime_type=FORMATS[media_format][0],
+                        media_kind="animated" if frames > 1 else "static",
                         source_url=source_url,
                         image_url=image_url,
                         provider=provider,
@@ -698,6 +704,7 @@ def process_saved_asset_index(
         relative_path = asset.gif_path
         digest = asset.sha256
         expected_frame_count = asset.frame_count
+        expected_format = asset.media_format
     try:
         settings = get_settings()
         asset_path = contained_path(settings.media_root, relative_path)
@@ -709,7 +716,7 @@ def process_saved_asset_index(
             raise MediaError("Saved GIF exceeds the configured byte limit")
         if sha256(data) != digest:
             raise IndexingError("saved_asset_corrupted", "Saved GIF checksum does not match")
-        frame_count = validate_image(data, animated_gif=True)
+        frame_count = saved_frame_count(data, expected_format)
         if frame_count != expected_frame_count:
             raise IndexingError(
                 "saved_asset_corrupted",
@@ -830,7 +837,7 @@ def cleanup_media(db: Session) -> None:
         if relative not in referenced_saved and _is_stale_regular_file(
             path, orphan_cutoff, storage_class="orphan_saved_asset"
         ):
-            if re.fullmatch(r"[a-f0-9]{64}\.gif", path.name):
+            if re.fullmatch(r"[a-f0-9]{64}\.(gif|jpg|png|webp)", path.name):
                 lock_saved_digest(db, path.stem)
                 referenced = db.scalar(select(SavedAsset.id).where(SavedAsset.gif_path == relative))
                 if referenced is None and _is_stale_regular_file(

@@ -4,7 +4,7 @@ Owner: Zirui Huang. Implements the upload, polling, GIF preview, review, downloa
 
 ## Implementation and current boundary
 
-The client uses native HTML, CSS, and JavaScript. There is no frontend build step, CDN, or runtime npm dependency. FastAPI serves it at **`/web/`** alongside the existing API. The original `/`, `/docs`, health checks, and application routes remain available. The Docker image copies only the five browser assets; all API calls use same-origin paths.
+The client uses native HTML, CSS, and JavaScript. There is no frontend build step, CDN, or runtime npm dependency. FastAPI serves it at **`/web/`** alongside the existing API. The original `/`, `/docs`, health checks, and application routes remain available. The Docker image copies the shipped browser assets. All API calls use same-origin paths.
 
 This integration starts from `dev` at `bbd6902` and incorporates `feature/w07-backend` at **`501969f4ee11fb2d03c09c96c8744d3118824a67`**, including that branch's actual routes, persistence models, worker transitions, and GIF validation.
 
@@ -33,6 +33,7 @@ With Compose, set `PRIVATE_LIBRARY_ENABLED=true` to enable account sign-in. Sele
 
 ## Behavior
 
+- Open the theme at `/web/` and select **Enter workspace**. Use the workspace navigation to switch between **Search** (`/web/search`), **My Library** (`/web/library`), and **Official Stickers** (`/web/stickers`). The MemeRetrieve logo returns to the theme. Switching between Search and My Library keeps the current search. On narrow screens, the sidebar becomes a top navigation bar.
 - Select or drop one cropped PNG, JPEG, or WebP. Before upload, the browser checks decoding, the 10 MiB limit, and the 20-megapixel limit. Server validation remains authoritative.
 - Before submission, IndexedDB stores the exact image and a stable `client_submission_key`. **Retry this upload** reuses both after a lost response, including across reloads. Changing the image or starting a new search creates a new key.
 - Poll every 1.5 seconds while work is active. Pause further polling when the page is hidden; resume when it becomes visible. Stop automatic polling at completion or failure. Network errors retain the request ID and expose manual refresh; reconnection also triggers a status check.

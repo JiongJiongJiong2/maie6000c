@@ -1,12 +1,9 @@
 import { mountLibrary } from "./library.js";
-import { mountGifShare } from "./share.js";
-import {
-  memeStatus,
-  renderMemeResults,
-  disposeMemeResults,
-  renderSearchActivity,
-} from "./meme50.js";
+import { mountMediaShare } from "./share.js";
+import { memeStatus, renderMemeResults, disposeMemeResults } from "./meme50.js";
 import { Api, combineSignals, validAccepted, validStatus } from "./api.js";
+import { mountMotion } from "./motion.js";
+import { mountWorkspace, workspacePaths } from "./workspace.js";
 import {
   loadFavorite,
   saveFavorite,
@@ -60,7 +57,47 @@ function newKey() {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-mountLibrary(api, newKey);
+const library = mountLibrary(api, newKey, () =>
+  history.replaceState(null, "", workspacePaths.library),
+);
+const selectWorkspacePage = mountWorkspace(
+  api,
+  document.body.dataset.workspacePage,
+  navigateWorkspace,
+);
+const searchTitle = document.title;
+
+function showWorkspace(focusPage = false) {
+  const inLibrary = location.pathname === workspacePaths.library;
+  const page = inLibrary ? "library" : "search";
+  const asset = inLibrary && new URLSearchParams(location.search).get("asset");
+  document.body.dataset.workspacePage = page;
+  document.title = inLibrary ? "My Library · MemeRetrieve" : searchTitle;
+  $("search-view").hidden = inLibrary;
+  $("workspace-skip").href = inLibrary ? "#library-title" : "#workspace";
+  selectWorkspacePage(page);
+  library.setView(inLibrary, asset || null);
+  if (focusPage) {
+    window.scrollTo({ top: 0, behavior: "instant" });
+    if (!asset)
+      $(inLibrary ? "library-title" : "workspace").focus({
+        preventScroll: true,
+      });
+  }
+}
+
+function navigateWorkspace(page, asset = null) {
+  if (page === "stickers") return false;
+  const url =
+    workspacePaths[page] + (asset ? `?asset=${encodeURIComponent(asset)}` : "");
+  if (location.pathname + location.search + location.hash !== url)
+    history.pushState(null, "", url);
+  showWorkspace(true);
+  return true;
+}
+
+showWorkspace();
+window.addEventListener("popstate", () => showWorkspace());
 
 function notice(message = "") {
   $("notice").textContent = message;
@@ -169,12 +206,6 @@ function render() {
   document
     .querySelector(".results-panel")
     .classList.toggle("error-state", status === "failed");
-  document.querySelectorAll(".steps li").forEach((element, index) => {
-    element.classList.toggle(
-      "active",
-      index === (accepted ? (active ? 1 : 2) : 0),
-    );
-  });
   $("empty-art").hidden = !!accepted;
   $("progress").hidden = !active;
   $("refresh").hidden = !accepted;
@@ -280,7 +311,6 @@ function renderOnline() {
     .filter(Boolean)
     .join(" · ");
   $("analysis-details").hidden = !$("meme-analysis").textContent;
-  renderSearchActivity($("search-activity"), result);
   if (!state?.accepted) return;
   const stages = {
     preprocessing: "Preparing image",
@@ -318,8 +348,6 @@ function renderOnline() {
     renderMemeResults($("web-candidates"), result, api, lifetime.signal, {
       download: downloadMeme,
       favorite: mountFavorite,
-      share: (body, download, id, url, signal) =>
-        mountGifShare(api, body, download, id, url, signal),
     });
 }
 
@@ -347,7 +375,7 @@ function renderCandidates(candidates) {
       media.className = "candidate-media";
       const note = document.createElement("span");
       note.className = "media-note";
-      note.textContent = "Loading animation…";
+      note.textContent = "Loading preview…";
       const rank = document.createElement("span");
       rank.className = "rank";
       rank.textContent = `#${candidate.rank}`;
@@ -359,8 +387,10 @@ function renderCandidates(candidates) {
       const accept = makeButton("This is the one", "primary accept", () =>
         choose("accept", candidate.candidate_id),
       );
-      const download = makeButton("Download GIF ↓", "secondary download", () =>
-        downloadCandidate(candidate, download),
+      const download = makeButton(
+        `Download ${candidate.media_format || "GIF"} ↓`,
+        "secondary download",
+        () => downloadCandidate(candidate, download),
       );
       const reload = makeButton("Reload preview", "quiet reload", () =>
         loadMedia(candidate, media, reload),
@@ -368,27 +398,17 @@ function renderCandidates(candidates) {
       reload.hidden = true;
       download.hidden = true;
       body.append(score, accept, download, reload);
-      if (
-        (!candidate.media_format || candidate.media_format === "GIF") &&
-        (candidate.frame_count == null || candidate.frame_count > 1) &&
-        candidate.media_kind !== "static"
-      ) {
-        mountGifShare(
-          api,
-          body,
-          download,
-          candidate.candidate_id,
-          () => candidateMediaUrl(candidate),
-          signal,
-        );
-      }
-      if (candidate.asset_id && candidate.save_status === "saved") {
-        card.dataset.saved = "true";
-        card.dataset.assetId = candidate.asset_id;
-        const status = document.createElement("p");
-        status.textContent = favoriteLabel(candidate.index_status);
-        body.append(status);
-      }
+      mountMediaShare({
+        api,
+        body,
+        download,
+        signal,
+        id: candidate.candidate_id,
+        url: candidateMediaUrl(candidate),
+        format: candidate.media_format || "GIF",
+      });
+      if (candidate.asset_id) card.dataset.saved = "true";
+      mountFavorite(session.result.job_id, candidate, body, download, signal);
       card.append(media, body);
       $("candidates").append(card);
       loadMedia(candidate, media, reload);
@@ -407,11 +427,7 @@ function renderCandidates(candidates) {
     card.querySelector(".accept").disabled =
       busy || !!(review && !review.review_id) || !!selected;
     const download = card.querySelector(".download");
-    const hidden = !selected && !card.dataset.saved;
-    if (hidden !== download.hidden) {
-      download.hidden = hidden;
-      download.dispatchEvent(new Event("eligibilitychange"));
-    }
+    download.hidden = !selected && !card.dataset.saved;
     download.disabled = busy;
   }
 }
@@ -422,7 +438,7 @@ async function loadMedia(candidate, container, retry) {
   container.querySelector("img")?.remove();
   const note = container.querySelector(".media-note");
   note.hidden = false;
-  note.textContent = "Loading animation…";
+  note.textContent = "Loading preview…";
   try {
     const blob = await api.media(candidate.media_url, lifetime.signal);
     if (currentEpoch !== epoch || !container.isConnected) return;
@@ -431,7 +447,7 @@ async function loadMedia(candidate, container, retry) {
     const url = URL.createObjectURL(blob);
     mediaURLs.set(candidate.candidate_id, url);
     const image = new Image();
-    image.alt = `Animated GIF candidate ${candidate.rank}`;
+    image.alt = `Search result ${candidate.rank}`;
     image.onload = () => {
       note.hidden = true;
     };
@@ -734,7 +750,8 @@ function candidateMediaUrl(candidate) {
 async function downloadCandidate(candidate, button) {
   if (
     busy ||
-    (!candidate.asset_id &&
+    (!button.dataset.mediaUrl &&
+      !candidate.asset_id &&
       (!session?.review?.review_id ||
         session.review.payload.candidate_id !== candidate.candidate_id))
   )
@@ -743,23 +760,27 @@ async function downloadCandidate(candidate, button) {
   busy = true;
   render();
   button.textContent = "Fetching file…";
-  feedback("download-status", "Fetching the GIF file…");
+  feedback("download-status", "Fetching the image…");
   try {
     // Re-fetch so expired or unavailable media is reported instead of silently
     // treating an earlier preview as a successful current download.
-    const blob = await api.media(candidateMediaUrl(candidate), lifetime.signal);
+    const blob = await api.media(
+      button.dataset.mediaUrl || candidateMediaUrl(candidate),
+      lifetime.signal,
+    );
     if (currentEpoch !== epoch) return;
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `meme-${candidate.candidate_id}.gif`;
+    const suffix = blob.type.split("/")[1]?.replace("jpeg", "jpg") || "gif";
+    anchor.download = `meme-${candidate.candidate_id}.${suffix}`;
     document.body.append(anchor);
     anchor.click();
     anchor.remove();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
     feedback(
       "download-status",
-      "Download started. Open the file from your browser downloads and check that the animation plays.",
+      "Download started. Open the image from your browser downloads.",
     );
   } catch (error) {
     if (currentEpoch === epoch)
@@ -771,7 +792,7 @@ async function downloadCandidate(candidate, button) {
   } finally {
     if (currentEpoch === epoch) {
       busy = false;
-      button.textContent = "Download GIF ↓";
+      button.textContent = `Download ${candidate.media_format || "GIF"} ↓`;
       render();
     }
   }
@@ -821,34 +842,10 @@ async function checkHealth() {
   }
 }
 
-// Decorative interactions stay independent of the search and persistence flow.
-const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-let motionPreference = "on";
-try {
-  motionPreference = localStorage.getItem("memeretrieve-motion") || "on";
-} catch {
-  // Search still works when optional preference storage is unavailable.
-}
+const motionEnabled = mountMotion($("motion-toggle"), () =>
+  $("celebration").replaceChildren(),
+);
 let celebrationTimer;
-
-function motionEnabled() {
-  return motionPreference !== "off" && !reducedMotion.matches;
-}
-
-function updateMotion() {
-  const enabled = motionEnabled();
-  document.documentElement.dataset.motion = enabled ? "on" : "off";
-  $("motion-toggle").setAttribute("aria-pressed", String(enabled));
-  $("motion-toggle").textContent = reducedMotion.matches
-    ? "Motion: reduced"
-    : `Motion: ${enabled ? "on" : "off"}`;
-  $("motion-toggle").disabled = reducedMotion.matches;
-  if (!enabled) {
-    $("celebration").replaceChildren();
-    $("hero-art").style.removeProperty("--eye-x");
-    $("hero-art").style.removeProperty("--eye-y");
-  }
-}
 
 function celebrate() {
   if (!motionEnabled()) return;
@@ -865,42 +862,6 @@ function celebrate() {
   $("celebration").replaceChildren(...pieces);
   celebrationTimer = setTimeout(() => $("celebration").replaceChildren(), 1300);
 }
-
-$("motion-toggle").addEventListener("click", () => {
-  motionPreference = motionEnabled() ? "off" : "on";
-  try {
-    localStorage.setItem("memeretrieve-motion", motionPreference);
-  } catch {
-    // The control remains usable for the current page.
-  }
-  updateMotion();
-});
-reducedMotion.addEventListener("change", updateMotion);
-updateMotion();
-
-const mascotLines = [
-  "I was framed. Literally.",
-  "No thoughts. Just loops.",
-  "Please return me to the group chat.",
-  "I'm not lost. I'm buffering.",
-  "head empty. GIF folder full.",
-];
-let boops = 0;
-$("mascot").addEventListener("click", () => {
-  $("mascot-caption").textContent = mascotLines[boops++ % mascotLines.length];
-});
-$("hero-art").addEventListener("pointermove", (event) => {
-  if (!motionEnabled() || event.pointerType !== "mouse") return;
-  const bounds = $("hero-art").getBoundingClientRect();
-  const x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 12;
-  const y = ((event.clientY - bounds.top) / bounds.height - 0.5) * 10;
-  $("hero-art").style.setProperty("--eye-x", `${x.toFixed(1)}px`);
-  $("hero-art").style.setProperty("--eye-y", `${y.toFixed(1)}px`);
-});
-$("hero-art").addEventListener("pointerleave", () => {
-  $("hero-art").style.removeProperty("--eye-x");
-  $("hero-art").style.removeProperty("--eye-y");
-});
 
 $("file-input").addEventListener("change", (event) =>
   selectFile(event.target.files[0]),
@@ -927,26 +888,6 @@ $("forget").addEventListener("click", () => reset(false));
 $("refresh").addEventListener("click", poll);
 $("reject").addEventListener("click", () => choose("reject_all"));
 $("review-retry").addEventListener("click", sendReview);
-if (api.account) {
-  $("account-name").textContent = api.account;
-  $("account-name").hidden = false;
-  $("sign-out").hidden = false;
-  window.addEventListener("storage", (event) => {
-    if (event.key === "memeretrieve-account-change") location.replace("/web/");
-  });
-  window.addEventListener("pageshow", (event) => {
-    if (event.persisted) location.reload();
-  });
-  $("sign-out").addEventListener("click", async () => {
-    try {
-      await api.request("/auth/logout", { method: "POST" });
-      localStorage.setItem("memeretrieve-account-change", newKey());
-      location.replace("/web/");
-    } catch (error) {
-      notice(error.message);
-    }
-  });
-}
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) clearTimeout(pollTimer);
   else if (
@@ -1244,9 +1185,13 @@ function mountFavorite(jobId, candidate, body, download, signal) {
   const key = `favorite/${jobId}/${candidate.candidate_id}`;
   const status = document.createElement("p");
   status.setAttribute("role", "status");
-  const action = makeButton("Confirm and save", "secondary", act);
+  const action = makeButton("Add to My Library", "secondary library-save", act);
   action.disabled = true;
-  body.append(status, action);
+  const view = makeButton("View in My Library", "secondary library-save", () =>
+    navigateWorkspace("library", record.asset.asset_id),
+  );
+  view.hidden = true;
+  body.append(status, action, view);
   let record;
   let timer;
   let error = "";
@@ -1256,12 +1201,20 @@ function mountFavorite(jobId, candidate, body, download, signal) {
   function show(working = false) {
     if (signal.aborted) return;
     const asset = record?.asset;
+    view.hidden = !asset;
     if (asset) {
       if (download.dataset.mediaUrl !== asset.media_url) {
         download.dataset.mediaUrl = asset.media_url;
         download.dispatchEvent(new Event("mediachange"));
       }
-      body.closest(".candidate")?.setAttribute("data-asset-id", asset.asset_id);
+      const card = body.closest(".candidate");
+      if (card) {
+        card.dataset.assetId = asset.asset_id;
+        card.dataset.saved = "true";
+      }
+      if (download.classList.contains("download")) {
+        download.hidden = false;
+      }
     }
     status.textContent = [
       asset ? favoriteLabel(asset.index_status) : working ? "Saving…" : "",
@@ -1276,7 +1229,7 @@ function mountFavorite(jobId, candidate, body, download, signal) {
         : "Retry indexing"
       : record?.reviewKey
         ? "Resume saving"
-        : "Confirm and save";
+        : "Add to My Library";
     action.hidden =
       expired || (!!asset && !error && asset.index_status !== "failed");
     action.disabled = working;
@@ -1290,7 +1243,7 @@ function mountFavorite(jobId, candidate, body, download, signal) {
       !favoriteLabel(asset.index_status) ||
       (record.asset && asset.asset_id !== record.asset.asset_id)
     ) {
-      throw new Error("The server returned invalid saved GIF details.");
+      throw new Error("The server returned invalid saved image details.");
     }
     record.asset = asset;
     await saveFavorite(key, record);

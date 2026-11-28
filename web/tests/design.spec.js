@@ -15,14 +15,14 @@ async function ready(page) {
   await page.route("**/health/ready", (route) =>
     route.fulfill({ json: { status: "ok" } }),
   );
-  await page.goto("/web/");
+  await page.goto("/web/search");
   await expect(page.locator("#file-input")).toBeEnabled();
 }
 
 test("mascot is keyboard-operable and motion can be disabled across reloads", async ({
   page,
 }) => {
-  await ready(page);
+  await page.goto("/web/");
   await page.getByRole("button", { name: "Poke the mascot" }).focus();
   await page.keyboard.press("Enter");
   await expect(page.locator("#mascot-caption")).toHaveText(
@@ -51,6 +51,34 @@ test("mascot is keyboard-operable and motion can be disabled across reloads", as
       .evaluate((node) => getComputedStyle(node).animationName),
   ).toBe("none");
 });
+
+for (const width of [1440, 768, 390, 320]) {
+  test(`the standalone theme and its entry link fit at ${width}px`, async ({
+    page,
+  }) => {
+    const height = width === 320 ? 640 : 850;
+    await page.setViewportSize({ width, height });
+    await page.goto("/web/");
+    await expect(page.locator("#hero-title")).toContainText("LOST YOUR");
+    await expect(
+      page.getByRole("navigation", { name: "Workspace" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: "Enter workspace" }),
+    ).toBeInViewport();
+    const fullScreen = await page.evaluate(
+      () =>
+        document.body.getBoundingClientRect().height >= innerHeight &&
+        document.documentElement.scrollWidth <= innerWidth,
+    );
+    expect(fullScreen).toBe(true);
+    await page.getByRole("link", { name: "Enter workspace" }).click();
+    await expect(page).toHaveURL(/\/web\/search$/);
+    await expect(
+      page.getByRole("heading", { name: "Search GIFs" }),
+    ).toBeVisible();
+  });
+}
 
 for (const width of [1440, 768, 390, 320]) {
   test(`three-candidate layout and review controls work at ${width}px`, async ({
@@ -113,9 +141,6 @@ for (const width of [1440, 768, 390, 320]) {
         fullPage: true,
       });
     }
-    await page
-      .getByRole("link", { name: "Let's find that little guy" })
-      .click();
     await page.locator("#file-input").setInputFiles({
       name: "fixture.png",
       mimeType: "image/png",

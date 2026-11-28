@@ -248,7 +248,7 @@ def enroll(client):
     }
     account = client.send_json("/auth/register", credentials, 201)
     require(account.get("username") == credentials["username"], "Registration response mismatch")
-    page = client.request("/web/")[1]
+    page = client.request("/web/search")[1]
     account_marker = f'data-account="{account["username"]}"'.encode()
     require(account_marker in page, "Session did not open the app")
     return credentials
@@ -335,7 +335,7 @@ def smoke(stack):
     first, second = Client(api), Client(api)
     require(first.get_json("/health/ready").get("status") == "ok", "API is not ready")
     first.request("/library/assets", 401)
-    require(b"account.js" in first.request("/web/")[1], "Account page is missing")
+    require(b"account.js" in first.request("/web/search")[1], "Account page is missing")
     for name in ("app.js", "share.js", "meme50.js"):
         headers, body = first.request("/web/" + name)
         require(
