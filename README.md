@@ -8,6 +8,8 @@ The web worker uses HKUST vision by default or an explicitly selected HKGAI visi
 
 Start with the [product and Docker guide](docs/product-deployment.md) for accounts, GIF search and collection, PostgreSQL with pgvector, and existing database upgrades. The [native setup guide](docs/local-demo.md) covers the local Python launcher. See the [W13 delivery report](submissions/week13/README.md) for verification and the [database design](docs/database-and-vector-search.md) for storage details.
 
+Use the [container release guide](docs/container-release.md) to deploy the versioned images built by GitHub Actions.
+
 ## Earlier milestones and experiments
 
 An independent [meme search agent v1](docs/meme-agent-v1.md) now runs at `http://127.0.0.1:8010/studio/`: DeepSeek query planning, live template discovery, local caption editing, explicit confirmation, and persistent SQLite/CLIP collection reuse. Start it with `.venv/Scripts/python.exe scripts/run_meme_agent.py`. This experimental branch uses a minimal functional UI and a bounded template catalog; it does not provide unrestricted reverse image search or multi-user hosting. It is separate from the W07 stack below.
