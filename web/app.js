@@ -1,5 +1,10 @@
 import { mountLibrary } from "./library.js";
 import { mountGifShare } from "./share.js";
+import { mountTelegramSave } from "./telegram.js";
+import {
+  mountDiscordStickers,
+  mountSignalStickers,
+} from "./sticker-integrations.js";
 import { editScreenshot } from "./crop.js";
 import {
   memeStatus,
@@ -374,9 +379,15 @@ function renderOnline() {
     renderMemeResults($("web-candidates"), result, api, lifetime.signal, {
       download: downloadMeme,
       favorite: mountFavorite,
-      share: (body, download, id, url, signal) =>
-        mountGifShare(api, body, download, id, url, signal),
+      share: mountCandidateSharing,
     });
+}
+
+function mountCandidateSharing(body, download, candidateId, mediaUrl, signal) {
+  mountGifShare(api, body, download, candidateId, mediaUrl, signal);
+  mountTelegramSave(api, body, download, candidateId, signal);
+  mountDiscordStickers(api, body, mediaUrl, signal, download);
+  mountSignalStickers(api, body, mediaUrl, signal, download);
 }
 
 function makeButton(label, className, handler) {
@@ -429,8 +440,7 @@ function renderCandidates(candidates) {
         (candidate.frame_count == null || candidate.frame_count > 1) &&
         candidate.media_kind !== "static"
       ) {
-        mountGifShare(
-          api,
+        mountCandidateSharing(
           body,
           download,
           candidate.candidate_id,

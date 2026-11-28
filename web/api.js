@@ -77,13 +77,16 @@ export class Api {
           413: "The image exceeds the server limit. Choose a smaller image.",
           422: "Invalid image or request. Use a cropped PNG, JPG, or WebP screenshot.",
         };
-        throw new ApiError(
+        const error = new ApiError(
           fallback[response.status] ||
             message ||
             `The service is temporarily unavailable (${response.status}).`,
           response.status,
           detail?.code || "http_error",
         );
+        error.serverMessage = message;
+        error.retryAfter = Number(response.headers.get("Retry-After")) || 0;
+        throw error;
       }
       if (media) {
         const blob = await response.blob();

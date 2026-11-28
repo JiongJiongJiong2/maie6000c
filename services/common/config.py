@@ -11,7 +11,7 @@ from sqlalchemy.engine import make_url
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pythonjsonlogger.json import JsonFormatter
 
@@ -29,6 +29,15 @@ class Settings(BaseSettings):
     account_login_enabled: bool = False
     vector_backend: Literal["npz", "pgvector"] = "npz"
     device_token: str = ""
+    telegram_api_id: int = Field(default=0, ge=0)
+    telegram_api_hash: SecretStr = SecretStr("")
+    discord_bot_token: SecretStr = SecretStr("")
+    discord_sticker_guild_id: str = Field(default="", pattern=r"^(|[0-9]{17,20})$")
+    discord_sticker_guild_name: str = Field(default="", max_length=100)
+    discord_sticker_accounts: set[str] = Field(default_factory=set)
+    signal_cli_executable: str = ""
+    signal_cli_data_dir: str = ""
+    signal_sticker_accounts: set[str] = Field(default_factory=set)
     private_library_enabled: bool = False
     enable_demo_library: bool = False
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, gt=0)

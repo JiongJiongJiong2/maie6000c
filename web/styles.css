@@ -842,6 +842,32 @@ footer {
 .secondary:hover:not(:disabled) {
   background: #eee5ff;
 }
+.sticker-export-actions {
+  display: grid;
+  gap: 6px;
+  clear: both;
+  min-width: 0;
+}
+.sticker-export-actions > button {
+  min-height: 44px;
+}
+.sticker-export-actions > p {
+  margin: 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.sticker-export-actions > p:empty {
+  display: none;
+}
+.sticker-export-link {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 44px;
+  font-size: 13px;
+  font-weight: 700;
+  text-underline-offset: 3px;
+}
 .full {
   width: 100%;
 }
@@ -1084,6 +1110,20 @@ footer {
 }
 .candidate-body {
   padding: 10px;
+}
+#telegram-save-qr {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto 16px;
+}
+#telegram-login-form {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+#telegram-login-form :is(input, select) {
+  width: 100%;
 }
 .candidate-body p {
   margin: 0 0 7px;
@@ -2368,7 +2408,7 @@ html[data-motion="off"] .progress-track > span {
   box-shadow: none;
   font-size: 14px;
 }
-.meme50-grid .candidate-body a {
+.meme50-grid .candidate-body a:not(.sticker-export-link) {
   width: fit-content;
   padding: 3px 0;
   color: #604373;
@@ -2461,7 +2501,8 @@ html[data-motion="off"] .progress-track > span {
   padding: 1.35rem var(--library-gutter) 1.6rem;
   border-top: 1px solid var(--library-edge);
 }
-#private-library :is(button, input:not([type="checkbox"]), select) {
+#private-library :is(button, input:not([type="checkbox"]), select),
+#telegram-login-form :is(input, select) {
   font-size: 1rem;
   line-height: 1.25;
   border: 1px solid #b5afa6;
@@ -2648,7 +2689,7 @@ html[data-motion="off"] .progress-track > span {
   accent-color: #614480;
   margin: 0;
 }
-.library-confirm {
+.dialog-panel {
   width: min(26rem, calc(100% - 2rem));
   max-height: calc(100% - 2rem);
   padding: clamp(1.1rem, 4vw, 1.65rem);
@@ -2659,19 +2700,20 @@ html[data-motion="off"] .progress-track > span {
   box-shadow: 4px 4px 0 var(--purple);
   font: inherit;
 }
-.library-confirm::backdrop {
+.dialog-panel::backdrop {
   background: rgb(34 33 38 / 0.42);
 }
-#private-library .library-confirm h2 {
+.dialog-panel h2 {
   font:
     700 1.5rem/1.2 "Computer Modern",
     Georgia,
     serif;
 }
-#private-library .library-confirm p {
+.dialog-panel > p,
+#private-library .dialog-panel > p {
   margin-top: 0.65rem;
 }
-.library-confirm form {
+.dialog-panel form[method="dialog"] {
   display: flex;
   justify-content: flex-end;
   gap: 0.55rem;

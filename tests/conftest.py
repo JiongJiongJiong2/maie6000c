@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from services.api.app.main import app
 from services.common.db import Base, get_db, make_engine, make_session_factory
-from services.common.config import get_settings
+from services.common.config import Settings, get_settings
 from services.search_agent.meme_types import MemeSettings
 from services.search_agent.settings import SearchAgentSettings
 from services.meme_agent.settings import AgentSettings
@@ -49,6 +49,7 @@ def isolated_storage(tmp_path, monkeypatch, request):
     if request.node.get_closest_marker("smoke") is not None:
         yield
         return
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
     monkeypatch.setenv("MEDIA_ROOT", str(tmp_path / "media"))
     monkeypatch.setenv("REFERENCE_ROOT", str(tmp_path / "reference"))
     monkeypatch.setenv("MODEL_CACHE_ROOT", str(tmp_path / "models"))

@@ -26,6 +26,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+telegram = [
+  "phonenumberslite==9.0.44",
+  "qrcode==8.2",
+  "telethon==1.45.0",
+]
 search = [
   "ddgs==9.16.1",
 ]

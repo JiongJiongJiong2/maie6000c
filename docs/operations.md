@@ -8,6 +8,93 @@ For the current web application, open `/web/`. The **Local only** mode uses the 
 
 The Windows native launcher starts PostgreSQL, API, worker, and the media fetcher. The fetcher binds to loopback port 8120 and receives only the host process variables it needs. The Docker-based local launcher also exposes its isolated fetch service on loopback. For an account-based demo, enable both `ACCOUNT_LOGIN_ENABLED` and `PRIVATE_LIBRARY_ENABLED`. For resolver environments that return non-public addresses for public media sites, `MEME50_DNS_MODE=doh` uses the supported public DNS resolution mode with peer and TLS verification. The default system resolver remains available.
 
+## Enable Telegram GIF collection
+
+Set `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` in the API environment using the
+credentials from [Telegram API development tools](https://my.telegram.org/apps).
+Account mode uses the existing MemeRetrieve session and private workspace. For a
+local single-user deployment with account mode disabled, set `DEVICE_TOKEN`.
+The Compose API image includes the Telegram dependencies. For a native API
+installation, run `python -m pip install -e ".[telegram]"`.
+
+Open `/web/` over HTTPS on the phone. Route `/web/`, `/auth/`, `/telegram/`,
+and the other API paths to the same service. Preserve the external `Host` and
+have the proxy replace the incoming `X-Forwarded-Proto` with `https`. Set
+`FORWARDED_ALLOW_IPS` in the API container to the address of the proxy. This
+feature keeps sessions in the API process and requires a single API process.
+
+On a GIF candidate, tap **Add to Telegram GIFs**. Choose a country or region
+code and enter the local phone number, or paste the complete international
+number. Switch to Telegram to get the code and return to the same browser tab.
+The connection lasts up to 15 minutes. Reloading the page requires authorization
+again. Disconnecting from the page or signing out of MemeRetrieve ends the
+browser's Telegram session.
+
+## Add GIFs to Discord Stickers
+
+### Use on a phone
+
+1. Open MemeRetrieve and sign in with an account enabled for Discord. Find an animated GIF in
+   search results or open **My GIF Library**. In a local search, select **This is the one** first.
+2. Tap **Add to Discord Stickers**. The GIF is added to the named server’s shared sticker library,
+   where members can use it. The page shows **Added to Discord** and the sticker’s name.
+   **Already in Discord** means the server already has that GIF and you can use the existing sticker.
+3. Tap **Open Discord server** and sign in to Discord with an account that belongs to the server.
+   In a channel where you can send messages, open the expression
+   picker beside the message field and select **Stickers**. Find the sticker by the name shown
+   on the web page and tap it to send. [Discord custom stickers guide](https://support.discord.com/hc/en-us/articles/4403089981975-Custom-Stickers-FAQ)
+
+If the button is missing, check that you signed in with an enabled account and picked an animated
+GIF. If the page reports a full sticker library, a server admin can free up a slot. For an
+interrupted connection, tap **Retry adding to Discord**. The server checks for the GIF before
+creating a sticker, so retrying after a lost response uses the existing slot.
+
+### Configure the Discord server
+
+1. Create an app in the [Discord Developer Portal](https://discord.com/developers/applications).
+   In **Installation**, enable **Guild Install**, add the `bot` scope and select
+   **Create Expressions**. Use the install link to authorize the app on the destination server.
+2. Enable **Developer Mode** in Discord, then right-click the server icon and choose
+   **Copy Server ID**. [Discord guide to finding IDs](https://support.discord.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID)
+3. In the API environment, enable `ACCOUNT_LOGIN_ENABLED`. Set `DISCORD_BOT_TOKEN`,
+   `DISCORD_STICKER_GUILD_ID` and `DISCORD_STICKER_ACCOUNTS`. The last value is a JSON list of
+   MemeRetrieve usernames, such as `["tester"]`. Set `DISCORD_STICKER_GUILD_NAME` to show the
+   server’s display name on the button card. Keep the bot token in the API environment.
+4. Restart the API. Run a single API process so simultaneous requests for the same GIF are
+   serialized. Sign in with an enabled account and follow the phone workflow above.
+
+Discord accepts animated stickers up to 512 KiB, five seconds and 320 × 320 pixels. When needed,
+MemeRetrieve resizes or trims the copy uploaded to Discord and keeps the original GIF in the
+library. [Discord sticker API](https://docs.discord.com/developers/resources/sticker#create-guild-sticker)
+
+## Create Signal sticker packs on demand
+
+1. On an animated GIF result or a card in **My GIF Library**, tap **Add Sticker to Signal**. On a
+   local search result, tap **This is the one** first. MemeRetrieve creates a pack with that one
+   animated sticker on the first request. Later requests for the same GIF reuse the pack link.
+2. Tap **Open Signal to install**, then confirm **Install** in Signal. Open the chat sticker picker
+   to send it. Long-press the sticker in Signal to add it to personal **Favorites**.
+   [Signal sticker guide](https://support.signal.org/hc/en-us/articles/360031836512-Stickers)
+
+To enable a pilot, install a current [signal-cli release](https://github.com/AsamK/signal-cli/releases)
+and its required runtime where the API runs. Link a dedicated test Signal account once using
+`signal-cli --data-dir /path/to/signal-cli-account link -n MemeRetrieve`. Set
+`SIGNAL_CLI_EXECUTABLE` to the executable or command on the API’s PATH, `SIGNAL_CLI_DATA_DIR` to the
+data directory containing the linked account, and `SIGNAL_STICKER_ACCOUNTS` to a JSON list of enabled
+MemeRetrieve usernames. Use a data directory with one Signal account. For Compose, the API container
+needs that executable, its runtime dependencies, and the linked account directory mounted with
+read/write access for the API user. Restart the API after configuring it.
+
+Run one API process per publishing account so upload requests are serialized. Persist the API’s
+`MEDIA_ROOT` so the same source GIF can reuse the cached pack link after a restart. The API prepares
+a 512 × 512 APNG within 300 KB and three seconds, then calls `uploadStickerPack`. signal-cli is a
+third-party client. If an upload times out before returning a link, Signal may already have received
+it. Use material you have permission to distribute. Anyone with a pack link can open it, and Signal
+does not support editing or deleting an uploaded pack.
+[signal-cli command reference](https://github.com/AsamK/signal-cli/blob/master/man/signal-cli.1.adoc#uploadstickerpack)
+
+## Local verification
+
 The W07 supported local profile runs host Python API and worker processes with Docker PostgreSQL. Follow [the local demo guide](local-demo.md), including PowerShell commands, preparation, and verification. Python 3.11 and Docker Desktop are required; Node.js is needed for browser tests. Model weights, corpus, and index must be prepared before startup. The base application Docker image lacks the optional retrieval dependencies and is not the verified inference deployment.
 
 The runner applies migrations, imports the corpus, creates an ignored random-password environment file, and starts separate API/worker processes. API: `http://127.0.0.1:8000`; web: `/web/`; database: loopback port 55432 in the `memeretrieve-local` Compose project. Stop the runner with Ctrl+C. Stop PostgreSQL without deleting records using:
