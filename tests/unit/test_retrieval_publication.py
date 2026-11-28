@@ -21,7 +21,9 @@ def test_failed_publication_keeps_previous_index(tmp_path, monkeypatch):
     monkeypatch.setattr(engine, "corpus", lambda: (manifest, "digest"))
     monkeypatch.setattr(engine, "read_gif", lambda _: (data, 1))
     monkeypatch.setattr(
-        engine, "get_settings", lambda: SimpleNamespace(reference_root=tmp_path, vector_backend="npz")
+        engine,
+        "get_settings",
+        lambda: SimpleNamespace(reference_root=tmp_path, vector_backend="npz"),
     )
     monkeypatch.setattr(engine, "encode_images", lambda images: np.ones((len(images), 512)))
     index = tmp_path / "index.npz"

@@ -23,3 +23,7 @@
 固定参考库的 12 个 GIF 在同一阈值 `0.82`、同一模型、同一组输入下，首帧索引 Top-3 为 11/12，多帧索引 Top-3 为 12/12。输入取自每个源 GIF 约三分之一处的帧。逐项 SHA、帧号、得分与实际耗时在结果文件中。[本次本地运行](local-corpus-evaluation.json) · [评估方法](../../docs/yuanjian-benchmark-guide.md)
 
 [技术总结](final-technical-brief.md)记录工程验证和检索局限。[AI 使用说明](ai-use-statement.md)记录模型职责及验证方式。独立用户截图的真实命中率、其他成员的复现签字，以及课程平台的提交回执由团队另行确认。
+
+## pgvector 与产品部署
+
+已验证原账户库的逻辑恢复、旧收藏回填、固定参考库 96 帧同步，及跨账户隔离。使用正式网页收藏一份 44 帧 GIF，重启和断网后通过 pgvector 在第 1 名找回，下载文件与原件逐字节一致。移除一条旧收藏的派生向量后，NPZ 回退找回同一资产。公共参考库另用 Noto 样例验证第 1 名、原件下载和无候选三种状态。 [迁移、离线与下载回执](pgvector-verification.json) · [产品使用与 Docker 部署](../../docs/product-deployment.md)
