@@ -1,0 +1,115 @@
+{
+  "date": "2026-11-28",
+  "task": "Paired screenshot crop for exact animated original retrieval",
+  "units": "Each query is one encoded synthetic image. Multiple conditions share the same target. Stress uses a subset of final targets.",
+  "arms_in_order": [
+    "full_decoded_input",
+    "pixel_only_proposal_else_full",
+    "generator_box_from_same_decoded_input"
+  ],
+  "metrics": {
+    "positive": "Count queries where exact target file is in the thresholded top 3.",
+    "negative": "Count out-of-library queries returning one or more other files above threshold. User acceptance requires a separate human evaluation."
+  },
+  "protocol": {
+    "cohort": "animated_original",
+    "sample_selection": "All eligible cases in final. For development and stress, take assets round-robin across sorted families within each category, ordered by ID in family.",
+    "freeze": "Initial detector abstained on all 120 chat-context development inputs. Revised detector was frozen after development, before running final or stress. Existing final full-image aggregate had already been seen.",
+    "catalog": "168 animated and 1412 static originals, up to 8 frames per animated asset, max cosine similarity over frames per asset.",
+    "stress": "The same resized tile is tested alone as PNG, in a tall chat layout as PNG and JPEG quality 52, and in that JPEG condition with its bottom 30% occluded. The stress layout was first evaluated after freeze.",
+    "real_chat_screenshots": 0,
+    "human_judgments": 0,
+    "final_negative_skew": "Of 113 out-of-library targets, 106 are happycat. Target SHA overlap with library is zero."
+  },
+  "config": {
+    "detector_sha256": "c5e519bca0e181c60db3d7fc8256715b883b90696d319f0b21c510f44a56390b",
+    "evaluation_script_sha256": "8563227f023d42ed199bf135be3ca1a332e1bb6937a2067eee2352c2d8148058",
+    "manifest_sha256": "87a83484db5e11f9a9f01d24b623c11691afdfa0683145d5f9a4b9a40b5b1d99",
+    "encoder": "clip-vit-base-patch32@37000f5cdccec47a3f6f83142bff131370757470",
+    "threshold": 0.82,
+    "top_k": 3,
+    "index_assets": 1580,
+    "index_frames": 2284,
+    "index_sha256": "9eac384548151b4de6584ad635e450fe032c9071d76511fec62ad37adf7cf1e1",
+    "fallback": "whole image",
+    "development_asset_limit_per_category": 20,
+    "stress_asset_limit_per_category": 12,
+    "stress_tile_source": "resized tight_crop; same pixels pasted into an additional tall UI"
+  },
+  "historical_full_arm_results_sha256": "13505dd1f290b51ed6f8f35c5b2877d22c955662c648ce1c95bb0a170a2b39ba",
+  "columns": [
+    "transform",
+    "positive_queries",
+    "exact_top3_full",
+    "exact_top3_auto",
+    "exact_top3_oracle",
+    "negative_queries",
+    "any_candidate_full",
+    "any_candidate_auto",
+    "any_candidate_oracle",
+    "positive_proposals",
+    "negative_proposals"
+  ],
+  "splits": {
+    "development": {
+      "report_sha256": "929c12241c394b0e8cac1f67ac3a8ed37073914efc93a1e69ac3cd5d19bfabf9",
+      "development_report_sha256": null,
+      "archived_full_arm_matching_queries": 160,
+      "queries": 160,
+      "unique_targets": 40,
+      "negative_target_families": {
+        "兄弟你好香": 1,
+        "哈基米": 5,
+        "抹茶旦旦": 2,
+        "滑稽": 6,
+        "白色小人": 6
+      },
+      "results": [
+        ["tight_crop", 20, 20, 20, 20, 20, 18, 18, 18, 0, 0],
+        ["light_chat", 20, 0, 18, 18, 20, 0, 17, 17, 20, 19],
+        ["dark_chat", 20, 0, 17, 20, 20, 0, 16, 16, 19, 18],
+        ["caption_occlusion", 20, 0, 6, 7, 20, 0, 18, 16, 20, 20],
+        ["chat_context_only", 60, 0, 41, 45, 60, 0, 51, 49, 59, 57],
+        ["all", 80, 20, 61, 65, 80, 18, 69, 67, 59, 57]
+      ]
+    },
+    "final": {
+      "report_sha256": "5005644e1e74c1efd7ac594122abd2868fbe47cf3ab9225dab8ea9be34654cea",
+      "development_report_sha256": "929c12241c394b0e8cac1f67ac3a8ed37073914efc93a1e69ac3cd5d19bfabf9",
+      "archived_full_arm_matching_queries": 536,
+      "queries": 536,
+      "unique_targets": 134,
+      "negative_target_families": {
+        "happycat": 106,
+        "猫猫虫": 7
+      },
+      "results": [
+        ["tight_crop", 21, 21, 21, 21, 113, 107, 107, 107, 0, 0],
+        ["light_chat", 21, 1, 15, 20, 113, 0, 105, 109, 18, 111],
+        ["dark_chat", 21, 1, 16, 20, 113, 0, 109, 107, 18, 113],
+        ["caption_occlusion", 21, 0, 10, 12, 113, 0, 76, 91, 19, 111],
+        ["chat_context_only", 63, 2, 41, 52, 339, 0, 290, 307, 55, 335],
+        ["all", 84, 23, 62, 73, 452, 107, 397, 414, 55, 335]
+      ]
+    },
+    "stress": {
+      "report_sha256": "c0fd635f1f13ec0b63b54da1c41105fabdc71f4b8aca8b0de7be5eeed6bc78b0",
+      "development_report_sha256": "929c12241c394b0e8cac1f67ac3a8ed37073914efc93a1e69ac3cd5d19bfabf9",
+      "archived_full_arm_matching_queries": null,
+      "queries": 96,
+      "unique_targets": 24,
+      "negative_target_families": {
+        "happycat": 6,
+        "猫猫虫": 6
+      },
+      "results": [
+        ["tile_png", 12, 12, 12, 12, 12, 11, 11, 11, 0, 0],
+        ["wallpaper_png", 12, 0, 9, 12, 12, 0, 5, 11, 10, 8],
+        ["wallpaper_jpeg", 12, 0, 9, 11, 12, 0, 6, 9, 10, 10],
+        ["occluded_jpeg", 12, 0, 2, 7, 12, 0, 4, 7, 10, 11],
+        ["chat_context_only", 36, 0, 20, 30, 36, 0, 15, 27, 30, 29],
+        ["all", 48, 12, 32, 42, 48, 11, 26, 38, 30, 29]
+      ]
+    }
+  }
+}
