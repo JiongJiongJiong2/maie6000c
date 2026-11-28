@@ -12,6 +12,8 @@ Use the [container release guide](docs/container-release.md) to deploy the versi
 The [architecture decision records](docs/adrs/README.md) summarize the product's
 implemented choices, alternatives, and trade-offs.
 
+The [Chinese meme retrieval benchmark](docs/retrieval-benchmark-at-scale.md) compares first-frame and multi-frame retrieval using frozen GIFs, static distractors and screenshot transformations. Its [Label Studio review guide](docs/retrieval-label-studio.md) explains how to inspect ambiguous candidates and export independent judgments.
+
 ## Earlier milestones and experiments
 
 An independent [meme search agent v1](docs/meme-agent-v1.md) now runs at `http://127.0.0.1:8010/studio/`: DeepSeek query planning, live template discovery, local caption editing, explicit confirmation, and persistent SQLite/CLIP collection reuse. Start it with `.venv/Scripts/python.exe scripts/run_meme_agent.py`. This experimental branch uses a minimal functional UI and a bounded template catalog; it does not provide unrestricted reverse image search or multi-user hosting. It is separate from the W07 stack below.
