@@ -6,7 +6,7 @@ The web worker uses HKUST vision by default or an explicitly selected HKGAI visi
 
 ## Run and verify
 
-Follow the [local setup guide](docs/local-demo.md) to download the attributed reference GIFs and pinned model, build the index, and start the stack. Use the [provider configuration guide](docs/hkust-deepseek-execution.md) for live retrieval and the [operations guide](docs/operations.md) for persistent storage. The [W13 delivery report](submissions/week13/README.md) includes the demo steps, engineering evidence, and evaluation limits. The [database design](docs/database-and-vector-search.md) covers the deployed relational and vector stores and a compatible pgvector migration path.
+Start with the [product and Docker guide](docs/product-deployment.md) for accounts, GIF search and collection, PostgreSQL with pgvector, and existing database upgrades. The [native setup guide](docs/local-demo.md) covers the local Python launcher. See the [W13 delivery report](submissions/week13/README.md) for verification and the [database design](docs/database-and-vector-search.md) for storage details.
 
 ## Earlier milestones and experiments
 

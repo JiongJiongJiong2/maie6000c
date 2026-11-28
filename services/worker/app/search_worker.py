@@ -388,6 +388,7 @@ def process_search_job(job_id: str, retriever: Retriever = invoke_retrieval) -> 
                     "job_kind": job.job_kind,
                     "candidate_count": len(result.matches),
                     "duration_seconds": elapsed_seconds(job.started_at, finished_at),
+                    "vector_backend": result.vector_backend,
                 },
             )
     except BaseException:

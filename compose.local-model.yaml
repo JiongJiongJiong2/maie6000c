@@ -2,7 +2,7 @@
 # volume stays writable for the GIF feature index and its readiness check.
 x-clip-mount: &clip-mount
   type: bind
-  source: ./data/models/clip-vit-base-patch32
+  source: ${CLIP_MODEL_HOST_PATH:-./data/models/clip-vit-base-patch32}
   target: /data/models/clip-vit-base-patch32
   read_only: true
   bind:

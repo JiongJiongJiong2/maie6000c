@@ -29,7 +29,8 @@ CMD ["uvicorn", "services.api.app.main:app", "--host", "0.0.0.0", "--port", "800
 # Only the inference worker installs the local model runtime.
 FROM base AS worker
 USER root
-RUN python -m pip install -e ".[search,retrieval]"
+RUN python -m pip install torch==2.9.0 --index-url https://download.pytorch.org/whl/cpu \
+    && python -m pip install -e ".[search,retrieval]"
 USER 10001:10001
 
 # This target receives no DB credentials, model keys, media volume or private network.

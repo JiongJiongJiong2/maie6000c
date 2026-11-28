@@ -9,6 +9,7 @@ import re
 
 from sqlalchemy.engine import make_url
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -26,6 +27,7 @@ class Settings(BaseSettings):
     reference_root: Path = Path("data/reference")
     model_cache_root: Path = Path("data/models")
     account_login_enabled: bool = False
+    vector_backend: Literal["npz", "pgvector"] = "npz"
     device_token: str = ""
     private_library_enabled: bool = False
     enable_demo_library: bool = False

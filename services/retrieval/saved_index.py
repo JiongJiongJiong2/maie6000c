@@ -1,5 +1,6 @@
 """Persist and validate the frame embeddings for a single saved GIF."""
 
+import argparse
 import io
 import json
 import logging
@@ -10,7 +11,7 @@ import numpy as np
 from PIL import Image
 from sqlalchemy import select
 
-from services.common.config import get_settings
+from services.common.config import get_settings, use_workspace
 from services.common.db import get_session_factory
 from services.common.search_models import SavedAsset
 from services.common.storage import atomic_write, contained_path, sha256, validate_image
@@ -92,10 +93,10 @@ def index_saved_asset(asset_id: str) -> str:
     if validate_image(data, animated_gif=True) != asset.frame_count:
         raise ValueError("Saved GIF frame count mismatch")
     metadata, version = identity(asset)
+    frames = frame_numbers(asset.frame_count)
     try:
-        load_vectors(asset, version)
+        vectors = load_vectors(asset, version)
     except INVALID_INDEX:
-        frames = frame_numbers(asset.frame_count)
         images = []
         with Image.open(io.BytesIO(data)) as gif:
             for frame in frames:
@@ -108,11 +109,17 @@ def index_saved_asset(asset_id: str) -> str:
         atomic_write(
             get_settings().media_root, index_location(asset, version), output.getvalue()
         )
-        load_vectors(asset, version)
+        vectors = load_vectors(asset, version)
+    if get_settings().vector_backend == "pgvector":
+        from services.retrieval.vector_store import store_asset_vectors
+
+        # The verified NPZ remains the durable fallback if the mirror is unavailable.
+        if not store_asset_vectors(asset, version, frames, vectors):
+            logger.warning("saved_asset_vector_mirror_unavailable", extra={"asset_id": asset.id})
     return version
 
 
-def ready_vectors():
+def ready_assets():
     with get_session_factory()() as db:
         assets = db.scalars(
             select(SavedAsset).where(
@@ -120,7 +127,11 @@ def ready_vectors():
             )
         ).all()
         db.expunge_all()
-    for asset in assets:
+    return assets
+
+
+def ready_vectors():
+    for asset in ready_assets():
         try:
             vectors = load_vectors(asset, asset.index_version)
             read_saved_gif(asset)
@@ -129,3 +140,43 @@ def ready_vectors():
             logger.warning(
                 "saved_asset_index_unusable", extra={"asset_id": asset.id}, exc_info=True
             )
+
+
+def backfill_saved_vectors():
+    """Mirror already-validated generations for the selected workspace."""
+    from services.retrieval.vector_store import store_asset_vectors
+
+    if get_settings().vector_backend != "pgvector":
+        raise ValueError("Set VECTOR_BACKEND=pgvector before backfilling")
+    assets = ready_assets()
+    report = {"ready": len(assets), "mirrored": 0, "unusable": 0, "unavailable": 0}
+    for asset in assets:
+        try:
+            vectors = load_vectors(asset, asset.index_version)
+            read_saved_gif(asset)
+        except INVALID_INDEX:
+            report["unusable"] += 1
+            continue
+        frames = frame_numbers(asset.frame_count)
+        if store_asset_vectors(asset, asset.index_version, frames, vectors):
+            report["mirrored"] += 1
+        else:
+            report["unavailable"] += 1
+    return report
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Backfill the saved GIF pgvector mirror")
+    parser.add_argument("--workspace", required=True, help="public or an account workspace name")
+    args = parser.parse_args()
+    try:
+        with use_workspace(args.workspace):
+            report = backfill_saved_vectors()
+    except ValueError as exc:
+        parser.error(str(exc))
+    print(json.dumps({"workspace": args.workspace, **report}))
+    return int(report["ready"] != report["mirrored"])
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

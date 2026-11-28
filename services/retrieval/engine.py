@@ -81,6 +81,40 @@ def rank_assets(embeddings, asset_ids, query, top_k: int, minimum: float) -> lis
     ]
 
 
+def local_matches(embeddings, ids, query, top_k, minimum):
+    if get_settings().vector_backend == "pgvector":
+        from services.retrieval.vector_store import rank_saved_vectors
+
+        saved = rank_saved_vectors(query, top_k, minimum)
+        if saved is not None:
+            reference = rank_assets(embeddings, ids, query, top_k, minimum)
+            # Keep the original ordering if numeric rounding could change the
+            # ranking across backends, or the two catalogs contain the same ID.
+            overlap = {item["reference_asset_id"] for item in saved}.intersection(ids)
+            close_scores = any(
+                abs(left["score"] - right["score"]) <= 0.0002
+                for left in reference
+                for right in saved
+            )
+            if not overlap and not close_scores:
+                return sorted(
+                    reference + saved,
+                    key=lambda item: (-item["score"], item["reference_asset_id"]),
+                )[:top_k], "pgvector"
+        backend = "npz_fallback"
+    else:
+        backend = "npz"
+
+    from services.retrieval.saved_index import ready_vectors
+
+    batches = [embeddings]
+    asset_ids = list(ids)
+    for asset_id, vectors in ready_vectors():
+        batches.append(vectors)
+        asset_ids.extend([asset_id] * len(vectors))
+    return rank_assets(np.concatenate(batches), asset_ids, query, top_k, minimum), backend
+
+
 def search(image_path: Path, top_k: int = 3) -> dict:
     if type(top_k) is not int or not 1 <= top_k <= 3:
         raise ValueError("top_k must be between 1 and 3")
@@ -106,18 +140,12 @@ def search(image_path: Path, top_k: int = 3) -> dict:
             raise ValueError("The GIF index does not match the corpus")
         with Image.open(image_path) as image:
             query = encode_image(image)
-    from services.retrieval.saved_index import ready_vectors
-
-    batches = [embeddings]
-    asset_ids = list(ids)
-    for asset_id, vectors in ready_vectors():
-        batches.append(vectors)
-        asset_ids.extend([asset_id] * len(vectors))
-    matches = rank_assets(np.concatenate(batches), asset_ids, query, top_k, minimum)
+    matches, backend = local_matches(embeddings, ids, query, top_k, minimum)
     return {
         "matches": matches,
         "model_version": MODEL_VERSION,
         "corpus_version": manifest.corpus_version,
+        "vector_backend": backend,
     }
 
 

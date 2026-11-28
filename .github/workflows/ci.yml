@@ -9,10 +9,14 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres_image: [postgres:16-alpine, pgvector/pgvector:0.8.7-pg16]
 
     services:
       postgres:
-        image: postgres:16-alpine
+        image: ${{ matrix.postgres_image }}
         env:
           POSTGRES_DB: maie6000c
           POSTGRES_USER: postgres
