@@ -195,7 +195,7 @@
             </div>
           </div>
           <dialog
-            class="library-confirm"
+            class="dialog-panel"
             id="library-analysis-confirm"
             aria-labelledby="library-confirm-title"
             aria-describedby="library-confirm-description"
@@ -732,6 +732,58 @@
       ><a href="#hero-title">Back to the weird stuff ↑</a>
     </footer>
     <div id="celebration" class="celebration" aria-hidden="true"></div>
+    <dialog
+      class="dialog-panel"
+      id="telegram-save-dialog"
+      aria-labelledby="telegram-save-title"
+    >
+      <h2 id="telegram-save-title">Add to Telegram GIFs</h2>
+      <p id="telegram-save-status" role="status"></p>
+      <form id="telegram-login-form" hidden>
+        <div id="telegram-login-region-field">
+          <label id="telegram-region-label" for="telegram-login-region">
+            Country or region code
+          </label>
+          <select id="telegram-login-region">
+            <option value="">Choose a code</option>
+          </select>
+        </div>
+        <label id="telegram-login-label" for="telegram-login-value"></label>
+        <input
+          id="telegram-login-value"
+          aria-describedby="telegram-login-hint"
+          required
+        />
+        <small id="telegram-login-hint"></small>
+        <button
+          id="telegram-login-submit"
+          type="submit"
+          class="primary"
+        ></button>
+        <button id="telegram-login-restart" type="button" class="quiet" hidden>
+          Request a new code
+        </button>
+      </form>
+      <button id="telegram-login-switch" type="button" class="quiet" hidden>
+        Use a verification code
+      </button>
+      <img
+        id="telegram-save-qr"
+        width="220"
+        height="220"
+        alt="Telegram sign-in QR code"
+        hidden
+      />
+      <button id="telegram-save-retry" type="button" class="primary" hidden>
+        Retry
+      </button>
+      <button id="telegram-save-close" type="button" class="secondary">
+        Close
+      </button>
+      <button id="telegram-save-disconnect" type="button" class="quiet" hidden>
+        Disconnect Telegram
+      </button>
+    </dialog>
     <noscript
       ><p class="notice">
         Enable JavaScript to upload images and search for GIFs.

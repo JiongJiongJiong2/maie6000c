@@ -4,6 +4,8 @@ Recover an animated GIF from a screenshot, review the original, and save it for 
 
 The web worker uses HKUST vision by default or an explicitly selected HKGAI vision model. DeepSeek plans queries and searches the web. A separate public media fetch service retrieves candidates, and CLIP ranks their decoded content. Confirming a GIF saves the original bytes and schedules multi-frame indexing. PostgreSQL stores job and asset state, and versioned local vectors support offline retrieval after restart.
 
+**Add to Telegram GIFs** adds the selected animation directly to the user's Telegram GIF picker without sending a chat message. On a phone, choose the country or region code, get a verification code, and return to the same browser tab to confirm. The temporary Telegram connection lasts up to 15 minutes. [Enable Telegram GIF collection](docs/operations.md#enable-telegram-gif-collection)
+
 ## Run and verify
 
 Follow the [local setup guide](docs/local-demo.md) to download the attributed reference GIFs and pinned model, build the index, and start the stack. Use the [provider configuration guide](docs/hkust-deepseek-execution.md) for live retrieval and the [operations guide](docs/operations.md) for persistent storage. The [W13 delivery report](submissions/week13/README.md) includes the demo steps, engineering evidence, and evaluation limits. The [database design](docs/database-and-vector-search.md) covers the deployed relational and vector stores and a compatible pgvector migration path.

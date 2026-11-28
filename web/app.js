@@ -1,5 +1,6 @@
 import { mountLibrary } from "./library.js";
 import { mountGifShare } from "./share.js";
+import { mountTelegramSave } from "./telegram.js";
 import { memeStatus, renderMemeResults, disposeMemeResults } from "./meme50.js";
 import { Api, combineSignals, validAccepted, validStatus } from "./api.js";
 import {
@@ -312,9 +313,13 @@ function renderOnline() {
     renderMemeResults($("web-candidates"), result, api, lifetime.signal, {
       download: downloadMeme,
       favorite: mountFavorite,
-      share: (body, download, id, url, signal) =>
-        mountGifShare(api, body, download, id, url, signal),
+      share: mountCandidateSharing,
     });
+}
+
+function mountCandidateSharing(body, download, candidateId, mediaUrl, signal) {
+  mountGifShare(api, body, download, candidateId, mediaUrl, signal);
+  mountTelegramSave(api, body, download, candidateId, signal);
 }
 
 function makeButton(label, className, handler) {
@@ -367,8 +372,7 @@ function renderCandidates(candidates) {
         (candidate.frame_count == null || candidate.frame_count > 1) &&
         candidate.media_kind !== "static"
       ) {
-        mountGifShare(
-          api,
+        mountCandidateSharing(
           body,
           download,
           candidate.candidate_id,

@@ -23,6 +23,7 @@ from services.api.app.demo import router as demo_router
 from services.api.app.library import activate_library, router as library_router
 from services.api.app.search import router as search_router
 from services.api.app.meme_search import router as meme_router
+from services.api.app.telegram import close_telegram_sessions, router as telegram_router
 from services.common.config import configure_logging, get_settings
 from services.common.db import get_db, get_session_factory
 from services.common.models import Case, CaseStatus, Job, JobStatus, JobType
@@ -46,7 +47,10 @@ async def lifespan(app: FastAPI):
             raise RuntimeError("Private library requires a non-empty DEVICE_TOKEN")
         with get_session_factory()() as db:
             activate_library(db)
-    yield
+    try:
+        yield
+    finally:
+        await close_telegram_sessions()
 
 
 app = FastAPI(title="MAIE 6000C Starter API", version="0.1.0", lifespan=lifespan)
@@ -54,6 +58,7 @@ app.middleware("http")(select_account)
 app.include_router(accounts_router)
 app.include_router(library_router)
 app.include_router(search_router)
+app.include_router(telegram_router)
 
 HTTP_REQUESTS = Counter(
     "api_http_requests_total",

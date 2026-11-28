@@ -64,6 +64,13 @@ async def select_account(request: Request, call_next):
             "sec-fetch-site"
         ) == "cross-site":
             return JSONResponse({"detail": "Open this action in your library."}, status_code=403)
+    if path == "/auth/logout" and request.method == "POST":
+        from services.api.app.telegram import disconnect_browser
+
+        response = await call_next(request)
+        if response.status_code == 200:
+            await disconnect_browser(request)
+        return response
     if path.startswith("/auth/") or path in {"/health/live", "/health/ready", "/metrics", "/"}:
         return await call_next(request)
     if path.startswith("/web/") and path != "/web/":
