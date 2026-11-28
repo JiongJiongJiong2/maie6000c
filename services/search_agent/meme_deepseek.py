@@ -28,6 +28,13 @@ SITE_OPERATOR = re.compile(r"(?<!\S)-?site:(\S+)", re.I)
 GIF_INTENT = re.compile(r"(?<![a-z0-9.])gifs?(?![a-z0-9])", re.I)
 ANIMATION_INTENT = re.compile(r"\b(?:animat(?:ed|ion)|loop(?:s|ing)?)\b|动图|動圖|动画|動畫", re.I)
 VISUAL_QUERY_ANGLES = {"appearance", "action", "visual_description"}
+HAKIMI_SPELLINGS = ("哈吉米", "哈基米")
+SPELLING_QUERY_ANGLES = VISUAL_QUERY_ANGLES | {"emotion", "theme", "caption_activity"}
+EXCLUSION_CUE = re.compile(
+    r"不是|不要|不用|不想|不搜|不找|不含|别搜|别查|别找|排除|去掉|避免|"
+    r"\b(?:not|never|avoid|exclude|without|except|don['’]?t)\b",
+    re.I,
+)
 
 
 def check_business_error(data, ledger):
@@ -202,6 +209,50 @@ def prioritize_user_source(queries, user_text, remaining_queries, ledger):
     return [scoped, broad[0], *(q for q in queries if q != broad[0] and q not in existing)][
         :remaining_queries
     ]
+
+
+def recover_hakimi_spelling(queries, empty_index, user_text, ocr_text, ledger):
+    """Adapt one remaining visual query after a successful search with zero sources."""
+    empty_text = queries[empty_index].text
+    if not any(term in empty_text for term in HAKIMI_SPELLINGS):
+        return False
+    for clause in re.split(r"[。！？!?，,；;\n]", user_text):
+        if any(term in clause for term in HAKIMI_SPELLINGS) and EXCLUSION_CUE.search(clause):
+            return False
+    for original, alternate in (HAKIMI_SPELLINGS, HAKIMI_SPELLINGS[::-1]):
+        if original not in empty_text or (original not in user_text and original not in ocr_text):
+            continue
+        if any(alternate in q.text for q in queries):
+            continue
+        start = empty_index + 1
+        remaining = min(
+            ledger.settings.max_queries - ledger.counts["queries"],
+            ledger.settings.max_search_calls - ledger.counts["search_calls"],
+        )
+        end = min(len(queries), start + remaining)
+        if explicit_user_source(user_text) and SITE_OPERATOR.search(queries[0].text):
+            start = max(2, start)  # Keep both reserved source and unrestricted queries.
+        for index in range(start, end):
+            planned = queries[index]
+            if planned.angle not in SPELLING_QUERY_ANGLES or SITE_OPERATOR.search(planned.text):
+                continue
+            # Leave quoted OCR intact. All other visual clues survive unchanged.
+            if original in planned.text and '"' not in planned.text:
+                text = planned.text.replace(original, alternate)
+            else:
+                text = f"{alternate} {planned.text}"
+            if len(text) > 128:
+                continue
+            queries[index] = planned.model_copy(update={"text": text})
+            ledger.note(
+                "empty_keyword_spelling_retry",
+                origin="user_text" if original in user_text else "ocr",
+                empty_query=queries[empty_index].text,
+                planned_query=planned.text,
+                replacement=text,
+            )
+            return True
+    return False
 
 
 class DeepSeekQueryPlanner:
