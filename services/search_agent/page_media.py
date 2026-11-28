@@ -6,7 +6,7 @@ from urllib.parse import urljoin, urlsplit
 
 from .captions import caption_overlap, image_label
 from .meme_types import MediaSource
-from .resolvers import CommonsOriginal, LicensedParrot, TenorOriginal
+from .resolvers import CommonsOriginal, LicensedParrot, TenorOriginal, is_commons_file_page
 
 
 class TenorRelated(HTMLParser):
@@ -211,7 +211,7 @@ def page_sources(source, data, final_url, phrases=(), *, gallery_limit=4):
         label = image_label(href, generic.image_labels.get(href, ""))
         return (-caption_overlap(phrases, label) if not specific else 0, order)
 
-    for _, href in sorted(clues, key=priority):
+    for order, href in sorted(clues, key=priority):
         url = urljoin(final_url, href)
         p = urlsplit(url)
         if (
@@ -230,6 +230,13 @@ def page_sources(source, data, final_url, phrases=(), *, gallery_limit=4):
                     **{
                         **source.model_dump(),
                         "media_url": url,
+                        "primary_page_host": host
+                        if order == -1
+                        and (
+                            not isinstance(specific, CommonsOriginal)
+                            or is_commons_file_page(urlsplit(final_url))
+                        )
+                        else None,
                         "source_type": "page-extracted",
                         "product_page": source.product_page or generic.product_page,
                         "image_caption": image_label(url, generic.image_labels.get(href, "")),
@@ -252,6 +259,7 @@ def page_sources(source, data, final_url, phrases=(), *, gallery_limit=4):
                         **source.model_dump(),
                         "source_url": permalink,
                         "media_url": media,
+                        "primary_page_host": None,
                         "title": title,
                         "source_type": "page-extracted",
                     }

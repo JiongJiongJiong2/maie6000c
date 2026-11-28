@@ -29,6 +29,158 @@ const candidates = Array.from({ length: 50 }, (_, i) => ({
 
 // Deliberately controlled responses: contract/UI checks, not live quality evidence.
 
+for (const mode of ["direct", "linked"]) {
+  test(`${mode} online search reuploads the saved screenshot only after confirmed input expiry`, async ({
+    page,
+  }) => {
+    const nextRequest = "10000000-0000-4000-8000-000000000002";
+    const nextJob = "20000000-0000-4000-8000-000000000002";
+    const local = {
+      ...accepted,
+      search_profile: "legacy",
+      job_kind: "local",
+      contract_version: 1,
+    };
+    const uploads = [];
+    const recoveries = [];
+    await page.route("**/health/ready", (route) =>
+      route.fulfill({ json: { status: "ok" } }),
+    );
+    await page.route("**/search-requests", async (route) => {
+      const request = route.request();
+      const form = await new Response(request.postDataBuffer(), {
+        headers: { "Content-Type": request.headers()["content-type"] },
+      }).formData();
+      uploads.push({
+        profile: form.get("search_profile"),
+        key: form.get("client_submission_key"),
+        description: form.get("description"),
+        bytes: Buffer.from(await form.get("image").arrayBuffer()),
+      });
+      return route.fulfill({
+        status: 202,
+        json:
+          uploads.length === 1
+            ? mode === "linked"
+              ? local
+              : accepted
+            : { ...accepted, request_id: nextRequest, job_id: nextJob },
+      });
+    });
+    await page.route(`**/search-requests/${requestId}`, (route) =>
+      route.fulfill({
+        json: {
+          ...local,
+          status: "completed",
+          result_kind: "no_candidates",
+          candidates: [],
+          local_job_id: jobId,
+          web_searches: [],
+        },
+      }),
+    );
+    await page.route(`**/search-jobs/${jobId}`, (route) =>
+      route.fulfill({
+        json: {
+          ...accepted,
+          job_kind: "web",
+          status: "failed",
+          error: {
+            code: "visual_provider_unconfigured",
+            message: "<img onerror=alert(1)>",
+          },
+        },
+      }),
+    );
+    const action =
+      mode === "linked"
+        ? `**/search-requests/${requestId}/web-search`
+        : `**/search-jobs/${jobId}/retry`;
+    await page.route(action, (route) => {
+      recoveries.push(route.request().postDataJSON());
+      if (mode === "direct" && recoveries.length === 1) {
+        return route.fulfill({
+          status: 503,
+          json: { detail: { message: "Temporary <img> failure" } },
+        });
+      }
+      return route.fulfill({
+        status: 410,
+        json: { detail: { code: "input_expired", message: "Expired" } },
+      });
+    });
+    await page.route(`**/search-jobs/${nextJob}`, (route) =>
+      route.fulfill({
+        json: {
+          ...accepted,
+          job_kind: "web",
+          request_id: nextRequest,
+          job_id: nextJob,
+          status: "completed",
+          result_revision: "empty",
+        },
+      }),
+    );
+    await page.route(`**/search-jobs/${nextJob}/results?*`, (route) =>
+      route.fulfill({
+        json: { revision: "empty", items: [], total: 0, total_all: 0 },
+      }),
+    );
+    await page.goto("/web/");
+    if (mode === "linked")
+      await page
+        .getByRole("radio", { name: "Local only", exact: true })
+        .check();
+    await page.locator("#file-input").setInputFiles({
+      name: "screenshot.png",
+      mimeType: "image/png",
+      buffer: png,
+    });
+    const description = "a cat with an orange hat";
+    if (mode === "direct") await page.locator("#description").fill(description);
+    await page.locator("#submit").click();
+    if (mode === "linked") {
+      await page.locator("#continue-description").fill(description);
+      await page.locator("#continue-submit").click();
+    } else {
+      await expect(page.locator("#status-title")).toContainText(
+        "DeepSeek API key",
+      );
+      await page.locator("#meme-retry").click();
+      await expect(page.locator("#retry-feedback")).toContainText(
+        "Temporary <img> failure",
+      );
+      await expect(page.locator("#retry-feedback img")).toHaveCount(0);
+      await page.locator("#refresh").click();
+      await expect(page.locator("#retry-feedback")).toBeVisible();
+      await page.locator("#meme-retry").click();
+      await expect.poll(() => recoveries.length).toBe(2);
+      expect(recoveries[0].client_retry_key).toBeTruthy();
+      expect(recoveries[1]).toEqual(recoveries[0]);
+    }
+    await expect(page.locator("#expired-input-message")).toContainText(
+      "screenshot has expired",
+    );
+    await expect(page.locator("#continue-submit")).toBeHidden();
+    await expect(page.locator("#meme-retry")).toBeHidden();
+    await page.reload();
+    await expect(page.locator("#reupload-online")).toBeVisible();
+    expect(uploads).toHaveLength(1);
+    await page.locator("#reupload-online").click();
+    await expect(page.locator("#status-description")).toContainText(
+      "optional description",
+    );
+    expect(uploads).toHaveLength(2);
+    expect(uploads[1]).toMatchObject({
+      profile: "meme50-v2",
+      description,
+      bytes: png,
+    });
+    expect(uploads[1].key).not.toBe(uploads[0].key);
+    await expect(page.locator("#expired-input")).toBeHidden();
+  });
+}
+
 test("search activity shows the active stage, real counts and executed queries after reload", async ({
   page,
 }) => {

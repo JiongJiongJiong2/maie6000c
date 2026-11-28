@@ -335,7 +335,7 @@ def finalize(db, job_id, payload):
 def process_meme_job(job_id, *, factory=None, event_stream=None):
     factory = factory or get_session_factory()
     settings = get_settings()
-    config = MemeSettings()
+    config = MemeSettings.for_online_search()
     public_config = config.model_dump(
         exclude={
             "gemini_api_key",
@@ -365,20 +365,13 @@ def process_meme_job(job_id, *, factory=None, event_stream=None):
         )
         if job.retry_of_job_id:
             previous = db.get(SearchJob, job.retry_of_job_id)
-            vision_field = {"hkust": "hkust_model", "hkgai": "hkgai_model"}.get(
-                config.vision_provider, "vision_model"
-            )
             if (
                 previous
                 and previous.request_id == request.id
                 and previous.description == job.description
-                and previous.configuration.get("provider_policy", "hkust-deepseek-v1")
-                == config.provider_policy
-                and all(
-                    previous.configuration.get(field, MemeSettings.model_fields[field].default)
-                    == public_config[field]
-                    for field in (vision_field, "deepseek_model")
-                )
+                and previous.configuration.get("provider_policy") == config.provider_policy
+                and previous.configuration.get("vision_provider") == config.vision_provider
+                and previous.configuration.get("deepseek_model") == config.deepseek_model
                 and previous.analysis
             ):
                 try:
@@ -386,7 +379,7 @@ def process_meme_job(job_id, *, factory=None, event_stream=None):
                 except ValidationError:
                     pass  # Older analysis formats can still start a fresh search.
                 else:
-                    if saved.user_text == (job.description or "") and saved.queries:
+                    if saved.can_reuse_for_online_search(config, job.description):
                         payload["saved_analysis"] = saved.model_dump(mode="json")
     work = Path(payload["work_dir"])
     work.mkdir(parents=True, exist_ok=True)

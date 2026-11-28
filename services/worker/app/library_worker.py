@@ -1,7 +1,6 @@
 """Local duplicate scans and consented vision jobs for the private library."""
 
 import logging
-import re
 from time import monotonic
 
 from sqlalchemy import func, select, tuple_, update
@@ -14,7 +13,7 @@ from services.common.models import utcnow
 from services.common.search_models import SavedAsset
 from services.retrieval.dedup import fingerprint, same_animation
 from services.retrieval.saved_index import read_saved_gif
-from services.search_agent.meme_providers import HKUSTVision
+from services.search_agent.meme_providers import vision_client
 from services.search_agent.meme_types import Ledger, MemeSettings, PipelineError
 
 logger = logging.getLogger("services.worker.library")
@@ -65,14 +64,14 @@ def claim_annotation(db):
 
 
 def annotate(asset, settings):
-    if not settings.hkust_api_key.strip():
+    if settings.provider_policy != "deepseek-only-v1" or settings.vision_provider != "deepseek":
         raise PipelineError("annotation_unconfigured")
-    if not re.fullmatch(r"[a-zA-Z0-9.\-]{1,100}", settings.hkust_model):
+    if len(settings.deepseek_model) > 100:
         raise PipelineError("visual_model_config")
     frames, records = annotation_frames(read_saved_gif(asset))
     ledger = Ledger(settings.model_copy(update={"timeout_seconds": settings.call_timeout_seconds}))
     ledger.take("model_calls")
-    vision = HKUSTVision(settings, ledger)
+    vision = vision_client(settings, ledger)
     data = vision.request(frames, PROMPT)
     try:
         result = Annotation.model_validate_json(vision.response_text(data))
@@ -88,11 +87,11 @@ def process_annotation(factory, job):
     started = monotonic()
     result = None
     error = None
-    settings = MemeSettings()
+    settings = MemeSettings.for_online_search()
     if (
         asset is None
         or asset.sha256 != digest
-        or annotation_version(settings.hkust_model) != version
+        or annotation_version(settings.deepseek_model) != version
     ):
         error = "annotation_input_changed"
     else:

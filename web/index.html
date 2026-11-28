@@ -202,9 +202,9 @@
           >
             <h2 id="library-confirm-title">Analyze selected GIFs?</h2>
             <p id="library-confirm-description">
-              For each GIF, up to four frames will be sent to the configured AI
-              vision service. These frames include any text or images visible in
-              the GIF.
+              Analyze sends up to four frames from each selected GIF to DeepSeek
+              for tagging. DeepSeek receives the text and images visible in
+              those frames.
             </p>
             <form method="dialog">
               <button value="cancel" autofocus>Cancel</button>
@@ -567,9 +567,9 @@
                 placeholder="For example: a happy reaction, or the same character looking angry"
               ></textarea>
               <p class="muted image-disclosure">
-                Resized images or representative frames are sent to external
-                visual and image-search services to understand and find related
-                memes.
+                Online search sends a resized image or representative frames to
+                the configured vision service (DeepSeek by default), then uses
+                text queries to find related memes.
               </p>
               <button id="submit" class="primary full" disabled>
                 Find my GIF ↗
@@ -691,8 +691,9 @@
                     rows="2"
                   ></textarea>
                   <p class="muted image-disclosure">
-                    Resized images or representative frames are sent to external
-                    visual and image-search services to find related memes.
+                    Online search sends a resized image or representative frames
+                    to the configured vision service (DeepSeek by default), then
+                    searches the web using text.
                   </p>
                   <button id="continue-submit" class="secondary" type="submit">
                     Continue online
@@ -700,6 +701,12 @@
                 </form>
                 <p id="continue-feedback" role="status"></p>
               </section>
+              <div id="expired-input" hidden>
+                <p id="expired-input-message" class="muted" role="status"></p>
+                <button id="reupload-online" class="secondary" type="button">
+                  Upload screenshot again and search online
+                </button>
+              </div>
               <section id="web-results" aria-labelledby="web-title" hidden>
                 <h3 id="web-title">Online results</h3>
                 <p id="web-status" role="status"></p>
@@ -758,6 +765,12 @@
                 <button id="meme-retry" class="secondary" hidden>
                   Retry search
                 </button>
+                <p
+                  id="retry-feedback"
+                  class="feedback"
+                  role="status"
+                  hidden
+                ></p>
                 <details id="analysis-details" hidden>
                   <summary>Image analysis</summary>
                   <p id="meme-analysis"></p>

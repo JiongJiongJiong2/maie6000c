@@ -475,22 +475,27 @@ def edit_asset(asset_id: UUID, payload: MetadataEdit, db: Database) -> dict:
 class AnnotationRequest(BaseModel):
     asset_ids: list[UUID] = Field(min_length=1, max_length=20)
     consent: StrictBool
+    consent_provider: Literal["deepseek"]
 
 
 @router.post("/annotations")
 def request_annotations(payload: AnnotationRequest, db: Database) -> dict:
     if not payload.consent:
         raise fail(422, "annotation_consent_required", "Explicit AI consent is required")
-    settings = MemeSettings()
-    if not settings.hkust_api_key.strip():
-        raise fail(503, "annotation_unconfigured", "The vision gateway is not configured")
-    version = annotation_version(settings.hkust_model)
+    settings = MemeSettings.for_online_search()
+    if (
+        settings.provider_policy != "deepseek-only-v1"
+        or settings.vision_provider != payload.consent_provider
+        or not settings.deepseek_api_key.get_secret_value().strip()
+    ):
+        raise fail(503, "annotation_unconfigured", "DeepSeek image annotation is not configured")
+    version = annotation_version(settings.deepseek_model)
     result = []
     for asset_id in sorted(set(payload.asset_ids)):
         asset = lock_asset(db, asset_id)
         metadata = metadata_for_edit(db, asset)
-        if metadata.annotation_status not in {"pending", "running"} and (
-            metadata.annotation_status != "ready"
+        if (
+            metadata.annotation_status not in {"pending", "running", "ready"}
             or metadata.annotation_sha != asset.sha256
             or metadata.annotation_version != version
         ):

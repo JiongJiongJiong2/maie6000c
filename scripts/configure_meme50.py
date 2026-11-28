@@ -148,9 +148,10 @@ def merge_private_env(path: Path, updates: dict[str, str]):
     return True
 
 
-def presence():
-    settings = MemeSettings()
+def presence(*, explicit_experiment=False):
+    settings = MemeSettings() if explicit_experiment else MemeSettings.for_online_search()
     visual_keys = {
+        "deepseek": bool(settings.deepseek_api_key.get_secret_value().strip()),
         "hkust": bool(settings.hkust_api_key.strip()),
         "hkgai": bool(settings.hkgai_api_key.get_secret_value().strip()),
     }
@@ -163,7 +164,7 @@ def presence():
         ),
         hkust_key_present=visual_keys["hkust"],
         hkgai_key_present=visual_keys["hkgai"],
-        deepseek_key_present=bool(settings.deepseek_api_key.get_secret_value()),
+        deepseek_key_present=visual_keys["deepseek"],
         deepseek_model=settings.deepseek_model,
         keyword_provider=settings.keyword_provider,
         reverse_image_provider=settings.reverse_image_provider,
@@ -176,17 +177,25 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Presence only; no API calls")
     parser.add_argument(
-        "--provider", choices=tuple(VISION_POLICIES), help="Vision service (defaults to configured)"
+        "--provider",
+        choices=tuple(VISION_POLICIES),
+        help="DeepSeek powers the app. Other profiles are for standalone experiments.",
     )
     scope = parser.add_mutually_exclusive_group()
     scope.add_argument("--vision-only", action="store_true", help="Configure/check vision only")
     scope.add_argument(
         "--search-only",
-        "--deepseek-only",
         action="store_true",
         help="Configure/check only the DeepSeek key and Flash model",
     )
+    scope.add_argument(
+        "--deepseek-only",
+        action="store_true",
+        help="Use the personal DeepSeek key for both image understanding and web search.",
+    )
     args = parser.parse_args()
+    if args.deepseek_only and args.provider not in {None, "deepseek"}:
+        parser.error("--deepseek-only requires the DeepSeek provider")
     os.chdir(ROOT)
     try:
         if not args.check:
@@ -198,19 +207,24 @@ def main():
             model_defaults = {}
             updates = dict(POLICY_FIELDS)
             if not args.search_only:
-                provider = args.provider or settings.vision_provider
+                provider = args.provider or "deepseek"
                 if provider not in VISION_POLICIES:
                     raise ValueError("unsupported vision provider")
-                model_field, model_default = (
-                    (HKUST_MODEL, settings.hkust_model)
-                    if provider == "hkust"
-                    else (HKGAI_MODEL, settings.hkgai_model)
+                model_field, model_default = {
+                    "deepseek": (DEEPSEEK_MODEL, settings.deepseek_model),
+                    "hkust": (HKUST_MODEL, settings.hkust_model),
+                    "hkgai": (HKGAI_MODEL, settings.hkgai_model),
+                }[provider]
+                fields.append(
+                    "DEEPSEEK_API_KEY"
+                    if provider == "deepseek"
+                    else f"MEME50_{provider.upper()}_API_KEY"
                 )
-                fields.append(f"MEME50_{provider.upper()}_API_KEY")
                 model_defaults[model_field] = model_default
                 updates.update({PROVIDER: provider, POLICY: VISION_POLICIES[provider]})
             if not args.vision_only:
-                fields.append("DEEPSEEK_API_KEY")
+                if "DEEPSEEK_API_KEY" not in fields:
+                    fields.append("DEEPSEEK_API_KEY")
                 model_defaults[DEEPSEEK_MODEL] = settings.deepseek_model
             with warnings.catch_warnings():
                 warnings.simplefilter("error", getpass.GetPassWarning)
@@ -219,7 +233,7 @@ def main():
             for field, default in model_defaults.items():
                 updates[field] = input(f"{field} [{default}]: ").strip() or default
             merge_private_env(ROOT / ".env", updates)
-        report = presence()
+        report = presence(explicit_experiment=args.provider in {"hkust", "hkgai"})
         print(json.dumps(report, ensure_ascii=False, indent=2))
         has_vision = report["visual_key_present"] and (
             args.provider is None or report["vision_provider"] == args.provider

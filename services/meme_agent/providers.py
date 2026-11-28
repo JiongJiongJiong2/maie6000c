@@ -5,6 +5,7 @@
 import json
 import re
 import httpx
+from services.common.provider_endpoints import DEEPSEEK_CHAT_URL
 from .settings import get_agent_settings
 
 
@@ -40,7 +41,7 @@ def plan_query(query: str, settings=None) -> dict:
         return plan
     try:
         response = httpx.post(
-            settings.deepseek_base_url.rstrip("/") + "/chat/completions",
+            DEEPSEEK_CHAT_URL,
             headers={"Authorization": "Bearer " + settings.deepseek_api_key},
             json={
                 "model": settings.deepseek_model,
@@ -59,6 +60,8 @@ def plan_query(query: str, settings=None) -> dict:
                 "max_tokens": 300,
             },
             timeout=15,
+            follow_redirects=False,
+            trust_env=False,
         )
         response.raise_for_status()
         if len(response.content) > 32000:

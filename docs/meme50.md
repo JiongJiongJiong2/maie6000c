@@ -20,15 +20,15 @@ and [provider execution guide](hkust-deepseek-execution.md).
 
 实现和修复交付分支是 `codex/real-gif-acquisition`，见 [PR #9](https://github.com/JiongJiongJiong2/maie6000c/pull/9)。历史 v8 运行基线为 `c34d9f6` 加对应源文件快照。正式入口仍为 `/web/`，默认图片必填、描述可选、最多 50 条；旧 API 默认 `legacy` 三候选不变。
 
-**当前供应商策略为 `hkust-deepseek-v1`：只使用学校 HKUST API 和 DeepSeek，DeepSeek 默认 `deepseek-flash`。** 两项凭据已配置，真实识图、Flash 查询规划、网页召回和核验自检已通过；三个预筛案例各单次返回50个机检媒体，真人相关性、视觉重复与成员复现仍待完成。Google Vision/Brave 不再必需，当前执行与验收范围以 [最新执行说明](hkust-deepseek-execution.md) 为准。旧失败记录保留于 [历史验收记录](meme50-verification.md)，不改写为成功。
+**默认供应商策略为 `deepseek-only-v1`，由用户自己的 DeepSeek Flash 读取代表帧并规划查询，网页召回使用 DeepSeek 官方搜索接口。** [配置和使用条件](meme50-authorization.md) · [历史学校配置验收](hkust-deepseek-execution.md)
 
 ## 数据流和服务边界
 
-上传原字节及 SHA → 直接创建 web job → 本地解码、规范化和代表帧 → HKUST 看图/OCR → 不确定身份的显式 DeepSeek 网页核验及至多一次 HKUST 对照图片修正 → DeepSeek Flash 规划查询 → DeepSeek 官方网页检索 → 来源 rank 融合、公开页面提取、原媒体获取 → 固定 CLIP 图像/文本多帧评分 → SHA 与内容分组 → 验证草稿 → 单次最终事务、稳定 revision、筛选分页。当前无像素反搜服务，网页检索不伪装为以图反搜。
+提交截图后创建联网作业。本机解码并提取代表帧，DeepSeek Flash 识图、提取文字，按证据核验不确定身份并规划查询。DeepSeek 搜索返回网页来源，媒体获取服务访问来源页面并下载原文件，本机 CLIP 排序和去重后展示可播放、可下载的候选。
 
-带字幕的静态表情包优先按原句、可能的出处及笑点检索。已下载的图片先比较完整画面及去除上下字幕条后的主体。模型调用配额有余量时，HKUST 会收到参考帧和至多三张候选预览拼图，对前 18 个候选的模板及笑点进行复核。默认展示阈值为 `0.50`，可用 `MEME50_MINIMUM_SCORE` 调整。
+带字幕的静态表情包优先按原句、可能的出处及笑点检索。已下载的图片先比较完整画面及去除上下字幕条后的主体。模型调用配额有余量时，DeepSeek Flash 会收到参考帧和至多三张候选预览拼图，对前 18 个候选的模板及笑点进行复核。默认展示阈值为 `0.50`，可用 `MEME50_MINIMUM_SCORE` 调整。
 
-图片**会外发**：识别阶段将上传图片转换为最多四张最大边长 768 像素的 PNG 代表帧，发送给 HKUST 网关。字幕复核另发送参考帧及候选拼图。视觉事实、OCR、偏好及核验线索发送给 DeepSeek。原文件名、本机路径和独立目标 URL 不作为识别输入。图中文字及检索片段只作不可信数据，不能授予工具权限。证据关系绑定实际返回的出处 ID/URL，支持、冲突和未解决状态分别保留。
+图片**会外发**：识别阶段将上传图片转换为最多四张最大边长 768 像素的 PNG 代表帧，发送给 DeepSeek 的官方视觉接口。字幕复核另发送参考帧及候选拼图。视觉事实、OCR、偏好及核验线索发送给 DeepSeek。原文件名、本机路径和独立目标 URL 不作为识别输入。图中文字及检索片段只作不可信数据，不能授予工具权限。证据关系绑定实际返回的出处 ID/URL，支持、冲突和未解决状态分别保留。
 
 API 不加载 CLIP 权重。独立 worker 调用 JSONL 子进程；父进程限制行长 256 KiB、总输出 4 MiB、截止时间和事件顺序，验证每个原文件及预览后写草稿。EOF、重复 final、越界路径、SHA/格式不一致不能发布成功。硬超时杀死进程组。最终结果最多 50 个内容组，草稿不属于稳定排序。
 
@@ -68,13 +68,11 @@ CLIP 模型 revision 固定为 `37000f5cdccec47a3f6f83142bff131370757470`，文�
 
 ## 配置和启动
 
-Python 3.11、Docker Desktop、可读模型缓存。不要覆盖已有 `.env` 或删除数据卷。只需一把学校 primary/secondary key 和用户自己的 DeepSeek key；使用以下私密配置（不提交）：
+运行需要 Python 3.11、Docker Desktop 和已准备的本地模型缓存。联网服务读项目私有 `.env` 中的 DeepSeek 配置。
 
 ```dotenv
-MEME50_PROVIDER_POLICY=hkust-deepseek-v1
-MEME50_VISION_PROVIDER=hkust
-MEME50_HKUST_API_KEY=...
-MEME50_HKUST_MODEL=gemini-2.5-flash-lite
+MEME50_PROVIDER_POLICY=deepseek-only-v1
+MEME50_VISION_PROVIDER=deepseek
 DEEPSEEK_API_KEY=...
 MEME50_DEEPSEEK_MODEL=deepseek-flash
 MEME50_VERIFY_ENTITIES=true

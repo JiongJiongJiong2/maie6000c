@@ -352,6 +352,25 @@ class ChatCompletionsVision(GeminiVision):
         return content
 
 
+class DeepSeekVision(ChatCompletionsVision):
+    provider = "deepseek"
+    endpoint = "https://api.deepseek.com/chat/completions"
+
+    @property
+    def api_key(self):
+        return self.settings.deepseek_api_key.get_secret_value()
+
+    @property
+    def model(self):
+        return self.settings.deepseek_model
+
+    def auth_headers(self):
+        return {"Authorization": "Bearer " + self.api_key}
+
+    def request_options(self):
+        return {**super().request_options(), "thinking": {"type": "disabled"}}
+
+
 class HKUSTVision(ChatCompletionsVision):
     """School gateway with a fixed HTTPS destination and a school key."""
 
@@ -400,7 +419,9 @@ class HKGAIVision(ChatCompletionsVision):
 def vision_client(settings, ledger):
     if VISION_PROVIDER_POLICIES.get(settings.provider_policy) != settings.vision_provider:
         raise PipelineError("provider_policy_violation")
-    client_class = {"hkust": HKUSTVision, "hkgai": HKGAIVision}[settings.vision_provider]
+    client_class = {"deepseek": DeepSeekVision, "hkust": HKUSTVision, "hkgai": HKGAIVision}[
+        settings.vision_provider
+    ]
     return client_class(settings, ledger)
 
 

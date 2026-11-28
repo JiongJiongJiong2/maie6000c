@@ -359,7 +359,7 @@ test("expired GIF download preserves the accepted review", async ({ page }) => {
   );
   await page.locator(".download").click();
   await expect(page.locator("#download-status")).toContainText(
-    "GIF has expired",
+    "media file has expired",
   );
   await expect(page.locator("#review-status")).toContainText("Choice saved");
 });
@@ -611,6 +611,7 @@ test("private library resumes waiting GIFs and requires consent for vision", asy
   });
   await vision.click();
   await expect(confirmation).toBeVisible();
+  await expect(confirmation).toContainText("DeepSeek");
   await expect(confirmation).not.toContainText(/localhost|18101/);
   await expect(
     confirmation.getByRole("button", { name: "Cancel" }),
@@ -626,7 +627,9 @@ test("private library resumes waiting GIFs and requires consent for vision", asy
     .getByRole("button", { name: "Analyze", exact: true })
     .click();
   await expect(page.getByText("AI analysis: 1 ready.")).toBeVisible();
-  expect(requests).toEqual([{ asset_ids: [candidateId], consent: true }]);
+  expect(requests).toEqual([
+    { asset_ids: [candidateId], consent: true, consent_provider: "deepseek" },
+  ]);
 
   await page.locator("#library-query").fill("猫");
   await page.locator("#library-query").press("Enter");
@@ -1111,7 +1114,11 @@ test("selected GIFs show completed AI tags without a refresh or an index retry",
   await expect(card.getByRole("img")).toHaveAttribute("src", preview);
   expect(mediaReads).toBe(reads);
   expect(actions).toEqual([
-    { asset_ids: [candidateId, requestId], consent: true },
+    {
+      asset_ids: [candidateId, requestId],
+      consent: true,
+      consent_provider: "deepseek",
+    },
   ]);
   await expect(page.getByRole("button", { name: "Show fewer" })).toBeVisible();
 });
@@ -1206,7 +1213,7 @@ test("share media errors stay on the card and never invoke the share menu", asyn
   await expect(card.getByText("Sign in to open your library.")).toBeVisible();
   failure = 410;
   await share.click();
-  await expect(card.getByText(/GIF has expired/)).toBeVisible();
+  await expect(card.getByText(/media file has expired/)).toBeVisible();
   failure = 0;
   await share.click();
   await expect(card.getByText(/原文件不是 GIF/)).toBeVisible();

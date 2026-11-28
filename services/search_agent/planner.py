@@ -3,6 +3,7 @@
 import json
 
 import httpx
+from services.common.provider_endpoints import DEEPSEEK_CHAT_URL
 
 
 class PlannerError(RuntimeError):
@@ -17,7 +18,8 @@ class QueryPlanner:
 
     def next_query(self, description, round_no, feedback, previous_queries, timeout):
         fallback = description if round_no == 1 else description + " GIF 动态表情 原图"
-        if not self.settings.search_agent_use_model or not self.settings.deepseek_api_key:
+        key = self.settings.deepseek_api_key.get_secret_value().strip()
+        if not self.settings.search_agent_use_model or not key:
             return fallback[:300]
         self.model_calls += 1
         payload = {
@@ -51,16 +53,15 @@ class QueryPlanner:
             "max_tokens": 180,
         }
         owned = self.client is None
-        client = self.client or httpx.Client(follow_redirects=False)
+        client = self.client or httpx.Client(trust_env=False, follow_redirects=False)
         try:
             with client.stream(
                 "POST",
-                self.settings.deepseek_base_url.rstrip("/") + "/chat/completions",
-                headers={
-                    "Authorization": "Bearer " + self.settings.deepseek_api_key.get_secret_value()
-                },
+                DEEPSEEK_CHAT_URL,
+                headers={"Authorization": "Bearer " + key},
                 json=payload,
                 timeout=timeout,
+                follow_redirects=False,
             ) as response:
                 response.raise_for_status()
                 raw = bytearray()

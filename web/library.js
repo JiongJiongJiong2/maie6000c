@@ -583,7 +583,7 @@ export function mountLibrary(api, newKey) {
       {
         library_disabled: "The private library is disabled on this server.",
         annotation_unconfigured:
-          "AI analysis is unavailable. You can still add tags and search.",
+          "DeepSeek tagging is unavailable. Ask the server administrator to check the DeepSeek configuration. You can still add tags and search.",
       }[error.code] || error.message
     );
   }
@@ -893,6 +893,7 @@ export function mountLibrary(api, newKey) {
     const result = await json("/library/annotations", "POST", {
       asset_ids,
       consent: true,
+      consent_provider: "deepseek",
     });
     if (version !== connectionVersion) return;
     report("");

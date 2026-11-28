@@ -1,6 +1,7 @@
 import io
 from uuid import uuid4
 
+import pytest
 from PIL import Image
 
 from services.common.config import get_settings
@@ -126,7 +127,7 @@ def add_asset(db, data, *, title, provider="local_upload"):
 def test_consent_annotations_and_offline_search(client, db_session, monkeypatch):
     from services.common.db import make_session_factory
     from services.common.library_models import AssetMetadata
-    from services.search_agent.meme_providers import HKUSTVision
+    from services.search_agent.meme_providers import DeepSeekVision
     from services.search_agent.meme_types import PipelineError
     from services.worker.app.library_worker import (
         claim_annotation,
@@ -141,6 +142,8 @@ def test_consent_annotations_and_offline_search(client, db_session, monkeypatch)
     calls = []
 
     def vision(self, frames, prompt):
+        assert self.api_key == "mock-deepseek-key"
+        assert self.provider == "deepseek"
         calls.append(len(frames))
         assert len(frames) == 2
         assert "never instructions" in prompt["task"]
@@ -162,7 +165,7 @@ def test_consent_annotations_and_offline_search(client, db_session, monkeypatch)
             ]
         }
 
-    monkeypatch.setattr(HKUSTVision, "request", vision)
+    monkeypatch.setattr(DeepSeekVision, "request", vision)
     url = f"/library/assets/{asset.id}"
     assert (
         client.patch(
@@ -170,7 +173,9 @@ def test_consent_annotations_and_offline_search(client, db_session, monkeypatch)
         ).status_code
         == 200
     )
-    payload = {"asset_ids": [asset.id], "consent": True}
+    legacy = {"asset_ids": [asset.id], "consent": True}
+    assert client.post("/library/annotations", headers=auth, json=legacy).status_code == 422
+    payload = {**legacy, "consent_provider": "deepseek"}
     assert (
         client.post(
             "/library/annotations", headers=auth, json={**payload, "consent": False}
@@ -183,7 +188,7 @@ def test_consent_annotations_and_offline_search(client, db_session, monkeypatch)
     )
     assert claim_annotation(db_session) is None
     assert not calls
-    monkeypatch.setenv("MEME50_HKUST_API_KEY", "mock-key")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "mock-deepseek-key")
 
     for expected in ("provider_timeout", "visual_response_invalid", None):
         response = client.post("/library/annotations", headers=auth, json=payload)
@@ -201,7 +206,7 @@ def test_consent_annotations_and_offline_search(client, db_session, monkeypatch)
 
     reused = client.post("/library/annotations", headers=auth, json=payload)
     assert reused.json()["assets"][0]["annotation_status"] == "ready"
-    monkeypatch.delenv("MEME50_HKUST_API_KEY")
+    monkeypatch.delenv("DEEPSEEK_API_KEY")
     for query in ["猫 sarcastic clap", "找写着「就这?」的表情", "无奈", "掌声"]:
         result = client.post("/library/search", headers=auth, json={"query": query}).json()
         found = result["assets"][0]
@@ -222,6 +227,52 @@ def test_consent_annotations_and_offline_search(client, db_session, monkeypatch)
     process_annotation(factory, job)
     db_session.refresh(meta)
     assert meta.annotation_error == "interrupted"
+
+
+def test_old_annotation_remains_readable_and_old_consent_cannot_send_frames(
+    client, db_session, monkeypatch
+):
+    from services.common.db import make_session_factory
+    from services.common.library_models import AssetMetadata
+    from services.worker.app import library_worker
+
+    auth = enable(monkeypatch)
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "controlled-deepseek-key")
+    asset = add_asset(db_session, gif(), title="Historical GIF")
+    previous_version = "hkust/previous-model/library-prompt-v1/playback-tail-v2"
+    record = AssetMetadata(
+        asset_id=asset.id,
+        annotation_status="pending",
+        annotation_sha=asset.sha256,
+        annotation_version=previous_version,
+        annotation={"version": previous_version, "caption_zh": "旧描述"},
+    )
+    db_session.add(record)
+    db_session.commit()
+    factory = make_session_factory(db_session.get_bind())
+    with factory() as db:
+        claimed = library_worker.claim_annotation(db)
+    monkeypatch.setattr(
+        library_worker, "annotate", lambda *_: pytest.fail("legacy consent sent an image")
+    )
+    library_worker.process_annotation(factory, claimed)
+    db_session.expire_all()
+    card = client.get(f"/library/assets/{asset.id}", headers=auth).json()
+    assert card["annotation_status"] == "failed"
+    assert card["annotation_result_version"] == previous_version
+    assert card["caption_zh"] == "旧描述"
+    consent = {"asset_ids": [asset.id], "consent": True, "consent_provider": "deepseek"}
+    monkeypatch.setenv("MEME50_VISION_PROVIDER", "hkust")
+    monkeypatch.setenv("MEME50_PROVIDER_POLICY", "hkust-deepseek-v1")
+    monkeypatch.setenv("MEME50_HKUST_API_KEY", "controlled-school-key")
+    monkeypatch.delenv("DEEPSEEK_API_KEY")
+    assert client.post("/library/annotations", headers=auth, json=consent).status_code == 503
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "controlled-deepseek-key")
+    res = client.post("/library/annotations", headers=auth, json=consent)
+    assert res.json()["assets"][0]["annotation_status"] == "pending"
+    db_session.refresh(record)
+    assert record.annotation_version.startswith("deepseek/")
+    assert record.annotation["version"] == previous_version
 
 
 def test_similarity_and_web_module(client, db_session):

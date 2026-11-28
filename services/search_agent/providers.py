@@ -91,10 +91,14 @@ def _items(value) -> list:
 
 
 class _HTTPProvider:
+    trust_env = True
+
     def __init__(self, mode: SearchMode, client: httpx.Client | None):
         self.mode = _mode(mode)
         self._owns_client = client is None
-        self._client = client if client is not None else httpx.Client(follow_redirects=False)
+        self._client = client if client is not None else httpx.Client(
+            follow_redirects=False, trust_env=self.trust_env
+        )
 
     def close(self) -> None:
         if self._owns_client:
@@ -169,6 +173,7 @@ class DeepSeekProvider(_HTTPProvider):
     """Official web Search API; this does not call Fetch or recover images."""
 
     name = "deepseek"
+    trust_env = False
 
     def __init__(self, api_key: str, mode: SearchMode = "web", *, client=None):
         if mode != "web":

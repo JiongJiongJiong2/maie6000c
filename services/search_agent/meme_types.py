@@ -4,7 +4,7 @@ import time
 from threading import Lock
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, AliasChoices, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, AliasChoices, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from services.common.media import MediaMetadata
@@ -12,6 +12,7 @@ from services.search_agent.models import Source, Candidate
 
 
 VISION_PROVIDER_POLICIES = {
+    "deepseek-only-v1": "deepseek",
     "hkust-deepseek-v1": "hkust",
     "hkgai-deepseek-v1": "hkgai",
 }
@@ -22,8 +23,10 @@ class MemeSettings(BaseSettings):
         env_file=".env", extra="ignore", env_prefix="MEME50_", populate_by_name=True
     )
     vision_model: str = "gemini-3.8-flash"
-    provider_policy: Literal["hkust-deepseek-v1", "hkgai-deepseek-v1"] = "hkust-deepseek-v1"
-    vision_provider: Literal["gemini", "hkust", "hkgai"] = "hkust"
+    provider_policy: Literal["deepseek-only-v1", "hkust-deepseek-v1", "hkgai-deepseek-v1"] = (
+        "deepseek-only-v1"
+    )
+    vision_provider: Literal["deepseek", "gemini", "hkust", "hkgai"] = "deepseek"
     deepseek_model: str = Field(
         default="deepseek-flash",
         validation_alias=AliasChoices("deepseek_model", "MEME50_DEEPSEEK_MODEL", "DEEPSEEK_MODEL"),
@@ -94,8 +97,36 @@ class MemeSettings(BaseSettings):
     scoring_version: str = "meme50-rank-caption-v2"
     dedup_version: str = "meme50-temporal-local-v8"
 
+    @model_validator(mode="before")
+    @classmethod
+    def complete_explicit_provider_selection(cls, values):
+        # Older deployments may set just one of these selectors. Keep explicitly
+        # conflicting pairs intact so the provider factory refuses to send data.
+        if "provider_policy" in values and "vision_provider" not in values:
+            provider = VISION_PROVIDER_POLICIES.get(values["provider_policy"])
+            if provider:
+                return {**values, "vision_provider": provider}
+        if "vision_provider" in values and "provider_policy" not in values:
+            for policy, provider in VISION_PROVIDER_POLICIES.items():
+                if values["vision_provider"] == provider:
+                    return {**values, "provider_policy": policy}
+        return values
+
+    @classmethod
+    def for_online_search(cls, **overrides):
+        """Public jobs always use the operator's DeepSeek credential and endpoint."""
+        values = {
+            name: value
+            for name, value in overrides.items()
+            if name in cls.model_fields and not cls.model_fields[name].exclude
+        }
+        values.update(provider_policy="deepseek-only-v1", vision_provider="deepseek")
+        return cls(**values)
+
     @property
     def effective_vision_model(self):
+        if self.vision_provider == "deepseek":
+            return self.deepseek_model
         if self.vision_provider == "hkust":
             return self.hkust_model
         if self.vision_provider == "hkgai":
@@ -131,10 +162,20 @@ class VisualAnalysis(BaseModel):
     ocr_provider: str = "unavailable"
     planner_version: str = "unavailable"
 
+    def can_reuse_for_online_search(self, settings, description):
+        prefix = f"deepseek/{settings.deepseek_model}/"
+        return (
+            self.user_text == (description or "")
+            and bool(self.queries)
+            and self.analysis_version.startswith(prefix)
+            and (self.planner_version == "unavailable" or self.planner_version.startswith(prefix))
+        )
+
 
 class MediaSource(Source):
     media_url: str | None = None
     preview_url: str | None = None
+    primary_page_host: str | None = None
     product_page: bool = False
     image_caption: str = Field(default="", max_length=500)
     source_type: str = "page"

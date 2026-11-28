@@ -61,7 +61,7 @@ def search_web(
     resolver=None,
 ):
     """Run bounded discovery; injected providers and processors remain caller-owned."""
-    settings = settings or SearchAgentSettings()
+    settings = settings or SearchAgentSettings.for_online_search()
     owned = provider is None
     provider = provider or build_provider(settings)
     try:
@@ -104,7 +104,7 @@ def _run_search(
     if not description or len(description) > 500:
         raise ValueError("Provide a description of 1 to 500 characters")
     budget = SearchBudget.model_validate(budget or {})
-    settings = settings or SearchAgentSettings()
+    settings = settings or SearchAgentSettings.for_online_search()
     provider = provider or build_provider(settings)
     planner = planner or QueryPlanner(settings)
     if prepare_candidates is not None:

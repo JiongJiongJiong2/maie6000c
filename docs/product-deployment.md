@@ -4,8 +4,7 @@
 
 Open `/web/`, sign in, and choose **Local only** to search the reference corpus
 and indexed saved GIFs. If the target is missing, choose **Continue online**
-and provide a description. Online search requires operator-configured vision
-and DeepSeek credentials. Review and play a candidate before using **Confirm
+and provide a description. Online search requires one personal DeepSeek API key. Review and play a candidate before using **Confirm
 and save**; wait for its index status to become ready before expecting offline
 reuse.
 
@@ -19,7 +18,7 @@ for the verified workflow and its limitations.
 
 ## 用网页找回和收藏 GIF | Recover and save GIFs in the web app
 
-选择、拖入或粘贴 PNG、JPEG 或 WebP 截图后，可点 **Crop screenshot** 框选表情并确认；也可以保留整图。确认后的同一张图用于本地检索和后续联网搜索。选择 **Local only** 搜索参考库和你已索引的收藏。目标不在结果里时，点 **Continue online** 并描述画面、动作或记得的来源。联网模式需要运营者配置识图模型和 DeepSeek。结果页的 **Search activity** 展示真实调用数和查询计划，任务结束后可查看实际执行的查询及返回的来源数。
+选择、拖入或粘贴 PNG、JPEG 或 WebP 截图后，可点 **Crop screenshot** 框选表情并确认；也可以保留整图。确认后的同一张图用于本地检索和后续联网搜索。选择 **Local only** 搜索参考库和你已索引的收藏。目标不在结果里时，点 **Continue online** 并描述画面、动作或记得的来源。联网模式使用运营者的一把个人 DeepSeek API key 完成截图理解、查询规划和网页搜索。结果页的 **Search activity** 展示真实调用数和查询计划，任务结束后可查看实际执行的查询及返回的来源数。
 
 在结果中播放动画。联网结果可点 **Confirm and save** 收藏并等待索引完成。本地参考结果可点 **This is the one** 后下载。通过 **My GIF Library** 管理、下载或批量导入原始 GIF，也可以换一帧重新本地检索。下载按钮提供原件。在支持 Web Share 的浏览器可选择 **Share GIF**，再在系统分享面板选接收应用。
 
@@ -28,7 +27,7 @@ screenshot** to select and confirm the meme region, or keep the full image.
 The same confirmed image is used for local search and any subsequent online
 search. Choose **Local only** to search the reference corpus and indexed saved GIFs. If the target is missing,
 choose **Continue online** and describe the scene, action, or known source.
-Online search requires operator-configured vision and DeepSeek credentials.
+Online search requires one personal DeepSeek API key.
 **Search activity** shows the actual calls and query plan after the job ends.
 
 Play an animated result before review. For an online candidate, choose
@@ -54,16 +53,15 @@ py -3.11 -m venv .venv
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-在新安装的 `.env` 中把 `POSTGRES_PASSWORD` 设为自己的随机字母数字密码。已有 `.env` 继续使用原文件并核对设置。账号和私人库在产品 Compose 配置里默认启用。已有配置若显式将这些选项设为 `false`，请改为 `ACCOUNT_LOGIN_ENABLED=true` 和 `PRIVATE_LIBRARY_ENABLED=true`。在线使用另按供应商指南配置。首次体验本地使用只需数据库和缓存模型。[供应商配置](hkust-deepseek-execution.md)
+在新安装的 `.env` 中把 `POSTGRES_PASSWORD` 设为自己的随机字母数字密码。已有 `.env` 继续使用原文件并核对设置。账号和私人库在产品 Compose 配置里默认启用。已有配置若显式将这些选项设为 `false`，请改为 `ACCOUNT_LOGIN_ENABLED=true` 和 `PRIVATE_LIBRARY_ENABLED=true`。在线使用另按供应商指南配置。首次体验本地使用只需数据库和缓存模型。[供应商配置](meme50-authorization.md)
 
 For a new `.env`, set `POSTGRES_PASSWORD` to a private random alphanumeric
 value. Keep an existing `.env` and verify its settings rather than replacing
 it. Account login and the private library are enabled by default in the
 product Compose configuration. If an existing configuration explicitly sets
 either option to `false`, set `ACCOUNT_LOGIN_ENABLED=true` and
-`PRIVATE_LIBRARY_ENABLED=true`. Configure providers separately for online
-search. Local-only search needs the database and cached model; see the
-[provider guide](hkust-deepseek-execution.md).
+`PRIVATE_LIBRARY_ENABLED=true`. Configure one personal DeepSeek key for online search. Local-only search needs the database and cached model; see the
+[provider guide](meme50-authorization.md).
 
 ```powershell
 $product = @('-f', 'compose.yaml', '-f', 'compose.local-model.yaml', '-f', 'compose.pgvector.yaml')

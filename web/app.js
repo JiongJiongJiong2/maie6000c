@@ -140,7 +140,21 @@ function renderInput() {
 }
 
 // Jobs from the worker and previously saved searches can carry either message.
-function searchErrorMessage(error) {
+function searchErrorMessage(error, provider) {
+  if (
+    error?.code === "visual_provider_unconfigured" &&
+    provider &&
+    provider !== "deepseek"
+  ) {
+    return "The configured vision service is unavailable. Ask the server administrator to check its settings, then retry.";
+  }
+  switch (error?.code) {
+    case "visual_provider_unconfigured":
+    case "deepseek_provider_unconfigured":
+      return "Online search needs a DeepSeek API key. Ask the server administrator to configure it, then retry.";
+    case "deepseek_model_config":
+      return "The DeepSeek model is not configured for this search. Ask the server administrator to check the model settings, then retry.";
+  }
   switch (error?.message) {
     case "图片检索服务暂不可用，请稍后重试。":
       return "Image search is temporarily unavailable. Please try again later.";
@@ -224,7 +238,7 @@ function render() {
       "The search finished without a suitable match in this collection. Try a clearer crop or another screenshot.";
   } else if (status === "failed" && result?.error) {
     description = [
-      searchErrorMessage(result.error),
+      searchErrorMessage(result.error, result.configuration?.vision_provider),
       result.error.code && `(${result.error.code})`,
     ]
       .filter(Boolean)
@@ -280,8 +294,18 @@ function renderOnline() {
   const completed = status === "completed";
   const paged = completed && !!result?.page;
   const localReady = session?.result?.status === "completed" && !direct;
+  const expired = !!session?.expiredOnlineInput;
+  $("expired-input").hidden = !expired;
+  if (expired) {
+    $("expired-input-message").textContent = session.file
+      ? "The server copy of your screenshot has expired. You can upload the copy saved in this browser for a new online search."
+      : "The server copy of your screenshot has expired. Choose the screenshot again to start a new search.";
+    $("reupload-online").hidden = !session.file;
+    $("reupload-online").disabled = busy;
+  }
   $("continue-panel").hidden = !localReady;
-  $("continue-form").hidden = status === "failed" && !state?.creation;
+  $("continue-form").hidden =
+    expired || (status === "failed" && !state?.creation);
   $("continue-description").disabled = !!(busy || active || state?.creation);
   $("continue-submit").disabled = !!(busy || active);
   $("continue-submit").textContent = state?.creation
@@ -289,8 +313,10 @@ function renderOnline() {
     : "Continue online";
   $("web-results").hidden = !state?.accepted;
   $("meme-controls").hidden = !paged;
-  $("meme-retry").hidden = status !== "failed";
+  $("meme-retry").hidden = expired || status !== "failed";
   $("meme-retry").disabled = busy || !!state?.creation;
+  $("retry-feedback").hidden = !state?.retryError || expired;
+  feedback("retry-feedback", state?.retryError || "", true);
   const matchedSource = result?.analysis?.evidence?.find(
     (entry) =>
       entry.matching_media_url && entry.relation === "supports" && entry.title,
@@ -320,17 +346,21 @@ function renderOnline() {
   let message = active
     ? `${stages[result?.stage] || "Waiting for image search"} · ${result?.verified_count || 0} verified results`
     : status === "failed"
-      ? searchErrorMessage(result.error)
+      ? searchErrorMessage(result.error, result.configuration?.vision_provider)
       : "No related images found";
   if (completed && (result?.page?.total_all || result?.candidates?.length))
     message = "Related images are ready";
+  const empty = completed && result?.page?.total_all === 0;
+  const emptyHint =
+    "Try a clearer crop or add an optional description in a new search.";
+  if (empty && !direct) message += `. ${emptyHint}`;
   $(direct ? "status-title" : "web-status").textContent = message;
   if (direct) {
     $("web-status").textContent = "";
     if (paged) {
       $("result-count").textContent =
         `${result.page.total_all} verified ${result.page.total_all === 1 ? "result" : "results"}`;
-      $("status-description").textContent = "";
+      $("status-description").textContent = empty ? emptyHint : "";
     }
   }
   if (paged) {
@@ -646,6 +676,9 @@ async function poll() {
       searchSession.result = local;
       const latest = relation.web_searches?.at(-1);
       const online = searchSession.online;
+      if (latest && online?.accepted?.job_id === latest.job_id) {
+        online.description ??= latest.description;
+      }
       if (
         latest &&
         latest.job_id !== online?.accepted?.job_id &&
@@ -657,6 +690,7 @@ async function poll() {
       ) {
         searchSession.online = {
           accepted: validAccepted({ ...latest, request_id: requestId }),
+          description: latest.description,
         };
         clearWebCards();
       }
@@ -835,7 +869,10 @@ async function downloadCandidate(candidate, button) {
   }
 }
 
-async function reset(keepFile = false) {
+async function reset(
+  keepFile = false,
+  { profile = searchProfile(), description = $("description").value } = {},
+) {
   if (busy || !initialized) return;
   busy = true;
   render();
@@ -846,9 +883,9 @@ async function reset(keepFile = false) {
             file: session.file,
             originalFile: session.originalFile,
             cropRect: session.cropRect,
-            searchProfile: searchProfile(),
+            searchProfile: profile,
             example: session.example,
-            description: $("description").value,
+            description,
             submissionKey: newKey(),
             submissionStarted: false,
             accepted: null,
@@ -1220,13 +1257,18 @@ $("continue-form").addEventListener("submit", async (event) => {
       await api.continueOnline(requestId, payload, lifetime.signal),
     );
     validateOnlineAccepted(accepted, session.result.job_id);
-    session.online = { accepted };
+    session.online = { accepted, description: payload.description };
     clearWebCards();
     await saveSession(session);
     $("continue-description").value = "";
     feedback("continue-feedback", "");
   } catch (error) {
-    feedback("continue-feedback", error.message, true);
+    if (error.status === 410 && error.code === "input_expired") {
+      await rememberExpiredInput(state, state.creation?.payload.description);
+      feedback("continue-feedback", "");
+    } else {
+      feedback("continue-feedback", error.message, true);
+    }
   } finally {
     busy = false;
     render();
@@ -1242,6 +1284,24 @@ function validateOnlineAccepted(accepted, previousId, profile = "meme50-v2") {
   )
     throw new Error("Invalid linked online search response.");
 }
+
+async function rememberExpiredInput(state, description) {
+  session.expiredOnlineInput = { description: description || "" };
+  delete state.creation;
+  delete state.retryKey;
+  try {
+    await saveSession(session);
+  } catch (error) {
+    notice(error.message);
+  }
+}
+
+$("reupload-online").addEventListener("click", async () => {
+  if (busy || !session?.file || !session.expiredOnlineInput) return;
+  const { description } = session.expiredOnlineInput;
+  await reset(true, { profile: "meme50-v2", description });
+  await submit();
+});
 
 $("media-filter").addEventListener("change", async (event) => {
   const state = onlineState();
@@ -1277,6 +1337,7 @@ $("meme-retry").addEventListener("click", async () => {
   const state = onlineState();
   if (busy || state?.result?.status !== "failed") return;
   busy = true;
+  state.retryError = null;
   render();
   try {
     state.retryKey ||= newKey();
@@ -1305,7 +1366,11 @@ $("meme-retry").addEventListener("click", async () => {
     clearWebCards();
     await saveSession(session);
   } catch (error) {
-    notice(error.message);
+    if (error.status === 410 && error.code === "input_expired") {
+      await rememberExpiredInput(state, state.description);
+    } else {
+      state.retryError = error.message;
+    }
   } finally {
     busy = false;
     render();

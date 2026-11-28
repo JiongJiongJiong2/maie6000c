@@ -132,6 +132,37 @@ def test_school_configuration_and_model_validation(tmp_path):
         assert path.read_bytes() == original
 
 
+@pytest.mark.parametrize("arguments", [[], ["--deepseek-only"]])
+def test_default_cli_uses_one_deepseek_key_for_vision_and_web(
+    tmp_path, monkeypatch, capsys, arguments
+):
+    config = configure_meme50
+    monkeypatch.setitem(config.MemeSettings.model_config, "env_file", ".env")
+    monkeypatch.setattr(config, "ROOT", tmp_path)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text(
+        "MEME50_PROVIDER_POLICY=hkust-deepseek-v1\nMEME50_VISION_PROVIDER=hkust\n"
+    )
+    monkeypatch.setattr("sys.argv", ["configure_meme50", *arguments])
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda prompt: "")
+    prompts = []
+
+    def answer(prompt):
+        prompts.append(prompt)
+        return "local-test-deepseek"
+
+    monkeypatch.setattr(config.getpass, "getpass", answer)
+    with pytest.raises(SystemExit) as exit_code:
+        config.main()
+    assert exit_code.value.code == 0
+    assert prompts == ["DEEPSEEK_API_KEY: "]
+    assert config.presence()["visual_key_present"] and config.presence()["deepseek_key_present"]
+    assert config.presence()["provider_policy"] == "deepseek-only-v1"
+    assert dotenv_values(tmp_path / ".env")["MEME50_VISION_PROVIDER"] == "deepseek"
+    assert "local-test-deepseek" not in capsys.readouterr().out
+
+
 def test_school_only_cli_does_not_request_google_or_secondary_key(tmp_path, monkeypatch, capsys):
     from scripts import configure_meme50 as config
     from services.search_agent.meme_types import MemeSettings

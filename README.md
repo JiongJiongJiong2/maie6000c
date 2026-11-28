@@ -90,6 +90,8 @@ The [documentation index](docs/README.md) identifies which pages are bilingual, 
 
 Follow the [product deployment guide](docs/product-deployment.md) for dependencies, corpus and model preparation, provider configuration, and Windows/Docker startup. Local-only search does not require online-provider credentials; web search requires credentials that the operator is authorized to use.
 
+联网检索只需一把个人 `DEEPSEEK_API_KEY`。在项目虚拟环境运行 `python -m scripts.configure_meme50 --deepseek-only`，按提示隐藏输入密钥。用 `python -m scripts.configure_meme50 --check` 查看配置后重启 API 和 worker。截图理解、OCR、查询规划、网页搜索和可选的私库标注共用这一把密钥。[配置与私库授权](docs/meme50-authorization.md) · [11 月 28 日检索实测](docs/retrieval-progress-20261128.md)
+
 ## 历史材料 | Historical material
 
 - [W04 架构提案](submissions/week04/README.md)保留早期目标和方案。
