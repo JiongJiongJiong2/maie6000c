@@ -1,0 +1,42 @@
+# 6000C 截图找回原 GIF 阶段记录 · 2026-11-28
+
+首页的四个精选样例都已在本地下载到原 GIF。开放网页上，即使检索已抓到原件，界面仍可能优先展示同一动画的另一个版本。以下将本地前三名命中、网页实际下载、功能发布分别记账。[首页验收回执](evidence/home-example-retrieval-20261128.json) · [联网作业回执](evidence/gif-acquisition/deepseek-only-web-20261128.json)
+
+## 发布进度
+
+| 里程碑 | 已核对的状态 |
+| --- | --- |
+| 中文图库批量评测 | [#16](https://github.com/JiongJiongJiong2/maie6000c/pull/16) 已合入 `main`，保存了首帧和多帧的成绩及复现方法。 |
+| 截图、别名与首页 | [#17 截图裁切](https://github.com/JiongJiongJiong2/maie6000c/pull/17)、[#18 空结果后的中文别名补搜](https://github.com/JiongJiongJiong2/maie6000c/pull/18)、[#19 首页示例](https://github.com/JiongJiongJiong2/maie6000c/pull/19) 经 [#20](https://github.com/JiongJiongJiong2/maie6000c/pull/20) 合入 `main`，合并提交为 [9c2a3aa](https://github.com/JiongJiongJiong2/maie6000c/commit/9c2a3aa3c45924333152fbf980e165d7d7bab87c)。 |
+| 个人 DeepSeek 联网检索 | 首推提交 [6209ce4](https://github.com/JiongJiongJiong2/maie6000c/commit/6209ce494781c284dfda0a425ead6d8b8ab77ea9) 已修复模型配置和 Windows 工作进程的 UTF-8 事件传输。分支 `codex/deepseek-only-online` 已推送，[#21](https://github.com/JiongJiongJiong2/maie6000c/pull/21) 保持开放，交由 JHX 审核、合并至 `dev` 并负责后续优化。 |
+
+## 本地图库与截图裁切
+
+冻结语料共有 **2,622 个唯一文件**，含 342 个真实动图和 2,280 张静图。查询图由素材抽帧生成，浅色聊天、深色聊天和字幕遮挡均为程序合成。1,480 张查询图分别跑首帧和多帧索引，共完成 2,960 次检索。下表的分母按查询图计，同一素材可以派生多题；精确命中要求前三个候选中存在相同 SHA-256 的文件。[素材与生成方法](retrieval-benchmark-at-scale.md) · [成绩及清单指纹](evidence/chinese-meme-retrieval-20261128.json)
+
+| 实验 | 搜索范围 | 实测结果 |
+| --- | --- | --- |
+| 普通库，按家族留出 | 168 个动图和 1,412 张静图。在库目标与库外目标分别计分。 | 在库 84 题，首帧命中 20 题，多帧命中 23 题。其中紧裁图由 18/21 升至 21/21。库外 452 题中，两种方法各有 107 题返回其他文件。[分组结果](retrieval-benchmark-at-scale.md#11-月-28-日的批量结果) |
+| 指定专题，开发诊断 | 全部 2,622 个文件进入索引。 | 多帧检索对哈基米、奶龙、美团袋鼠动图的精确命中分别为 5/20、12/48、2/8。静态哈基米和奶龙分别为 3/12、6/24。[专题分组回执](evidence/chinese-meme-retrieval-20261128.json) |
+
+对普通库同一批带界面截图，整图、像素自动框、生成时记录的表情框分别找回 **2/63、41/63、52/63** 个库内原件。对应的库外查询中，有其他文件超过阈值的次数分别为 **0/339、290/339、307/339**。裁切提升了库内命中，也让库外相似图更容易出现。另一种带壁纸布局中，自动框对压缩图命中 9/12，加入字幕遮挡后降至 2/12。自动框用于离线实验，网页提供用户可调整的裁切框。真实聊天截图和用户是否接受错误候选仍待单独评测。[配对设计与复现命令](chat-screenshot-crop.md) · [裁切回执](evidence/chat-screenshot-crop-20261128.json)
+
+## 首页示例与别名补搜
+
+「哈吉米接电话」「奶龙」「肥嘟嘟在雪地摇摆」「回来把代码写完」分别使用自身动图的抽帧，无文字提示。从首页示例接口取图，提交本地作业并下载首位候选，**4/4** 的下载文件与原件 SHA-256 和动画帧数一致，联网作业数为 **0**。[示例名称与来源](demo-evaluation-examples.json) · [逐项下载回执](evidence/home-example-retrieval-20261128.json)
+
+联网关键词搜索成功返回空结果时，若用户原话或截图文字支持「哈吉米／哈基米」，可以在剩余查询预算内改用另一种拼写。已有回归覆盖触发条件、用户否定、已有计划与预算；独立真实截图上的原件找回增益仍待测量。[别名补搜说明与测试入口](nlp-multi-agent-evaluation.md#已接入的一步补救)
+
+## 真实 DeepSeek 联网作业
+
+下列作业使用公开素材和真实服务。候选数量表示界面可列出的文件数，原件按已冻结的 SHA-256 核对。[脱敏作业回执](evidence/gif-acquisition/deepseek-only-web-20261128.json)
+
+| 输入与入口 | 候选与原件核验 |
+| --- | --- |
+| 公开地球 GIF 抽帧，直接联网，描述提到 Wikimedia Commons | 返回 43 项，其中 19 项为动画。该次评分媒体中没有目标 SHA。[首次地球回执](evidence/gif-acquisition/deepseek-only-web-20261128.json) |
+| Noto 机器人抽帧，Chrome 首页先本地再继续联网，描述留空 | 返回 32 项，浏览器首项可下载且与候选自身的 SHA 一致。最终列表没有机器人原件。[浏览器回执](evidence/gif-acquisition/deepseek-only-web-20261128.json) |
+| 同一地球输入、站点提示和预算，优先抓取来源详情页后重跑 | 已下载并评分的 70 项中，400×400 的 Commons 原 GIF 得分最高。归并近重复动画时，程序选了同组 498×498 的 Tenor WebP 作代表。WebP 显示在首位，最终 50 项未展示原 GIF。问题已定位到代表文件选择，修复与复核进行中。[回执中的 `source_page_priority_replay`](evidence/gif-acquisition/deepseek-only-web-20261128.json) |
+
+## 什么时候记录和推送
+
+每完成一项能连同测试复现的功能，就记录输入条件、指标分母、失败样例和证据路径。将脱敏回执与对应改动提交并推送到功能分支。每次补跑另记结果，保留首轮失败。合并前核对远端分支最新提交 SHA 与通过 CI 的提交一致。按可复现的里程碑推送，进行中的草稿留在本地。
