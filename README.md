@@ -9,6 +9,8 @@ The web worker uses HKUST vision by default or an explicitly selected HKGAI visi
 Start with the [product and Docker guide](docs/product-deployment.md) for accounts, GIF search and collection, PostgreSQL with pgvector, and existing database upgrades. The [native setup guide](docs/local-demo.md) covers the local Python launcher. See the [W13 delivery report](submissions/week13/README.md) for verification and the [database design](docs/database-and-vector-search.md) for storage details.
 
 Use the [container release guide](docs/container-release.md) to deploy the versioned images built by GitHub Actions.
+The [architecture decision records](docs/adrs/README.md) summarize the product's
+implemented choices, alternatives, and trade-offs.
 
 ## Earlier milestones and experiments
 
